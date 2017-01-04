@@ -1,0 +1,29 @@
+#!/bin/bash
+
+destdir="$1"
+shift
+
+i=0
+for f in "$@"
+do
+    jobf=`printf "job_%04d.sh" "$i"`
+
+    outf=$destdir/N4_`echo $f | sed 's:.*/::g'`
+    fieldf=$destdir/N4field_`echo $f | sed 's:.*/::g'`
+
+    ## Make script to run N4 for this subject 
+    echo "$ANTSPATH""N4BiasFieldCorrection -d 3 -i $f -o [$outf,$fieldf]" >> $jobf
+    chmod +x $jobf
+    sleep 0.25
+    qsub -pe batch 1 -cwd -S /bin/bash -v ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS=1,LD_LIBRARY_PATH=$LD_LIBRARY_PATH,ANTSPATH=$ANTSPATH $jobf
+    sleep 0.25
+
+    #echo $f
+    #echo $outf
+    #echo $fieldf
+    #echo $i
+    #echo $jobf
+    #echo " "
+
+    ((i++)) 
+done
