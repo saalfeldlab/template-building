@@ -1,0 +1,12 @@
+#!/bin/bash
+# Requires the MIPAV variable point to the mipav executable.
+#
+# Usage:
+# mipavResave <file> <newfile>
+
+
+BASEDIR=$(dirname "$0")
+resaveScript="$BASEDIR/resaveFile.sct"
+
+dir=`pwd`
+$MIPAV -inputdir $dir -outputdir $dir -s $resaveScript -i $1 -o $2 -hide

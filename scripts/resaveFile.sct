@@ -1,0 +1,2 @@
+SaveImageAs("input_image_1 ext_image $image1", "file_type string .nii")
+Exit()
