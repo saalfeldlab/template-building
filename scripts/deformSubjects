@@ -1,0 +1,29 @@
+#!/bin/bash
+# Renders a template by averaging deformed subjects.
+# 
+# This may be useful to do outside the ANTs script if different
+# pre/post processing of the images is desired. 
+# E.g. different inhomogeneity field correction.
+
+template="/nrs/saalfeld/john/projects/flyChemStainAtlas/ants_groundTruth/NEW_groupwise_all-flip_884/ALLF-template.nii"
+N=`cat ../sub_list.txt | wc -l`
+echo $N
+
+#for ((i=1; i<="$N"; i++))
+for ((i=2; i<="$N"; i++))
+do
+    imgf=`sed -n "$i"p < ../sub_list.txt`
+    affinef=`sed -n "$i"p < ../affine_list_raw.txt`
+    warpf=`sed -n "$i"p < ../warp_list_raw.txt`
+    outf=`sed -n "$i"p < out_list.txt`
+
+    echo $imgf
+    echo $affinef
+    echo $warpf
+    echo $outf
+
+    WarpImageMultiTransform 3 $imgf $outf -R $template $warpf $affinef
+
+    #break
+done
+

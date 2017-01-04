@@ -1,0 +1,38 @@
+#!/bin/bash
+
+export ANTSPATH="/groups/saalfeld/home/bogovicj/libraries/antsbin2/bin/"
+echo $ANTSPATH
+
+################
+## PARAMETERS ##
+################
+dstdir="/nrs/saalfeld/john/projects/flyChemStainAtlas/ants_groundTruth/OLDSCRIPT-CLUSTER-PAD-MORE_groupwise_all-flip_884"
+initTemplate="populationAverage_offset50.nii"
+backup=1
+updateRigid=1 #default
+runN4=1
+gradientStep=0.25 #default
+numIters=8
+controller=1 #SGD
+
+
+##########################################################
+# Run with the padded/offset average as initial Template #
+##########################################################
+#/groups/saalfeld/home/bogovicj/libraries/antsbin2/bin/antsMultivariateTemplateConstruction2.sh -d 3 -m CC -s 2x1x0 -f 4x2x1 -q 15x45x10 -t SyN -y $updateRigid -n $runN4 -g $gradientStep -i $numIters -j 8 -c $controller -b $backup -o $dstdir/"ALLF-" -z $initTemplate *nii.gz
+
+###################################################
+# Run with the padded average as initial Template #
+###################################################
+/groups/saalfeld/home/bogovicj/libraries/antsbin2/bin/buildtemplateparallel.sh -d 3 -m 15x45x10 -t GR -s CC -g $gradientStep -i $numIters -n $runN4 -c $controller -o "ALLF-" -z $initTemplate *nii.gz
+
+#######################################
+# Run with a subject initial Template #
+#######################################
+#initTemplate="F-A5_TileConfiguration_lens_registered_down.nii.gz"
+#/groups/saalfeld/home/bogovicj/libraries/antsbin2/bin/buildtemplateparallel.sh -d 3 -m 15x45x10 -t GR -s CC -j 8 -c 2 -o "ALLF-" -z $initTemplate *nii.gz
+
+###################################
+# Run without an initial Template #
+###################################
+#/groups/saalfeld/home/bogovicj/libraries/antsbin2/bin/buildtemplateparallel.sh -d 3 -m 15x45x10 -t GR -s CC -j 8 -c 2 -o "ALLF-" *nii.gz
