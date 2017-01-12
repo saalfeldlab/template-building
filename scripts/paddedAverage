@@ -16,13 +16,15 @@ shift
 outputNii=`echo $output | sed 's/.tif/.nii/g'`
 
 padAmount="$1"
-padAmountSpace=`echo "$padAmount" | sed 's/,/ /g'`
-echo "$padAmountSpace"
+
+# new origin should be the negative of the amount of the pad
+origin=`echo "$padAmount" | sed -e 's/^/-/g' -e 's/,/ -/g'`
+echo "origin: $origin"
 
 BASEDIR=$(dirname "$0")
 cp=`cat "$BASEDIR/theclasspath.cp"`
 java -cp "$cp" -Xmx64g process.BuildPopulationAverage $outputTif "$@"
 
 mipavResave $output $outputNii
-SetOrigin 3 $outputNii $outputNii $padAmountSpace
+SetOrigin 3 $outputNii $outputNii $origin`
 rm -v $outputTif
