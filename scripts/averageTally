@@ -1,0 +1,8 @@
+#!/bin/bash
+#
+# Usage:
+# averageByTally <destfile> <input file 1> <input file 2> ...
+
+BASEDIR=$(dirname "$0")
+cp=`cat "$BASEDIR/theclasspath.cp"`
+java -cp "$cp" -Xmx64g util.AverageAllTallyParallel "$@"
