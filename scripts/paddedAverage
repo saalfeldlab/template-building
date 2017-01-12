@@ -1,0 +1,28 @@
+#!/bin/bash
+# 
+# Builds a padded population average to be used as a starting point for
+# groupwise registration / template building. 
+# 
+# a tif extension will be added to the output argument so that ImageJ can write it.
+# This script will then convert it to 
+#
+# Usage:
+# paddedAverage <output path> "padx,pady,padz" <input volumes ...> 
+# 
+# 
+
+outputTif="$1.tif"
+shift
+outputNii=`echo $output | sed 's/.tif/.nii/g'`
+
+padAmount="$1"
+padAmountSpace=`echo "$padAmount" | sed 's/,/ /g'`
+echo "$padAmountSpace"
+
+BASEDIR=$(dirname "$0")
+cp=`cat "$BASEDIR/theclasspath.cp"`
+java -cp "$cp" -Xmx64g process.BuildPopulationAverage $outputTif "$@"
+
+mipavResave $output $outputNii
+SetOrigin 3 $outputNii $outputNii $padAmountSpace
+rm -v $outputTif
