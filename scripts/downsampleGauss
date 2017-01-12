@@ -1,0 +1,5 @@
+#!/bin/bash
+
+BASEDIR=$(dirname "$0")
+cp=`cat "$BASEDIR/theclasspath.cp"`
+ava -cp "$cp" -Xmx12g process.DownsampleGauss "$@"
