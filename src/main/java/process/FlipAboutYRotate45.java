@@ -90,6 +90,7 @@ public class FlipAboutYRotate45
 
 			System.out.println( totalXfm );
 
+			System.out.println( "writing img" );
 			IJ.save( ImageJFunctions.wrap( result, "img flip" ), fout );
 
 			System.out.println( " " );
