@@ -8,3 +8,16 @@ Scripts and code relating to building anatomical templates.
 * Run the groupwise registration ( antsBuildTemplateGroupwise )
 * Render at the original resolution ( runRenderHiRes )
 * Average ( averageTally )
+
+## Analysis
+* Estimate registration variance (accuracy) by comparing flips ( varianceLR )
+
+## Examples
+
+```bash
+varianceLR <output image of distance> \
+  <template> <flipped-template> <affine-that-flips-the-template-LR> \
+  <subject-affine> <subject-deformation> \
+  <flipped-subject-affine> <flipped-subject-deformation> \
+  <affine-that-flips-the-subject>
+```
