@@ -1,4 +1,6 @@
 #!/bin/bash
+# Usage:
+#   sym2Canonical <flip-matrix> <affine-registering-flip-to-original> 
 
 BASEDIR=$(dirname "$0")
 cp=`cat "$BASEDIR/theclasspath.cp"`
