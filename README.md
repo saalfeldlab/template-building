@@ -11,9 +11,18 @@ Scripts and code relating to building anatomical templates.
 
 ## Analysis
 * Estimate registration variance (accuracy) by comparing flips ( varianceLR )
+* Estimate a "symmetrizing" transformation ( runSymmetry )
 
 ## Examples
-
+### Finding a "symmetrizing" transformation
+`runSymmetry` takes one argument - the image to be symmetrized.
+Outputs a flipped image (about the line y=x :this makes sense for the 63x drosophila image data )
+as well as two transformations : one that produces the flip, and one that registers the flip to the original.
+The concatenation of these two transforms is the "symmetrizing" transformation
+```bash
+runSymmetry <the-image>
+```
+### Estimating registration accuracy via flips
 ```bash
 varianceLR <output image of distance> \
   <template> <flipped-template> <affine-that-flips-the-template-LR> \
