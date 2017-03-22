@@ -1,4 +1,10 @@
 #!/bin/bash
+# Takes one argument - the image to be symmetrized 
+# Outputs a flipped image (about the line y=x - this makes sense for the 63x drosophila image data )
+# as well as two transformations :
+# One that produces the flip, and one that registers the flip to the original.
+# The concatenation of these two transforms is the "symmetrizing" transformation
+
 
 dir=`pwd`
 echo $dir
