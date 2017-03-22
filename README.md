@@ -12,6 +12,7 @@ Scripts and code relating to building anatomical templates.
 ## Analysis
 * Estimate registration variance (accuracy) by comparing flips ( varianceLR )
 * Estimate a "symmetrizing" transformation ( runSymmetry )
+* Get a tranformation to "canonical" orientation - where the y-axis is the axis of symmetry ( sym2Canonical )
 
 ## Examples
 ### Finding a "symmetrizing" transformation
