@@ -1,0 +1,11 @@
+#!/bin/bash
+
+MOVING="$1"
+FIXED="$2"
+
+#OUTPUT="Reg"
+#sh   ants.sh  ImageDimension  fixed.ext  moving.ext OPTIONAL-OUTPREFIX   PURELY-RIGID
+#ANTS 3 -m  CC[ $FIXED, $MOVING, 0.75, 8] -m MI[ $FIXED, $MOVING, 0.25, 32] -t SyN[0.25]  -r Gauss[3,0] -o $OUTPUT -i 1x1x1
+
+/groups/saalfeld/home/bogovicj/libraries/antsbin2/bin/antsaffine.sh 3 $FIXED $MOVING AFFINE 1
+

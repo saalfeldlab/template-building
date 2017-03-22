@@ -1,0 +1,24 @@
+#!/bin/bash
+
+dir=`pwd`
+echo $dir
+theimage="$dir/$1"
+echo $theimage
+
+tifImage=`echo $theimage | sed 's/.nii.*$/.tif/g'`
+echo $tifImage
+
+tifFlipImage=`echo $tifImage | sed 's/.tif/-flip.tif/g'`
+echo $tifFlipImage
+
+niiFlipImage=`echo $tifFlipImage | sed 's/.tif/.nii/g'`
+echo $niiFlipImage
+
+# To tif
+mipavResave $theimage $tifImage
+flip `pwd` "$tifImage"
+
+# To nifti
+mipavResave $tifFlipImage $niiFlipImage
+
+registerAffine $niiFlipImage $theimage

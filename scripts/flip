@@ -2,4 +2,6 @@
 
 BASEDIR=$(dirname "$0")
 cp=`cat "$BASEDIR/theclasspath.cp"`
-java -cp "$cp" -Xmx64g process.FlipAboutYRotate45 "$@"
+dir="$1"
+im=`readlink -f "$2"`
+java -cp "$cp" -Xmx64g process.FlipAboutYRotate45 $dir $im
