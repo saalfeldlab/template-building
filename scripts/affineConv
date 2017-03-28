@@ -1,0 +1,12 @@
+#!/bin/bash
+
+#in="$1"
+for f in $@;
+do
+    echo $f
+    echo $out
+    out=`echo $f | sed 's/.txt/.mat/g'`
+    # Call the ants script 
+    ConvertTransformFile 3 $f $out --hm 
+    echo " "
+done
