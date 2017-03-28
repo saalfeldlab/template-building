@@ -29,6 +29,7 @@ mipavResave $tifFlipImage $niiFlipImage
 
 # register the flip to the original
 registerAffine $niiFlipImage $theimage
+affineConv AFFINEAffine.txt
 
 # use the axis of symmetry to get a transform to canonical orientation
 # (where the axis of symmetry is the y-axis)
