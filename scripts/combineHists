@@ -1,0 +1,3 @@
+#!/bin/bash
+pyscript="/groups/saalfeld/home/bogovicj/dev/template/template-building/python/combine_histograms.py"
+python $pyscript $@
