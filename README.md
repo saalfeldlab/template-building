@@ -2,7 +2,9 @@
 Scripts and code relating to building anatomical templates.
 
 ## Pipeline outline
-* Decide the resolution at which to do the registration ( downsampleGauss )
+* Decide the resolution and orientation at which to do the registration 
+  * To keep the original image orientation ( downsampleGauss )
+  * To rotate by 45 degrees to bring inton "canonical orientation" ( canonicalDownsample )
 * Decide whether to include mirror images of the subjects ( flipDownsample )
 * Build an initial starting point, and pad if desired ( paddedAverage )
 * Run the groupwise registration ( antsBuildTemplateGroupwise )
