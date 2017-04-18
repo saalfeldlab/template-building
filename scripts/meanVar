@@ -1,0 +1,19 @@
+#!/bin/bash
+
+BASEDIR=$(dirname "$0")
+cp=`cat "$BASEDIR/theclasspath.cp"`
+
+nThreads="$1"
+shift
+out="$1"
+shift
+
+args=""
+for f in $@
+do
+    path=`readlink -f $f`
+    args="$args $path" 
+done
+echo $args
+
+java -cp "$cp" -Xmx64g process.PerPixelMeanVariance $nThreads $out $args
