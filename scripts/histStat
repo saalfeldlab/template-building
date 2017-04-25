@@ -1,3 +1,6 @@
 #!/bin/bash
+# Usage:
+#   histStat <csv file> <percentile1> <percentile2> ...
+
 pyscript="/groups/saalfeld/home/bogovicj/dev/template/template-building/python/stats_from_hist.py"
 python $pyscript $@
