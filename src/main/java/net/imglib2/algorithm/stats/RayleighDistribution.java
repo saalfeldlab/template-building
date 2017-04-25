@@ -2,7 +2,11 @@ package net.imglib2.algorithm.stats;
 
 import net.imglib2.Cursor;
 import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.img.array.ArrayImg;
+import net.imglib2.img.array.ArrayImgs;
+import net.imglib2.img.basictypeaccess.array.DoubleArray;
 import net.imglib2.type.numeric.RealType;
+import net.imglib2.type.numeric.real.DoubleType;
 import net.imglib2.view.Views;
 
 public class RayleighDistribution
@@ -11,6 +15,12 @@ public class RayleighDistribution
 
 	private double sigmaSquared;
 	private long count;
+	
+	public RayleighDistribution()
+	{
+		sigmaSquared = 0;
+		count = 0;
+	}
 
 	public double getSigma()
 	{
@@ -69,7 +79,12 @@ public class RayleighDistribution
 		sigmaSquared = sigmaSquared / (2 * count);
 	}
 	
-	/*
+	public void reset()
+	{
+		count = 0;
+		sigmaSquared = 0.0;
+	}
+
 	public <T extends RealType< T >> double onlineUpdateFit( RandomAccessibleInterval< T > rai )
 	{
 		long newCount = 0;
@@ -82,19 +97,48 @@ public class RayleighDistribution
 			subsetSigmaSquared += (t.getRealDouble() * t.getRealDouble());
 			newCount++;
 		}
-		subsetSigmaSquared = subsetSigmaSquared / (2 * count);
 		
-		sigmaSquared = ( sigmaSquared + subsetSigmaSquared ) / newCount;
-		count += newCount;
+		if( count == 0)
+		{
+			count = newCount;
+			sigmaSquared = subsetSigmaSquared / (2 * newCount);
+			return sigmaSquared;
+		}
+		else
+		{
+			double totalsumSquares = sigmaSquared * 2 * count;
+			count += newCount;
+			sigmaSquared = ( totalsumSquares + subsetSigmaSquared ) / ( 2 * count );
+		}
 
 		return sigmaSquared;
 	}
-	*/
 
 	public static void main( String[] args )
 	{
-		// TODO Auto-generated method stub
+		double[] v1 = new double[]{ 2, 2, 1, 4 };
+		double[] v2 = new double[]{ 3, 2, 2, 1 };
 
+		double[] v  = new double[]{ 3, 2, 2, 1, 2, 2, 1, 4 };
+		
+		ArrayImg< DoubleType, DoubleArray > img1 = ArrayImgs.doubles( v1, v1.length );
+		ArrayImg< DoubleType, DoubleArray > img2 = ArrayImgs.doubles( v2, v2.length );
+		
+		ArrayImg< DoubleType, DoubleArray > img = ArrayImgs.doubles( v, v.length );
+		
+		RayleighDistribution rd = new RayleighDistribution();
+		rd.fit( img );
+		System.out.println( rd.getSigma() );
+		
+		
+		RayleighDistribution rdo = new RayleighDistribution();
+		rdo.onlineUpdateFit( img1 );
+//		rd.fit( img1 );
+//		System.out.println( rd.getSigma() );
+//		System.out.println( rdo.getSigma() );
+		
+		rdo.onlineUpdateFit( img2 );
+		System.out.println( rdo.getSigma() );
 	}
 
 }
