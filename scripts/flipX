@@ -1,0 +1,7 @@
+#!/bin/bash
+
+BASEDIR=$(dirname "$0")
+cp=`cat "$BASEDIR/theclasspath.cp"`
+dir="$1"
+im=`readlink -f "$2"`
+java -cp "$cp" -Xmx64g process.FlipX $dir $im

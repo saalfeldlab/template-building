@@ -1,0 +1,35 @@
+#!/bin/bash
+# Takes one argument - the image to be symmetrized 
+# Outputs a flipped image (about the line y=x - this makes sense for the 63x drosophila image data )
+# as well as two transformations :
+# One that produces the flip, and one that registers the flip to the original.
+# The concatenation of these two transforms is the "symmetrizing" transformation
+
+
+dir=`pwd`
+echo $dir
+theimage="$dir/$1"
+echo $theimage
+
+tifImage=`echo $theimage | sed 's/.nii.*$/.tif/g'`
+echo $tifImage
+
+tifFlipImage=`echo $tifImage | sed 's/.tif/-flip.tif/g'`
+echo $tifFlipImage
+
+niiFlipImage=`echo $tifFlipImage | sed 's/.tif/.nii/g'`
+echo $niiFlipImage
+
+# To tif
+mipavResave $theimage $tifImage
+flipX `pwd` "$tifImage"
+
+# To nifti
+mipavResave $tifFlipImage $niiFlipImage
+
+# register the flip to the original
+registerAffine $niiFlipImage $theimage
+affineConv AFFINEAffine.txt
+
+# use the axis of symmetry to get a transform to canonical orientation
+# (where the axis of symmetry is the y-axis)
