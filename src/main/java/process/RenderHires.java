@@ -51,8 +51,21 @@ import transforms.AffineHelper;
 import util.RenderUtil;
 
 /**
- * Renders images transformed/registered at low resoution 
- * at high resolution.
+ * Renders images transformed/registered at low resolution at high resolution.
+ * <p>
+ * Applies up to four transformations:
+ * <ul>
+ * 	<li>(Optional) "Downsampling Affine" : affine from high (original) resolution to low resoultion (at which registration was performed)</li>
+ *  <li>"Reg affine" : Affine part of registering transform</li>
+ *  <li>"Reg Warp" : Deformable part of registering transform</li>
+ *  <li>(Optional) "to canonical affine" : Final transform in final high-res space (usually brining subject to a "canonical" orientation" </li>
+ * </ul>
+ * <p>
+ * Currently the final (implied) upsampling transform is hard-coded in : it resmples up by a factor of 4 in x and y and 2 in z.
+ * After that, it upsamples z again by a factor of (~ 2.02) to resample the images to a resolution of 0.188268 um isotropic.
+ * 
+ * Command line parameters / usage:
+ * RenderHires <high res image> <downsample affine> <reg affine> <reg warp> <output interval> <output path> <optional to canonical affine>
  * 
  * @author John Bogovic
  *
@@ -128,8 +141,7 @@ public class RenderHires
 		if ( warpF != null )
 		{
 			System.out.println( "loading warp - factors 1 1 1" );
-			df = new ANTSDeformationField( defLowImg, new double[]
-			{ 1, 1, 1 } );
+			df = new ANTSDeformationField( defLowImg, new double[]{ 1, 1, 1 } );
 			System.out.println( df.getDefInterval() );
 		}
 
