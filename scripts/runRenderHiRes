@@ -1,6 +1,4 @@
 #!/bin/bash
-
 BASEDIR=$(dirname "$0")
 cp=`cat "$BASEDIR/theclasspath.cp"`
-
-java -cp "$cp" -Xmx36g process.RenderRegAtHiResDefField "$@"
+java -cp "$cp" -Xms32g -Xmx64g process.RenderiHires "$@"
