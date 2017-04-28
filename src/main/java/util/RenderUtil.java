@@ -20,6 +20,21 @@ import net.imglib2.view.Views;
 
 public class RenderUtil
 {
+
+	public static long[] splitPoints( int nThreads, int dim2split, Interval target )
+	{
+		final long[] splitPoints = new long[ nThreads + 1 ];
+		long N = target.dimension( dim2split );
+		long del = ( long )( N / nThreads ); 
+		splitPoints[ 0 ] = target.min( dim2split );
+		splitPoints[ nThreads ] = target.max( dim2split ) + 1;
+		for( int i = 1; i < nThreads; i++ )
+		{
+			splitPoints[ i ] = splitPoints[ i - 1 ] + del; 
+		}
+		return splitPoints;
+	}
+
 	public static < T extends NumericType<T> > RandomAccessibleInterval<T> copyToImageStack( 
 			final RandomAccessible< T > ra,
 			final RandomAccessibleInterval<T> target,
