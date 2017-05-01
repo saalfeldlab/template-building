@@ -1,0 +1,76 @@
+#!/bin/bash
+# Run the entire analysis pipeline
+
+basedir=`pwd`
+
+DOCENTILES="0"
+DORAYLEIGH="0"
+DOSYMMETRY="0"
+DOFLIPVARIANCE="0"
+PREFIX="ALLF"
+
+while getopts "cmprst:v" OPT
+do
+    case $OPT in
+    c) # centiles
+        DOCENTILES="1"
+        ;;
+    r) # rayleigh
+       DORAYLEIGH="1" 
+       ;;
+    s) # symmetry 
+       DOSYMMETRY="1"
+       ;;
+    p) # symmetry 
+       PREFIX=$OPTARG
+       echo "Prefix: $PREFIX"
+       ;;
+    t) # symmetry 
+       TEMPLATE=$OPTARG
+       echo "Found template: $TEMPLATE"
+       ;;
+    v) # do flip variance 
+       DOFLIPVARIANCE="1"
+       ;;
+    \?) # getopts issues an error message
+       echo "$USAGE"a >&2
+       exit 1
+       ;;
+    esac
+done
+
+if [[ $TEMPLATE == *gz ]];
+then
+    echo "template is gzipped"
+    gunzip -v $TEMPLATE
+    TEMPLATE=`echo $TEMPLATE | sed 's/.gz//g'`
+    echo "new template: $TEMPLATE"
+fi
+#echo $DOSYMMETRY
+
+
+
+#if [ $DOSYMMETRY ]; then
+#    echo "Estimating axis of symmetry"
+#    mkdir -p symmetry
+#    cd symmetry
+#    touch hi 
+#    ln -s ../$TEMPLATE
+#    runSymmetryCan $TEMPLATE
+#    affineConv AFFINEAffine.txt
+#    cd ..
+#fi
+
+flipXfm=`readlink -f symmetry/*Xfm.txt`
+flipXfmTune=`readlink -f symmetry/AFFINEAffine.mat`
+
+
+if [ $DOFLIPVARIANCE ]; then
+    echo "Estimating flip variance"
+    genOutputListsCan "$PREFIX"
+    mkdir -p flipVariance
+    cd flipVariance
+
+    ln -s ../list*txt .
+    cd ..
+fi

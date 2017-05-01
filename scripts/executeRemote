@@ -1,0 +1,16 @@
+#!/bin/bash
+
+host="$1"
+cmd="$2"
+
+thisdir=`pwd`
+cdcmd="cd $thisdir"
+
+ssh -t $host << EOF
+    $cdcmd
+
+    pwd # print current directory if we want to
+    $cmd 
+
+    bash -l
+EOF
