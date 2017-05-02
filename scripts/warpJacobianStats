@@ -1,4 +1,6 @@
 #!/bin/bash
+# For the record,
+# ANTSJacobian uses log base e
 
 #TODO expose doLog as optional parameter
 doLog="1"
