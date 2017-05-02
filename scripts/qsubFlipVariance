@@ -19,6 +19,7 @@ echo $N
 toCanList="/nrs/saalfeld/john/projects/flyChemStainAtlas/downsample_gauss/list_canonical.txt"
 toCanFlipList="/nrs/saalfeld/john/projects/flyChemStainAtlas/downsample_gauss/list_flip_canonical.txt"
 
+jobIDs=""
 
 #for i in {1.."$N"}
 for ((i=1; i<="$N"; i++))
@@ -56,8 +57,12 @@ do
     echo $script $destdir/$outf $imgf $templateFlip $templateAdjust $affinef $warpf $toCanf $affineFlipf $warpFlipf $flipf >> $jobf
     chmod +x $jobf
 
-    qsub -pe batch 4 -cwd -V -b y $jobf
+    id=`qsub -pe batch 4 -cwd -V -b y $jobf | awk '{print $3}'`
+    jobIDs="$jobIDs $id"
+
     sleep 1
     #break
 done
 
+# Wait until all the jobs are done
+/groups/saalfeld/home/bogovicj/libraries/antsbin2/bin/waitForSGEQJobs.pl 1 60 $jobIDs 

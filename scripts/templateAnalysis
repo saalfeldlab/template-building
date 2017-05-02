@@ -3,11 +3,14 @@
 
 basedir=`pwd`
 
-DOCENTILES="0"
-DORAYLEIGH="0"
-DOSYMMETRY="0"
-DOFLIPVARIANCE="0"
+DOCENTILES=""
+DORAYLEIGH=""
+DOMEANVAR=""
+DOSYMMETRY=""
+DOFLIPVARIANCE=""
 PREFIX="ALLF"
+
+CENTILE_OPTS="0,0.1,0.5,0.9,1"
 
 while getopts "cmprst:v" OPT
 do
@@ -15,17 +18,20 @@ do
     c) # centiles
         DOCENTILES="1"
         ;;
+    m) # mean and variance
+        DOMEANVAR="1"
+        ;;
     r) # rayleigh
        DORAYLEIGH="1" 
        ;;
     s) # symmetry 
        DOSYMMETRY="1"
        ;;
-    p) # symmetry 
+    p) # prefix 
        PREFIX=$OPTARG
        echo "Prefix: $PREFIX"
        ;;
-    t) # symmetry 
+    t) # template 
        TEMPLATE=$OPTARG
        echo "Found template: $TEMPLATE"
        ;;
@@ -39,6 +45,19 @@ do
     esac
 done
 
+if [ -z $TEMPLATE ]; then
+    TEMPLATE=`ls $PREFIX-template.nii*`
+fi
+if [ -z $TEMPLATE ]; then
+    echo "could not find template, exiting"
+    exit 1
+else
+    echo "found template: $TEMPLATE"
+fi
+
+echo "sym : $DOSYMMETRY"
+echo "fv : $DOFLIPVARIANCE" 
+
 if [[ $TEMPLATE == *gz ]];
 then
     echo "template is gzipped"
@@ -46,31 +65,67 @@ then
     TEMPLATE=`echo $TEMPLATE | sed 's/.gz//g'`
     echo "new template: $TEMPLATE"
 fi
-#echo $DOSYMMETRY
 
 
-
-#if [ $DOSYMMETRY ]; then
-#    echo "Estimating axis of symmetry"
-#    mkdir -p symmetry
-#    cd symmetry
-#    touch hi 
-#    ln -s ../$TEMPLATE
-#    runSymmetryCan $TEMPLATE
-#    affineConv AFFINEAffine.txt
-#    cd ..
-#fi
+if [ $DOSYMMETRY ]; then
+    echo "Estimating axis of symmetry"
+    mkdir -p symmetry
+    cd symmetry
+    ln -s ../$TEMPLATE
+    runSymmetryCan $TEMPLATE
+    affineConv AFFINEAffine.txt
+    cd ..
+fi
 
 flipXfm=`readlink -f symmetry/*Xfm.txt`
 flipXfmTune=`readlink -f symmetry/AFFINEAffine.mat`
 
-
 if [ $DOFLIPVARIANCE ]; then
+
+    # check that sym directory exists, and exit with error if it does not
+    if [ ! -d "symmetry" ]; then
+        echo "No symmetry directory"
+        exit 1
+    fi
+
     echo "Estimating flip variance"
+
+    ## Make list of relevant files
     genOutputListsCan "$PREFIX"
+
+    ## Make directory and set up
     mkdir -p flipVariance
     cd flipVariance
-
     ln -s ../list*txt .
+
+    ## Build ans submit qsub jobs to compute pixelwise distance
+    executeRemote 'login2.int.janelia.org' 'qsubFlipVariance'
+
+    analysisJobs=""    
+    if [ $DORAYLEIGH ]; then
+        echo "rayleigh"
+
+        echo "#!/bin/bash" > rayJob.sh
+        echo "perWindowRayleigh -q 4 -o $basedir/flipVariance/rayleigh.tif " `pwd`/*dist.tif >> rayJob.sh
+        analysisJobs="$analysisJobs rayJob.sh"
+    fi
+
+    if [ $DOCENTILES ]; then
+        echo "centiles"
+        echo "#!/bin/bash" > centileJob.sh
+        echo "perWindowCentile -q 4 -c $CENTILE_OPTS -o $basedir/flipVariance/dist_centiles_0-10-50-90-100.tif " `pwd`/*dist.tif >> centileJob.sh
+        analysisJobs="$analysisJobs centileJob.sh"
+    fi
+
+    if [ $DOMEANVAR ]; then
+        echo "mean and variance"
+        echo "#!/bin/bash" > meanVarJob.sh
+        echo "meanVar 4 $basedir/flipVariance/mnVar_" `pwd`/*dist.tif >> meanVarJob.sh
+        analysisJobs="$analysisJobs meanVarJob.sh"
+    fi
+
+    echo $analysisJobs
+    executeRemote 'login2.int.janelia.org' "submitJobsQsub 4 $analysisJobs"
+
     cd ..
 fi

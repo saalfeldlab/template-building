@@ -6,6 +6,9 @@ cmd="$2"
 thisdir=`pwd`
 cdcmd="cd $thisdir"
 
+echo "host: $host"
+echo "cmd: $cmd"
+
 ssh -t $host << EOF
     $cdcmd
 

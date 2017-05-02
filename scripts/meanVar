@@ -1,4 +1,6 @@
 #!/bin/bash
+# Usage:
+#   meanVar <nThreads> <outputPrefix> <Files...>
 
 BASEDIR=$(dirname "$0")
 cp=`cat "$BASEDIR/theclasspath.cp"`
@@ -16,4 +18,4 @@ do
 done
 echo $args
 
-java -cp "$cp" -Xmx64g process.PerPixelMeanVariance $nThreads $out $args
+/misc/local/jdk1.8.0_102/bin/java -cp "$cp" -Xmx92g process.PerPixelMeanVariance $nThreads $out $args
