@@ -28,5 +28,5 @@ plotHistograms *$suffix*csv
 # combine and plot
 combineHists combinedHistogram64.csv *$suffix*csv
 plotHistograms combinedHistogram64.csv
-histStat combinedHist64.csv 0.25 0.5 0.75 > stats.csv
+histStat combinedHistogram64.csv 0.25 0.5 0.75 > stats.csv
 
