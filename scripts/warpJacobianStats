@@ -1,0 +1,18 @@
+#!/bin/bash
+
+#TODO expose doLog as optional parameter
+doLog="1"
+
+mkdir -p jacobian
+cd jacobian
+ln -s ../list_all_warp.txt .
+
+for warpF in `cat list_all_warp.txt`
+do
+    out=`echo $warpF | sed 's/.nii/_logJac/g'`
+    echo $warpF
+    echo $out
+    ANTSJacobian 3 $warpF $out $doLog
+done
+
+cd ..
