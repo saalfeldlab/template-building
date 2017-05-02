@@ -16,6 +16,19 @@ Scripts and code relating to building anatomical templates.
 * Estimate a "symmetrizing" transformation ( runSymmetry )
 * Get a tranformation to "canonical" orientation - where the y-axis is the axis of symmetry ( sym2Canonical )
 * Fit a Rayleigh distribution pixel- (or local window)-wise across subjects (perWindowRayleigh)
+### pipeline script
+The `templateAnalysis` script runs many of the above analysis steps in sequence:
+```
+Usage:
+  templateAnalysis [OPTIONS]
+  -p [PREFIX] Specify the prefix for output of template building (Default='ALLF')
+  -t [TEMPLATE] Specifies the template to use for analyis (Default='$PREFIX-template.nii.gz')
+  -s Compute a symmetrizing transformation
+  -v Compute flip-variance
+  -r Estimate pixelwise Rayleigh distribution of flip-Variance
+  -m Estimate pixelwise mean and variance of flip-Variance
+  -c Estimate pixelwise percentiles distribution of flip-Variance (for percentiles = {0, 10, 50, 90, 100})
+```
 
 ## Examples
 ### Finding a "symmetrizing" transformation
