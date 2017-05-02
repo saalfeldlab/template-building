@@ -1,0 +1,7 @@
+#!/bin/bash
+
+for f in $@
+do
+    plotCsv -i $f
+    plotCsv -i $f --logy
+done

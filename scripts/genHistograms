@@ -1,0 +1,32 @@
+#!/bin/bash
+
+mask="$1"
+maskimg=`readlink -f $mask`
+
+#threshold="75.0"
+threshold="1.0"
+histmin="0.0"
+histmax="64.0"
+suffix="0-64"
+nBins="256"
+
+for f in  `ls *dist*.tif`
+do
+    file=`readlink -f $f`
+    echo $f
+    out=`echo $file | sed "s/.tif/_hist_""$suffix""_256bins.csv/g"`
+    echo $out
+    echo " "
+ 
+    maskedImageHist $out $file $histmin $histmax $nBins $maskimg $threshold 
+    #break
+done
+
+# plot
+plotHistograms *$suffix*csv
+
+# combine and plot
+combineHists combinedHistogram64.csv *$suffix*csv
+plotHistograms combinedHistogram64.csv
+histStat combinedHist64.csv 0.25 0.5 0.75 > stats.csv
+
