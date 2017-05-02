@@ -7,7 +7,9 @@ DOCENTILES=""
 DORAYLEIGH=""
 DOMEANVAR=""
 DOSYMMETRY=""
+DOHISTOGRAM=""
 DOFLIPVARIANCE=""
+
 PREFIX="ALLF"
 
 CENTILE_OPTS="0,0.1,0.5,0.9,1"
@@ -17,6 +19,9 @@ do
     case $OPT in
     c) # centiles
         DOCENTILES="1"
+        ;;
+    h) # histograms
+        DOHISTOGRAM="1"
         ;;
     m) # mean and variance
         DOMEANVAR="1"
@@ -39,7 +44,7 @@ do
        DOFLIPVARIANCE="1"
        ;;
     \?) # getopts issues an error message
-       echo "$USAGE"a >&2
+       echo "$USAGE" >&2
        exit 1
        ;;
     esac
@@ -91,15 +96,25 @@ if [ $DOFLIPVARIANCE ]; then
     echo "Estimating flip variance"
 
     ## Make list of relevant files
-    genOutputListsCan "$PREFIX"
+    if [ -f list_all_affine.txt ]; then
+        echo "Using existing lists"
+    else
+        echo "Creating lists"
+        genOutputListsCan "$PREFIX"
+    fi
 
     ## Make directory and set up
     mkdir -p flipVariance
     cd flipVariance
     ln -s ../list*txt .
+    
+    tmp=`echo $TEMPLATE | sed 's/.nii/.tif/g'` 
+    echo "tmp: $tmp"
+    templateTif=`readlink -f ../symmetry/$tmp`
+    echo "template tif: $templateTif"
 
     ## Build ans submit qsub jobs to compute pixelwise distance
-    executeRemote 'login2.int.janelia.org' 'qsubFlipVariance'
+    executeRemote 'login2.int.janelia.org' "qsubFlipVariance $templateTif"
 
     analysisJobs=""    
     if [ $DORAYLEIGH ]; then
@@ -122,6 +137,12 @@ if [ $DOFLIPVARIANCE ]; then
         echo "#!/bin/bash" > meanVarJob.sh
         echo "meanVar 4 $basedir/flipVariance/mnVar_" `pwd`/*dist.tif >> meanVarJob.sh
         analysisJobs="$analysisJobs meanVarJob.sh"
+    fi
+
+    if [ $DOHISTOGRAM ]; then
+        echo "Computing histograms"
+        echo $maskF
+        genHistograms $templateTif
     fi
 
     echo $analysisJobs

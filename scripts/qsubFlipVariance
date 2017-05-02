@@ -3,11 +3,11 @@
 destdir=`pwd`
 script="/groups/saalfeld/home/bogovicj/dev/template/template-building/scripts/varianceCanLR"
 
-#imgf="$1"
+imgf="$1"
 #templateFlip="$2"
 #templateAdjust="$3"
 
-imgf=`readlink -f ../symmetry/*template.tif`
+#imgf=`readlink -f ../symmetry/*template.tif`
 templateFlip=`readlink -f ../symmetry/*Xfm.txt`
 templateAdjust=`readlink -f ../symmetry/*mat`
 
