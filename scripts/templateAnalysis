@@ -10,11 +10,12 @@ DOSYMMETRY=""
 DOHISTOGRAM=""
 DOFLIPVARIANCE=""
 
+ISJFRC2013=""
 PREFIX="ALLF"
 
 CENTILE_OPTS="0,0.1,0.5,0.9,1"
 
-while getopts "cmprst:v" OPT
+while getopts "cjmprst:v" OPT
 do
     case $OPT in
     c) # centiles
@@ -22,6 +23,9 @@ do
         ;;
     h) # histograms
         DOHISTOGRAM="1"
+        ;;
+    j) # using JFRC013template
+        ISJFRC2013="1"
         ;;
     m) # mean and variance
         DOMEANVAR="1"
@@ -49,6 +53,13 @@ do
        ;;
     esac
 done
+
+
+flipVarianceScript="qsubFlipVariance"
+if [ $ISJFRC2013 ]; then 
+    flipVarianceScript="qsubFlipVarianceJFRC2013"
+fi
+echo "flipVarianceScript: $flipVarianceScript"
 
 if [ -z $TEMPLATE ]; then
     TEMPLATE=`ls $PREFIX-template.nii*`
