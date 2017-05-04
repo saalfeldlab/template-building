@@ -33,8 +33,8 @@ public class BuildHistogram {
 		Real1dBinMapper<FloatType> binMapper = new Real1dBinMapper<FloatType>(
 				histmin, histmax, numBins, false );
 
-		IterableInterval<FloatType> img = ImageJFunctions.wrap( IJ.openImage( imF ));
-		IterableInterval<FloatType> maskRaw = ImageJFunctions.wrap( IJ.openImage( maskF ));
+		IterableInterval<FloatType> img = ImageJFunctions.convertFloat( IJ.openImage( imF ));
+		IterableInterval<FloatType> maskRaw = ImageJFunctions.convertFloat( IJ.openImage( maskF ));
 		
 		Converter<FloatType,BoolType> maskConv = new Converter<FloatType,BoolType>()
 		{
