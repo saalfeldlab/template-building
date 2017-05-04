@@ -1,13 +1,12 @@
 package net.imglib2.algorithm.stats;
 
 import net.imglib2.Cursor;
-import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.IterableInterval;
 import net.imglib2.img.array.ArrayImg;
 import net.imglib2.img.array.ArrayImgs;
 import net.imglib2.img.basictypeaccess.array.DoubleArray;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.numeric.real.DoubleType;
-import net.imglib2.view.Views;
 
 public class RayleighDistribution
 {
@@ -64,12 +63,12 @@ public class RayleighDistribution
 	 * @param rai
 	 * @return sigma
 	 */
-	public <T extends RealType< T >> void fit( RandomAccessibleInterval< T > rai )
+	public <T extends RealType< T >> void fit( IterableInterval< T > data )
 	{
 		sigmaSquared = 0.0;
 		count = 0;
 
-		Cursor< T > c = Views.flatIterable( rai ).cursor();
+		Cursor< T > c = data.cursor();
 		while ( c.hasNext() )
 		{
 			T t = c.next();
@@ -85,12 +84,12 @@ public class RayleighDistribution
 		sigmaSquared = 0.0;
 	}
 
-	public <T extends RealType< T >> double onlineUpdateFit( RandomAccessibleInterval< T > rai )
+	public <T extends RealType< T >> double onlineUpdateFit( IterableInterval< T > data )
 	{
 		long newCount = 0;
 		double subsetSigmaSquared = 0.0;
 		
-		Cursor< T > c = Views.flatIterable( rai ).cursor();
+		Cursor< T > c = data.cursor();
 		while ( c.hasNext() )
 		{
 			T t = c.next();
