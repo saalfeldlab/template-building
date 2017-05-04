@@ -125,7 +125,7 @@ if [ $DOFLIPVARIANCE ]; then
     echo "template tif: $templateTif"
 
     ## Build ans submit qsub jobs to compute pixelwise distance
-    executeRemote 'login2.int.janelia.org' "qsubFlipVariance $templateTif"
+    executeRemote 'login2.int.janelia.org' "$flipVarianceScript $templateTif"
 
     analysisJobs=""    
     if [ $DORAYLEIGH ]; then
