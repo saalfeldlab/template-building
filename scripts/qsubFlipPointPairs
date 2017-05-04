@@ -1,0 +1,68 @@
+#!/bin/bash
+
+destdir=`pwd`
+script="/groups/saalfeld/home/bogovicj/dev/template/template-building/scripts/flipPointPairs"
+
+imgf="$1"
+#templateFlip="$2"
+#templateAdjust="$3"
+
+#imgf=`readlink -f ../symmetry/*template.tif`
+templateFlip=`readlink -f ../symmetry/*Xfm.txt`
+templateAdjust=`readlink -f ../symmetry/*mat`
+
+N=`cat list_flipped_affine.txt | wc -l`
+
+echo $destdir
+echo $N
+
+toCanList="/nrs/saalfeld/john/projects/flyChemStainAtlas/downsample_gauss/list_canonical.txt"
+toCanFlipList="/nrs/saalfeld/john/projects/flyChemStainAtlas/downsample_gauss/list_flip_canonical.txt"
+
+jobIDs=""
+
+#for i in {1.."$N"}
+for ((i=1; i<="$N"; i++))
+do
+    echo $i
+
+    affinef=`sed -n "$i"p < list_unflipped_affine.txt`
+    warpf=`sed -n "$i"p < list_unflipped_warp.txt`
+    affineFlipf=`sed -n "$i"p < list_flipped_affine.txt`
+    warpFlipf=`sed -n "$i"p < list_flipped_warp.txt`
+    toCanf=`sed -n "$i"p < $toCanList`
+    flipf=`sed -n "$i"p < $toCanFlipList`
+
+    affName=${affinef##*/} 
+    echo $affName
+    prefix=`echo $affName | sed -e 's/ALLT-//g' -e 's/_TileConfiguration_lens_registered_down442Affine.mat//g'`
+    echo "prefix: "
+    echo $prefix
+
+    jobf="fvpp_job_$i.sh"
+
+    outf=`echo $prefix-pointPairs.csv`
+    echo $outf
+
+    #echo $affinef
+    #echo $warpf
+    #echo $affineFlipf
+    #echo $warpFlipf
+    #echo $flipf
+    #echo "prefix: " 
+    #echo $prefix-$outf
+    #echo " "
+    
+    echo "#!/bin/bash" > $jobf
+    echo $script $destdir/$outf $imgf $templateFlip $templateAdjust $affinef $warpf $toCanf $affineFlipf $warpFlipf $flipf "20,20,10">> $jobf
+    chmod +x $jobf
+
+    id=`qsub -pe batch 4 -cwd -V -b y $jobf | awk '{print $3}'`
+    jobIDs="$jobIDs $id"
+
+    sleep 1
+    #break
+done
+
+# Wait until all the jobs are done
+/groups/saalfeld/home/bogovicj/libraries/antsbin2/bin/waitForSGEQJobs.pl 1 20 $jobIDs 
