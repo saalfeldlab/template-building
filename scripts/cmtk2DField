@@ -1,0 +1,15 @@
+#!/bin/bash
+# Generate a deformation field from cmtk that fiji can read.
+# Fiji can not read 4D nrrd files as the time of this writing (May2017)
+
+out="$1"
+reference="$2"
+registration="$3"
+
+xform2scalar -o "$out"-x.nrrd --x-component $reference $registration
+xform2scalar -o "$out"-y.nrrd --y-component $reference $registration
+xform2scalar -o "$out"-z.nrrd --z-component $reference $registration
+
+BASEDIR=$(dirname "$0")
+cp=`cat "$BASEDIR/theclasspath.cp"`
+java -cp "$cp" -Xmx64g process.Concatenate $out.tif "$out"-x.nrrd "$out"-y.nrrd "$out"-z.nrrd

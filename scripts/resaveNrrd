@@ -1,0 +1,7 @@
+#!/bin/bash
+source /groups/saalfeld/home/bogovicj/envbin/addAnaconda
+source activate nrrd
+
+pyscript="/groups/saalfeld/home/bogovicj/dev/template/template-building/python/resaveNrrd.py"
+python $pyscript $@
+
