@@ -1,0 +1,10 @@
+#!/bin/bash
+# Usage:
+#  getRemainingSubjects <list-to-exclude>
+
+subjectList="/nrs/saalfeld/john/projects/flyChemStainAtlas/downsample_gauss/sorted_list_all_img_can.txt"
+in="$1"
+
+sorted="$in"-sorted
+cat $in | sort > $sorted
+comm -3 $subjectList $sorted

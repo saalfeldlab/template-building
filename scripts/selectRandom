@@ -1,0 +1,31 @@
+#!/bin/bash
+num="$1"
+fdir="/nrs/saalfeld/john/projects/flyChemStainAtlas/downsample_gauss/female_442_toCanonical"
+mdir="/nrs/saalfeld/john/projects/flyChemStainAtlas/downsample_gauss/male_442_toCanonical"
+
+femaleflies=`cat /nrs/saalfeld/john/projects/flyChemStainAtlas/size/F-subList.txt | sort -R | head -n $num`
+maleflies=`cat /nrs/saalfeld/john/projects/flyChemStainAtlas/size/M-subList.txt | sort -R | head -n $num`
+
+echo $femaleflies
+echo $maleflies
+
+imgList="subjectsImages.txt"
+for f in `echo $femaleflies`
+do
+    echo $f
+    ls $fdir/*"$f"*Tile*down.nii >> $imgList
+    ls $fdir/*"$f"*Tile*downFlip.nii >> $imgList
+done
+
+for f in `echo $maleflies`
+do
+    echo $f
+    ls $mdir/*"$f"*Tile*down.nii >> $imgList
+    ls $mdir/*"$f"*Tile*downFlip.nii >> $imgList
+done
+
+for f in `cat $imgList`
+do
+    ln -s $f .
+done
+
