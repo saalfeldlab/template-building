@@ -1,0 +1,10 @@
+#!/bin/bash
+
+
+for f in $@;
+do
+    echo $f
+    out=`echo $f | sed 's/.tif/.nii/g'`
+    echo $out
+    mipavResave $f $out
+done
