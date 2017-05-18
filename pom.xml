@@ -98,5 +98,14 @@
 		<artifactId>imglib2-realtransform</artifactId>
 		<version>2.0.0-beta-34-SNAPSHOT</version>
 	</dependency>
+	<dependency>
+		<groupId>sc.fiji</groupId>
+		<artifactId>mpicbg-trakem2</artifactId>
+	</dependency>
+	<dependency>
+		<groupId>sc.fiji</groupId>
+		<artifactId>Stitching_</artifactId>
+		<version>3.1.0</version>
+	</dependency>
   </dependencies>
 </project>
