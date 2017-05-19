@@ -34,7 +34,7 @@ function shapeupdatesingle {
     echo "--------------------------------------------------------------------------------------"
     echo " shapeupdatetotemplate 1"
     echo "--------------------------------------------------------------------------------------"
-    ${ANTSPATH}/AverageImages $dim AVGPAT-${PATTERN}${template} 1 ${outputname}*${PATTERN}*formed.nii*
+    ${ANTSPATH}/AverageImages $dim AVGPAT-${PATTERN}${template} 1 *${PATTERN}*formed.nii*
 
     echo
     echo "--------------------------------------------------------------------------------------"
@@ -42,8 +42,7 @@ function shapeupdatesingle {
     echo "--------------------------------------------------------------------------------------"
 
 
-    ## TODO TODO this line is wrong, and should be:
-    ${ANTSPATH}/AverageImages $dim PAT-${PATTERN}${templatename}warp.nii.gz 0 `ls ${outputname}*${PATTERN}*Warp.nii* | grep -v "InverseWarp"`
+    ${ANTSPATH}/AverageImages $dim PAT-${PATTERN}${templatename}warp.nii.gz 0 `ls *${PATTERN}*Warp.nii* | grep -v "InverseWarp"`
 
 
     echo
