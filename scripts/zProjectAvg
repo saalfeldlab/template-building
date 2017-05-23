@@ -1,0 +1,10 @@
+#!/bin/bash
+
+method="AVG"
+for i in $@
+do
+    f=`readlink -f $i`
+    out=`echo $f | sed -e 's/.tif$/_avgProj.tif/g' -e 's/.nii$/_avgProj.tif/g'`
+    echo $out
+    zProject $out $f "AVG"
+done

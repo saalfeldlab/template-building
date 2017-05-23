@@ -1,0 +1,10 @@
+#!/bin/bash
+
+BASEDIR=$(dirname "$0")
+cp=`cat "$BASEDIR/theclasspath.cp"`
+
+out="$1"
+in=`readlink -f "$2"`
+method="$3"
+
+java -cp "$cp" -Xmx64g process.ZProject $out $in $method
