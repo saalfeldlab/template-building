@@ -1,5 +1,8 @@
 /target/
 /.settings/
 *.cp
+*~
+*bak
 .project
 .classpath
+/tmp_*/
