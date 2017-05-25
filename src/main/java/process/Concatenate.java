@@ -29,7 +29,6 @@ public class Concatenate
 		
 		ImageStack stack = new ImageStack(
 				ipList[0].getWidth(), ipList[0].getHeight() );
-//				ipList[0].getWidth(), ipList[0].getHeight(), totalSlices );
 
 		for( int i = 0; i < N; i++ )
 		{
@@ -37,7 +36,7 @@ public class Concatenate
 			for( int j = 0; j < ip.getImageStackSize(); j++ )
 			{
 				System.out.println( i + " " + j );
-				ip.setSlice( j );
+				ip.setSlice( j+1 );
 				stack.addSlice( ip.getProcessor() );
 				System.out.println( ip.getProcessor() );
 			}
