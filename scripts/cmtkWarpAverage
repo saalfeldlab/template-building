@@ -1,0 +1,37 @@
+#!/bin/bash
+
+dir=`pwd`
+
+ref="$1"
+nThreads="$2"
+
+echo "nThreads : ${nThreads:="4"}"
+
+for im in `ls images/*nii`
+do
+    echo $im
+    name=${im##*/}
+    #echo $name
+
+    out=`echo $name | sed 's/.nii/_deformed.nii/g'`
+
+    regFileTmp=`ls ./Registration/warp/*${name}*/registration*` 
+    regFile=`echo "$regFileTmp" | sed 's/.gz$//g'`
+    #if [ -f $regFile ];
+    #then
+    #    echo "found the file"
+    #else
+    #    echo "no file"
+    #fi
+
+    echo "CMD: reformatx --threads $nThreads --floating $im -o $out $ref $regFile"
+    reformatx --threads $nThreads --floating $im -o $out $ref $regFile 
+
+    echo " " 
+done
+
+echo "averaging"
+echo "CMD: AverageImages 3 average-template.nii 0 *deformed.nii*"
+AverageImages 3 average-template.nii 0 *deformed.nii*
+
+echo "done"

@@ -1,0 +1,86 @@
+#!/bin/bash
+
+waitScript="/groups/saalfeld/home/bogovicj/libraries/antsbin2/bin/waitForSGEQJobs.pl"
+
+script="/groups/saalfeld/home/bogovicj/dev/jefferislab/AnalysisSuiteBin/munger.pl"
+bindir="/misc/local/cmtk-3.1.0/lib/cmtk/bin"
+
+ref="starting-template.nii"
+nThreads="4"
+
+nIters="4"
+currentIter="0"
+currentTemplate="$ref"
+
+
+function find_current_iter {
+
+    lastTemplate=`ls average-template*.nii | sort | tail -n 1`
+    currentTemplate="$lastTemplate"    
+
+    # Update currentIter
+    # Find the last complete average template, and increment 
+    currentIter=`echo $lastTemplate | sed -e 's/average-template_//g' -e 's/.nii//g'`
+    ((currentIter++))
+}
+
+function singleRegistrations {
+
+jobIds=""
+
+i=0
+for f in `ls images/*nii`
+do
+    echo $f
+    job="cmtkReg_$i.sh"
+
+    echo "#!/bin/bash" > $job 
+    echo "$script -b "$bindir" -e nii -v -aw -X 26 -C 8 -G 80 -R 4 -A '--accuracy 0.4' -W '--accuracy 0.4' -T $nThreads -s $currentTemplate $f" >> $job
+    chmod +x $job
+
+    id=`qsub -pe batch $nThreads -cwd -V -b y $job | awk '{print $3}'`
+    jobIds="$jobIds $id"
+    sleep 0.5
+    
+    ((i++))
+done
+
+# Wait for all the jobs to finish
+$waitScript 1 60 $jobIds
+
+}
+
+function backup {
+    
+    echo "backing up iteration $currentIter"
+
+    # Make backup directory
+    bak_dir="Iter_$currentIter"
+    mkdir -p $bak_dir
+   
+    mv cmtkReg*sh* $bak_dir
+    mv *deformed.nii.gz $bak_dir
+    mv Registration $bak_dir 
+
+}
+
+# See if this was interrupted before, and start from where this left off
+find_current_iter
+
+while [[ $currentIter < $nIters ]];
+do
+    echo "current iteration : $currentIter"
+    echo "current template  : $currentTemplate"
+
+    singleRegistrations
+    
+    cmtkWarpAverage $ref
+    mv average-template.nii average-template_$currentIter.nii
+   
+    backup
+
+    ((currentIter++))
+
+    currentTemplate="average-template_$currentIter.nii"
+done
+
