@@ -1,0 +1,19 @@
+#!/bin/bash
+# Returns all pairs of input arguments, one pair per line
+
+N="$#"
+#echo "N : $N"
+
+for i in `seq $N`; do
+    
+    if [[ $i == $N ]]; then
+        break
+    fi
+
+    s=$(($i + 1))
+    #echo $s
+    for j in `seq $s $N`; do
+        #echo "$i $j"
+        echo "${!i} ${!j}"
+    done
+done
