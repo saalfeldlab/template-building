@@ -1,0 +1,30 @@
+#!/bin/bash
+
+BASEDIR=$(dirname "$0")
+cp=`cat "$BASEDIR/theclasspath.cp"`
+
+# copy first two inputs directly
+inputs="$inputs $1"
+shift
+inputs="$inputs $1"
+shift
+
+# Check if interval input is a volume, and parse its size if so
+if [[ "$1" == *nii ]]
+then
+    echo "parsing interval"
+    inputs="$inputs `parseNiiInterval $1`"
+else
+    inputs="$inputs $1"
+fi
+shift
+
+for i in $@
+do
+    inputs="$inputs $i" 
+done
+
+echo $inputs
+echo " "
+
+java -cp "$cp" -Xmx64g process.RenderTransformed $inputs
