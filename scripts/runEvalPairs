@@ -1,0 +1,80 @@
+#!/bin/bash
+
+PAIRLIST="/nrs/saalfeld/john/projects/flyChemStainAtlas/eval/prefix_list_by_neuron.txt"
+IMGDIR="/nrs/saalfeld/john/projects/flyChemStainAtlas/eval/dataNew"
+
+template="$1"
+
+regdir=`pwd`
+mkdir -p eval
+cd eval
+
+dstdir=`pwd`
+#echo "now in dir: $dstdir"
+
+line="face"
+
+
+function transform {
+    #echo "transform - $sub"
+
+    xfmList="-i `ls $IMGDIR/$sub*down.txt`"
+    xfmList="$xfmList -i `matchEvalData $sub $regdir`"
+    #echo $xfmList
+
+    imglist=`ls $IMGDIR/$sub*C2*tif`
+    #echo " "
+
+    for img in $imglist
+    do
+        name="${img##*/}"
+        out="$dstdir/${name}_xfm.tif"
+
+        if [ -f $out ]; then
+            #echo "Exists, skipping $out"
+            continue
+        fi
+
+        echo "transforming $img"
+        renderTransformed $img $out $template $xfmList
+    done
+
+}
+
+# Start doing the work
+while read line
+do
+
+    echo "line: $line"
+    for sub in `echo $line`
+    do
+       transform 
+    done
+
+    thesepairs=`pairs $line`
+    echo "tp: $thesepairs"
+    #for p in "`pairs $line`"
+    #while read p
+    while IFS= read -r p
+    do
+        echo "p: $p"
+
+        m1=`echo $p | awk '{print $1}'`
+        im1=`ls ${dstdir}/${m1}*Skeleton.tif_xfm.tif`
+        echo "im1: $im1"
+
+        m2=`echo $p | awk '{print $2}'`
+        im2=`ls ${dstdir}/${m2}*Skeleton.tif_xfm.tif`
+        echo "im2: $im2"
+
+        echo "##"
+    done <<<"$thesepairs"
+
+
+    distEvalPair $im1 $im2
+
+    echo " "
+    echo " "
+
+done <$PAIRLIST
+
