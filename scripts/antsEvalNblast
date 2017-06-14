@@ -1,0 +1,55 @@
+#!/bin/bash
+
+PAIRLIST="/nrs/saalfeld/john/projects/flyChemStainAtlas/eval/prefix_list_by_neuron.txt"
+IMGDIR="/nrs/saalfeld/john/projects/flyChemStainAtlas/eval/dataNew"
+
+regdir=`pwd`
+mkdir -p nblasteval
+cd nblasteval
+
+dstdir=`pwd`
+
+function transform {
+    #echo "transform - $sub"
+
+    xfmList="-i `ls $IMGDIR/$sub*down.txt`"
+
+    # Both the affine and warp need to be inverted in this case. 
+    xfmList="$xfmList `matchEvalData $sub $regdir | sed -e 's/ / -i /g' -e 's/^/-i /g'`"
+    echo "$xfmList"
+
+    skellist=`ls $IMGDIR/$sub*C2*swc`
+    echo $skellist
+    echo " "
+
+    for skel in $skellist
+    do
+        name="${skel##*/}"
+        out="$dstdir/${name}_xfm.swc"
+
+        if [ -f $out ]; then
+            echo "Exists, skipping $out"
+            continue
+        fi
+
+        echo "transforming $skel"
+        transformSwc $skel $out
+    done
+}
+
+while read line
+do
+
+    echo "line: $line"
+    for sub in `echo $line`
+    do
+       transform 
+    done
+
+    #distEvalPair $im1 $im2
+
+    echo " "
+    echo " "
+
+done <$PAIRLIST
+
