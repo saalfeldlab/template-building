@@ -71,6 +71,7 @@ while [[ $currentIter < $nIters ]];
 do
     echo "current iteration : $currentIter"
     echo "current template  : $currentTemplate"
+    #sleep 10 
 
     singleRegistrations
     
@@ -79,8 +80,7 @@ do
    
     backup
 
-    ((currentIter++))
-
     currentTemplate="average-template_$currentIter.nii"
+    ((currentIter++))
 done
 
