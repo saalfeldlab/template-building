@@ -47,3 +47,6 @@ varianceLR <output image of distance> \
   <flipped-subject-affine> <flipped-subject-deformation> \
   <affine-that-flips-the-subject>
 ```
+
+## Notes
+* Currently as of `2017-June-14` depends on [this branch](https://github.com/bogovicj/imglib2-realtransform/tree/deformationField) of imglib2-realtransform
