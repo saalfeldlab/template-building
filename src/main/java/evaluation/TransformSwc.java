@@ -1,7 +1,6 @@
 package evaluation;
 
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -23,15 +22,25 @@ import process.RenderTransformed;
 import tracing.SNT;
 import tracing.SWCPoint;
 
+
+
 public class TransformSwc
 {
 
+	/*
+	 * Reads the first argument as a swc file
+	 * If the second argument is a directory, will rename the input and write to that directory,
+	 * else, will treat the second argument as the path of the output.
+	 */
 	public static void main( String[] args )
 	{
 		String ptFlist = args[ 0 ];
-		String outDir = args[ 1 ];
+		String out = args[ 1 ];
 
-		System.out.println( "writing to: " + outDir );
+		File testOutDir = new File( out );
+		boolean isOutDir = testOutDir.isDirectory();
+
+		System.out.println( "writing to: " + out );
 		
 		// Concatenate all the transforms
 		InvertibleRealTransformSequence totalXfm = new InvertibleRealTransformSequence();
@@ -77,7 +86,17 @@ public class TransformSwc
 		for ( String ptF : list )
 		{
 			File fileIn = new File( ptF );
-			File fileOut = new File( outDir + File.separator + fileIn.getName().replaceAll( ".swc", "_xfm.swc" ));
+			
+			File fileOut = null;
+			if( isOutDir )
+			{
+				fileOut = new File( out + File.separator + fileIn.getName().replaceAll( ".swc", "_xfm.swc" ));
+			}
+			else
+			{
+				fileOut = new File( out );
+			}
+		
 			ArrayList< SWCPoint > res = transformSWC( totalXfm, loadSWC( fileIn ));
 			
 			System.out.println( "Exporting to " + fileOut );
