@@ -1,22 +1,17 @@
 #!/bin/bash
 
 input="$1"
-
-# This will probably be more general/stable if i can get it to work
-# But it prints out two copies 
-# sed -n '/affine_xform/,/\}/p' $input
-
 if [[ "$input" == *gz ]]
 then
 #    echo "is gzipped"
-    string=`gunzip -c $input | sed -n '6,12p'`
+    gunzip -c $input | head -n 12 > tmp
 else
 #    echo "not gzipped"
-    string=`sed -n '6,12p' $input`
+    head -n 12 $input > tmp
 fi
-#echo "$string"
+echo '}' >> tmp
+ 
+dof2mat --transpose tmp | tr '\n' '\t' | sed -e 's/\t\t/,/g' -e 's/\t/,/g' -e 's/,$/\n/g'
 
+rm tmp
 
-cp="/groups/saalfeld/home/bogovicj/dev/bdv/imglib2-transform-import/target/classes:/groups/saalfeld/home/bogovicj/.m2/repository/net/imglib2/imglib2/2.9.0/imglib2-2.9.0.jar:/groups/saalfeld/home/bogovicj/.m2/repository/net/imglib2/imglib2-roi/0.4.2/imglib2-roi-0.4.2.jar:/groups/saalfeld/home/bogovicj/.m2/repository/net/sf/trove4j/trove4j/3.0.3/trove4j-3.0.3.jar:/groups/saalfeld/home/bogovicj/.m2/repository/net/imglib2/imglib2-realtransform/2.0.0-beta-31/imglib2-realtransform-2.0.0-beta-31.jar:/groups/saalfeld/home/bogovicj/.m2/repository/net/imagej/imagej-common/0.20.1/imagej-common-0.20.1.jar:/groups/saalfeld/home/bogovicj/.m2/repository/org/scijava/scijava-common/2.56.0/scijava-common-2.56.0.jar:/groups/saalfeld/home/bogovicj/.m2/repository/org/scijava/scijava-expression-parser/3.0.1/scijava-expression-parser-3.0.1.jar:/groups/saalfeld/home/bogovicj/.m2/repository/com/googlecode/gentyref/gentyref/1.1.0/gentyref-1.1.0.jar:/groups/saalfeld/home/bogovicj/.m2/repository/org/bushe/eventbus/1.4/eventbus-1.4.jar:/groups/saalfeld/home/bogovicj/.m2/repository/edu/ucar/udunits/4.3.18/udunits-4.3.18.jar:/groups/saalfeld/home/bogovicj/.m2/repository/gov/nist/math/jama/1.0.3/jama-1.0.3.jar:/groups/saalfeld/home/bogovicj/.m2/repository/com/googlecode/efficient-java-matrix-library/ejml/0.24/ejml-0.24.jar:/groups/saalfeld/home/bogovicj/.m2/repository/jitk/jitk-tps/2.0.0/jitk-tps-2.0.0.jar:/groups/saalfeld/home/bogovicj/.m2/repository/log4j/log4j/1.2.17/log4j-1.2.17.jar:/groups/saalfeld/home/bogovicj/.m2/repository/mpicbg/mpicbg/1.1.1/mpicbg-1.1.1.jar:/groups/saalfeld/home/bogovicj/.m2/repository/au/com/bytecode/opencsv/2.4/opencsv-2.4.jar:/groups/saalfeld/home/bogovicj/.m2/repository/ome/bio-formats_plugins/5.1.8/bio-formats_plugins-5.1.8.jar:/groups/saalfeld/home/bogovicj/.m2/repository/ome/formats-api/5.1.8/formats-api-5.1.8.jar:/groups/saalfeld/home/bogovicj/.m2/repository/ome/formats-gpl/5.1.8/formats-gpl-5.1.8.jar:/groups/saalfeld/home/bogovicj/.m2/repository/ome/mdbtools-java/5.1.8/mdbtools-java-5.1.8.jar:/groups/saalfeld/home/bogovicj/.m2/repository/ome/metakit/5.1.8/metakit-5.1.8.jar:/groups/saalfeld/home/bogovicj/.m2/repository/ome/ome-poi/5.1.8/ome-poi-5.1.8.jar:/groups/saalfeld/home/bogovicj/.m2/repository/commons-logging/commons-logging/1.1.1/commons-logging-1.1.1.jar:/groups/saalfeld/home/bogovicj/.m2/repository/edu/ucar/netcdf/4.3.19/netcdf-4.3.19.jar:/groups/saalfeld/home/bogovicj/.m2/repository/woolz/JWlz/1.4.0/JWlz-1.4.0.jar:/groups/saalfeld/home/bogovicj/.m2/repository/joda-time/joda-time/2.3/joda-time-2.3.jar:/groups/saalfeld/home/bogovicj/.m2/repository/com/esotericsoftware/kryo/kryo/2.24.0/kryo-2.24.0.jar:/groups/saalfeld/home/bogovicj/.m2/repository/com/esotericsoftware/minlog/minlog/1.2/minlog-1.2.jar:/groups/saalfeld/home/bogovicj/.m2/repository/org/objenesis/objenesis/2.1/objenesis-2.1.jar:/groups/saalfeld/home/bogovicj/.m2/repository/ch/systems/cisd/jhdf5/14.12.0/jhdf5-14.12.0.jar:/groups/saalfeld/home/bogovicj/.m2/repository/ome/formats-common/5.1.8/formats-common-5.1.8.jar:/groups/saalfeld/home/bogovicj/.m2/repository/com/google/guava/guava/18.0/guava-18.0.jar:/groups/saalfeld/home/bogovicj/.m2/repository/ome/ome-xml/5.1.8/ome-xml-5.1.8.jar:/groups/saalfeld/home/bogovicj/.m2/repository/ome/formats-bsd/5.1.8/formats-bsd-5.1.8.jar:/groups/saalfeld/home/bogovicj/.m2/repository/ome/jai_imageio/5.1.8/jai_imageio-5.1.8.jar:/groups/saalfeld/home/bogovicj/.m2/repository/ome/specification/5.1.8/specification-5.1.8.jar:/groups/saalfeld/home/bogovicj/.m2/repository/ome/turbojpeg/5.1.8/turbojpeg-5.1.8.jar:/groups/saalfeld/home/bogovicj/.m2/repository/org/scijava/native-lib-loader/2.1.3/native-lib-loader-2.1.3.jar:/groups/saalfeld/home/bogovicj/.m2/repository/org/perf4j/perf4j/0.9.13/perf4j-0.9.13.jar:/groups/saalfeld/home/bogovicj/.m2/repository/com/drewnoakes/metadata-extractor/2.6.2/metadata-extractor-2.6.2.jar:/groups/saalfeld/home/bogovicj/.m2/repository/com/adobe/xmp/xmpcore/5.1.2/xmpcore-5.1.2.jar:/groups/saalfeld/home/bogovicj/.m2/repository/xerces/xercesImpl/2.8.1/xercesImpl-2.8.1.jar:/groups/saalfeld/home/bogovicj/.m2/repository/com/jgoodies/jgoodies-forms/1.7.2/jgoodies-forms-1.7.2.jar:/groups/saalfeld/home/bogovicj/.m2/repository/com/jgoodies/jgoodies-common/1.7.0/jgoodies-common-1.7.0.jar:/groups/saalfeld/home/bogovicj/.m2/repository/net/imagej/ij/1.50i/ij-1.50i.jar:/groups/saalfeld/home/bogovicj/.m2/repository/org/slf4j/slf4j-api/1.7.6/slf4j-api-1.7.6.jar:/groups/saalfeld/home/bogovicj/.m2/repository/ch/qos/logback/logback-core/1.1.1/logback-core-1.1.1.jar:/groups/saalfeld/home/bogovicj/.m2/repository/ch/qos/logback/logback-classic/1.1.1/logback-classic-1.1.1.jar:/groups/saalfeld/home/bogovicj/.m2/repository/net/imglib2/imglib2-ij/2.0.0-beta-31/imglib2-ij-2.0.0-beta-31.jar:/groups/saalfeld/home/bogovicj/dev/main/janelia-util/target/classes:/groups/saalfeld/home/bogovicj/.m2/repository/org/apache/commons/commons-math/2.2/commons-math-2.2.jar:/groups/saalfeld/home/bogovicj/.m2/repository/com/beust/jcommander/1.48/jcommander-1.48.jar"
-
-/misc/local/jdk1.8.0_71/jre/bin/java -Xmx1g -classpath "$cp" net.imglib2.realtransform.cmtk.CMTKLoadAffine "$string"
