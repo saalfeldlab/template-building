@@ -1,0 +1,10 @@
+#!/bin/bash
+
+echo "#Insight Transform File V1.0"
+echo "#Transform 0"
+echo "Transform: MatrixOffsetTransformBase_double_3_3"
+
+p=`cat $1 | awk -F, '{print $1,$2,$3,$5,$6,$7,$9,$10,$11,$4,$8,$12}'`
+
+echo "Parameters: $p"
+echo "FixedParameters: 0.0 0.0 0.0"
