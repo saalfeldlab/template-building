@@ -49,4 +49,7 @@ varianceLR <output image of distance> \
 ```
 
 ## Notes
+### Dependencies
 * Currently as of `2017-June-14` depends on [this branch](https://github.com/bogovicj/imglib2-realtransform/tree/deformationField) of imglib2-realtransform
+* Nifti convertion depends on [mipav](https://mipav.cit.nih.gov/) and [this script](https://gist.github.com/bogovicj/4b22195fde421652518be230f1180037)
+
