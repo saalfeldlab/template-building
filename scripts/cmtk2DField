@@ -12,14 +12,30 @@ then
     shift
 fi
 
+toAnts=""
+if [ $1 == "ants" ]
+then
+    echo "ants"
+    toAnts="ants"
+    shift
+fi
+
 out="$1"
 reference="$2"
 registration="$3"
 
+echo "registration: $3"
 if [ $additionalargs == "$WARPONLY" ]
 then
     echo "extracting affine part"
-    cmtkAffineConv $registration > ${out}Affine.txt
+    if [[ "$toAnts" == "ants" ]]
+    then
+        echo "toants"
+        cmtkAffineConv $registration | affineImglib2Itk > ${out}Affine.txt
+    else
+        cmtkAffineConv $registration > ${out}Affine.txt
+    fi
+    echo "done"
 fi
 
 echo "$registration"
@@ -35,6 +51,9 @@ xform2scalar "$additionalargs" -o "$out"-x.nrrd --x-component $reference $regin
 xform2scalar "$additionalargs" -o "$out"-y.nrrd --y-component $reference $regin
 xform2scalar "$additionalargs" -o "$out"-z.nrrd --z-component $reference $regin
 
-BASEDIR=$(dirname "$0")
-cp=`cat "$BASEDIR/theclasspath.cp"`
-java -cp "$cp" -Xmx64g process.Concatenate $out.tif "$out"-x.nrrd "$out"-y.nrrd "$out"-z.nrrd
+# Use this ants utility instead of my hacky thing
+CreateDisplacementField 3 ${out}-x.nrrd ${out}-y.nrrd ${out}-z.nrrd ${out}.nii
+
+#BASEDIR=$(dirname "$0")
+#cp=`cat "$BASEDIR/theclasspath.cp"`
+#java -cp "$cp" -Xmx64g process.Concatenate $out.tif "$out"-x.nrrd "$out"-y.nrrd "$out"-z.nrrd
