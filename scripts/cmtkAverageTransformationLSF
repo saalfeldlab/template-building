@@ -1,0 +1,52 @@
+#!/bin/bash
+
+# NOTE, I"m testing this here:
+#/nrs/saalfeld/john/projects/flyChemStainAtlas/cmtk_nogroupwise/cmtk_12-A/Iter_0/Registration/warp/starting-template_F-A1_TileConfiguration_lens_registered_downFlip.nii_warp_m0g80c8e1e-1x26r4.list/xform-y.nrrd
+
+waitScript="/groups/saalfeld/home/bogovicj/libraries/antsbin2/bin/waitForLSFJobs.pl"
+
+# Remember where we start
+startdir=`pwd`
+
+srcdir="$1"
+ref="$2"
+toAnts="$3"
+cd $srcdir
+
+i=0
+
+for reg in `ls */registration.gz`
+do
+    echo $reg
+    fullpath=`readlink -f $reg`
+    ddir=${fullpath%/*} 
+
+    # Make the job scripts
+    job="cmtk2dfield_$i.sh"
+    echo "#!/bin/bash" > $job
+    if [ $toAnts == "ants" ]
+    then
+        echo "cmtk2DField --warp-only $toAnts $ddir/xform $ref $fullpath" >> $job
+    else
+        echo "cmtk2DField --warp-only $ddir/xform $ref $fullpath" >> $job
+    fi
+
+    # Clean up extra stuff
+    echo "rm -v ${ddir}/*nrrd" >> $job
+    chmod +x $job
+
+    ((i++))
+done
+
+# Submit the jobs and wait
+for j in `ls cmtk2dfield_*sh`
+do
+    id=`bsub -n 1 -R"affinity[core(1)]" -o $j.o%J -e $j.e%J "./$j" | awk '{ gsub("[<>]","",$2); print $2}'`
+    jobIds="$jobIds $id"
+    sleep 0.5
+done
+
+$waitScript 1 60 $jobIds
+
+# Back to where we started
+cd $startdir
