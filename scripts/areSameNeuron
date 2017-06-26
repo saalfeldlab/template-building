@@ -1,0 +1,29 @@
+#!/bin/bash
+# Check whether two files (or prefix patterns) belong to the same fly line
+# Determines this by checking a pre-
+
+PAIRLIST="/nrs/saalfeld/john/projects/flyChemStainAtlas/eval/prefix_list_by_neuron.txt"
+PATTERN="^\(2016[0-9]\{4\}\_[0-9][0-9]_[A-Z][0-9]\).*"
+
+in1="$1"
+in2="$2"
+
+#Strip off the path
+name1="${in1##*/}"
+prefix1=`echo "$name1" | sed "s/$PATTERN/\1/g"`
+
+name2="${in2##*/}"
+prefix2=`echo "$name2" | sed "s/$PATTERN/\1/g"`
+
+#echo $prefix1
+#echo $prefix2
+
+res=`grep $prefix1 $PAIRLIST | grep $prefix2`
+#echo $res
+
+if [[ -z "$res" ]];
+then
+    echo "0"
+else
+    echo "1"
+fi
