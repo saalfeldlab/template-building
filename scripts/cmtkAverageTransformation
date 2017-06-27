@@ -1,0 +1,49 @@
+#!/bin/bash
+
+# NOTE, I"m testing this here:
+#/nrs/saalfeld/john/projects/flyChemStainAtlas/cmtk_nogroupwise/cmtk_12-A/Iter_0/Registration/warp/starting-template_F-A1_TileConfiguration_lens_registered_downFlip.nii_warp_m0g80c8e1e-1x26r4.list/xform-y.nrrd
+
+
+# Remember where we start
+tmp=`pwd`
+
+srcdir="$1"
+ref="$2"
+toAnts="$3"
+cd $srcdir
+
+for reg in `ls */registration.gz`
+do
+    echo $reg
+    fullpath=`readlink -f $reg`
+    echo "$fullpath"
+    ddir=${fullpath%/*} 
+    echo $ddir
+
+    if [ $toAnts == "ants" ]
+    then
+        echo "cmtk2DField --warp-only $toAnts $ddir/xform $ref $fullpath"
+        cmtk2DField --warp-only "$toAnts" "$ddir/xform" "$ref" "$fullpath"
+    else
+        echo "cmtk2DField --warp-only $ddir/xform $ref $fullpath"
+        cmtk2DField --warp-only "$ddir/xform" "$ref" "$fullpath"
+    fi
+    
+    xfmnii=`echo $reg | sed 's/registration.gz/xform.nii/g'`
+
+    ####################
+    # The lines below are not necessary after new changes to cmtk2DField
+    ####################
+    #xfm=`echo $reg | sed 's/registration.gz/xform.tif/g'`
+    # Convert to nii so ants can deal with it 
+    #tif2nii $xfm $xfmnii
+
+    # Clean up extra stuff
+
+    rm -v ${ddir}/*nrrd
+
+    #break
+done
+
+# Back to where we started
+cd $tmp

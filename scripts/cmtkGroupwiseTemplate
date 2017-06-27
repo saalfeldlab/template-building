@@ -1,0 +1,137 @@
+#!/bin/bash
+
+waitScript="/groups/saalfeld/home/bogovicj/libraries/antsbin2/bin/waitForLSFJobs.pl"
+
+script="/groups/saalfeld/home/bogovicj/dev/jefferislab/AnalysisSuiteBin/munger.pl"
+bindir="/misc/local/cmtk-3.1.0/lib/cmtk/bin"
+
+ref="starting-template.nii"
+nThreads="4"
+
+nIters="4"
+gradientstep="0.25"
+
+currentIter="0"
+currentTemplate="$ref"
+
+
+function find_current_iter {
+
+    lastTemplate=`ls average-template*.nii | sort | tail -n 1`
+    currentTemplate="$lastTemplate"    
+
+    # Update currentIter
+    # Find the last complete average template, and increment 
+    currentIter=`echo $lastTemplate | sed -e 's/average-template_//g' -e 's/.nii//g'`
+    ((currentIter++))
+}
+
+function shapeupdate {
+
+    # Variables that are constant for the moment, but I may change in
+    # the future
+    dim=3 
+    templatename="average-template"
+    template="average-template.nii"
+    afftype=".txt"
+
+    echo
+    echo "--------------------------------------------------------------------------------------"
+    echo " shape update - Compute average warp "
+    echo "--------------------------------------------------------------------------------------"
+    ${ANTSPATH}/AverageImages $dim ${templatename}Warp.nii.gz 0 `ls Registration/warp/*/xform.nii`
+	${ANTSPATH}/MultiplyImages $dim ${templatename}Warp.nii.gz ${gradientstep} ${templatename}Warp.nii.gz
+
+    echo
+    echo "--------------------------------------------------------------------------------------"
+    echo " shape update - Compute average affine "
+    echo "--------------------------------------------------------------------------------------"
+    ${ANTSPATH}/AverageAffineTransform ${dim} ${templatename}Affine${afftype} ${outputname}*Affine${afftype}
+
+    echo
+    echo "--------------------------------------------------------------------------------------"
+    echo " shape update - Update warps "
+    echo "--------------------------------------------------------------------------------------"
+    ${ANTSPATH}/WarpImageMultiTransform ${dim} ${templatename}Warp.nii.gz ${templatename}Warp.nii.gz -i  ${templatename}Affine${afftype} -R ${template}
+
+    echo
+    echo "--------------------------------------------------------------------------------------"
+    echo " shape update - Transform template "
+    echo "--------------------------------------------------------------------------------------"
+    ${ANTSPATH}/WarpImageMultiTransform ${dim} ${template} ${template} -i ${templatename}Affine${afftype} ${templatename}Warp.nii.gz ${templatename}Warp.nii.gz ${templatename}Warp.nii.gz ${templatename}Warp.nii.gz -R ${template}
+
+}
+
+function singleRegistrations {
+
+jobIds=""
+
+i=0
+for f in `ls images/*nii`
+do
+    echo $f
+    job="cmtkReg_$i.sh"
+
+    echo "#!/bin/bash" > $job 
+    echo "$script -b "$bindir" -e nii -v -aw -X 26 -C 8 -G 80 -R 4 -A '--accuracy 0.4' -W '--accuracy 0.4' -T $nThreads -s $currentTemplate $f" >> $job
+    chmod +x $job
+
+    # the output of bsub is something like "Job <53135> is submitted to default queue <normal>."
+    # the awk command below grabs the jobid without the brackets
+    id=`bsub -n $nThreads -o $job.o%J -e $job.e%J './$job' | awk '{ gsub("[<>]","",$2); print $2}'`
+    jobIds="$jobIds $id"
+    sleep 0.5
+    
+    ((i++))
+done
+
+# Wait for all the jobs to finish
+$waitScript 1 60 $jobIds
+
+}
+
+function backup {
+    
+    echo "backing up iteration $currentIter"
+
+    # Make backup directory
+    bak_dir="Iter_$currentIter"
+    mkdir -p $bak_dir
+   
+    mv cmtkReg*sh* $bak_dir
+    mv *deformed.nii.gz $bak_dir
+    mv Registration $bak_dir 
+
+}
+
+# See if this was interrupted before, and start from where this left off
+#find_current_iter
+
+thisdir=`pwd`
+
+#while [[ $currentIter < $nIters ]];
+#do
+#    echo "current iteration : $currentIter"
+#    echo "current template  : $currentTemplate"
+    #sleep 10 
+    #
+    #singleRegistrations
+    #
+    #cmtkWarpAverage $ref
+    #mv average-template.nii average-template_$currentIter.nii
+   
+    # Convert the cmtk transformations
+    
+    srcdir="${thisdir}/Registration/warp"
+    ref="${thisdir}/average-template.nii"
+    #cmtkAverageTransformationLSF $srcdir $ref "ants"
+ 
+    # Warp the average shape
+    shapeupdate
+
+#    backup
+#
+#    currentTemplate="average-template_$currentIter.nii"
+#    ((currentIter++))
+#done
+
