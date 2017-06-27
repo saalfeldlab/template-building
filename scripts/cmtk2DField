@@ -52,7 +52,7 @@ xform2scalar "$additionalargs" -o "$out"-y.nrrd --y-component $reference $regin
 xform2scalar "$additionalargs" -o "$out"-z.nrrd --z-component $reference $regin
 
 # Use this ants utility instead of my hacky thing
-CreateDisplacementField 3 ${out}-x.nrrd ${out}-y.nrrd ${out}-z.nrrd ${out}.nii
+CreateDisplacementField 3 0 ${out}-x.nrrd ${out}-y.nrrd ${out}-z.nrrd ${out}.nii
 
 #BASEDIR=$(dirname "$0")
 #cp=`cat "$BASEDIR/theclasspath.cp"`
