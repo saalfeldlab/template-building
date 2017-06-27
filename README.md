@@ -11,6 +11,12 @@ Scripts and code relating to building anatomical templates.
 * Render at the original resolution ( runRenderHiRes )
 * Average ( averageTally )
 
+### Methods for template building
+* ANTs groupwise (antsBuildTemplateGroupwise)
+* ANTs single    (singleSubjectTemplateParallel.sh)
+* CMTK groupwise (cmtkGroupwiseTemplate)
+* CMTK single (cmtkSingleTemplate)
+
 ## Analysis
 * Estimate registration variance (accuracy) by comparing flips ( varianceLR )
 * Estimate a "symmetrizing" transformation ( runSymmetry )
