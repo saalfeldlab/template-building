@@ -1,0 +1,108 @@
+#!/bin/bash
+
+PAIRLIST="/nrs/saalfeld/john/projects/flyChemStainAtlas/eval/prefix_list_by_neuron.txt"
+IMGDIR="/nrs/saalfeld/john/projects/flyChemStainAtlas/eval/dataNew"
+
+prefixPattern="\(2016[0-9]\{4\}\_[0-9][0-9]_[A-Z][0-9]\).*"
+deletePattern="s/_Scope_.*$//g"
+
+template="$1"
+
+regdir=`pwd`
+mkdir -p eval
+cd eval
+
+dstdir=`pwd`
+#echo "now in dir: $dstdir"
+
+line="face"
+
+# Transform
+function transform {
+
+    imglist=`ls $IMGDIR/*C2*tif`
+    #echo " "
+
+    for img in $imglist
+    do
+        name="${img##*/}"
+        out="$dstdir/${name}_xfm.tif"
+
+        #prefix=`echo "$name" | sed "s/$prefixPattern/\1/g"`
+        prefix=`echo "$name" | sed $deletePattern`
+        echo "prefix: $prefix"
+
+        if [ -f $out ]; then
+            echo "Exists, skipping $out"
+            continue
+        fi
+
+        xfmList="-i `ls $IMGDIR/${prefix}*down.txt`"
+        xfmList="$xfmList -i `matchEvalData $prefix $regdir`"
+        echo "$xfmList"
+
+        echo "transforming $img"
+        #renderTransformed $img $out $template $xfmList
+    done
+}
+
+function distanceTransforms {
+   
+    for im in `ls *Skeleton.tif_xfm.tif`
+    do
+        #echo "computing DT for $im"
+        dist_im="${im}_distXfm.tif"
+
+        if [ ! -f "$dist_im" ];
+        then
+            echo "distance transform of $im"
+            runDistanceTransform "$dstdir/$im"
+        else
+            echo "skipping DT for $im - already exists"
+        fi
+    done
+}
+
+function pairwiseEval {
+    #ls -1 *distXfm.tif | tr '\n' ' ' > tmp
+    #dts=`ls -1 20170223_32_A*distXfm.tif | tr '\n' ' '`
+    dts=`ls -1 *distXfm.tif | tr '\n' ' '`
+    echo "$dts"
+    pairs $dts > pairs
+
+    while read line
+    do
+        #echo "$line"
+        a=`echo "$line" | cut -d' ' -f1`
+        b=`echo "$line" | cut -d' ' -f2`
+        aim=`echo $a | sed 's/_distXfm.tif//g'`
+        bim=`echo $b | sed 's/_distXfm.tif//g'`
+
+        echo "$aim"
+        echo "$bim"
+        echo "$a"
+        echo "$b"
+
+        sameNeuron=`areSameNeuron $aim $bim`
+        echo "$sameNeuron"
+        suffix="DIFF"
+        if [[ "$sameNeuron" == "1" ]];
+        then
+            suffix="SAME"
+        fi
+        echo "suffix: $suffix"
+
+        distEvalPair `pwd`/$aim `pwd`/$bim `pwd`/$a `pwd`/$b "$suffix"
+        echo " "
+        echo " "
+    done <pairs
+
+}
+
+# Transform everything
+#transform
+
+#distanceTransforms
+
+pairwiseEval
+
