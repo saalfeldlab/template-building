@@ -1,6 +1,6 @@
 #!/bin/bash
 
-waitScript="/groups/saalfeld/home/bogovicj/libraries/antsbin2/bin/waitForLSFJobs.pl"
+waitScript="/groups/saalfeld/home/bogovicj/dev/template/template-building/scripts/waitForLSFJobs.pl"
 
 script="/groups/saalfeld/home/bogovicj/dev/jefferislab/AnalysisSuiteBin/munger.pl"
 bindir="/misc/local/cmtk-3.1.0/lib/cmtk/bin"
@@ -18,12 +18,18 @@ currentTemplate="$ref"
 function find_current_iter {
 
     lastTemplate=`ls average-template*.nii | sort | tail -n 1`
-    currentTemplate="$lastTemplate"    
 
-    # Update currentIter
-    # Find the last complete average template, and increment 
-    currentIter=`echo $lastTemplate | sed -e 's/average-template_//g' -e 's/.nii//g'`
-    ((currentIter++))
+    if [[ $lastTemplate ]];
+    then
+        currentTemplate="$lastTemplate"    
+
+        # Update currentIter
+        # Find the last complete average template, and increment 
+        currentIter=`echo $lastTemplate | sed -e 's/average-template_//g' -e 's/.nii//g'`
+        ((currentIter++))
+    else
+        echo "using the starting template"
+    fi
 }
 
 function shapeupdate {
@@ -46,7 +52,7 @@ function shapeupdate {
     echo "--------------------------------------------------------------------------------------"
     echo " shape update - Compute average affine "
     echo "--------------------------------------------------------------------------------------"
-    ${ANTSPATH}/AverageAffineTransform ${dim} ${templatename}Affine${afftype} ${outputname}*Affine${afftype}
+    ${ANTSPATH}/AverageAffineTransform ${dim} ${templatename}Affine${afftype} ./Registration/warp/*/xformAffine.txt
 
     echo
     echo "--------------------------------------------------------------------------------------"
@@ -75,12 +81,14 @@ do
     echo "#!/bin/bash" > $job 
     echo "$script -b "$bindir" -e nii -v -aw -X 26 -C 8 -G 80 -R 4 -A '--accuracy 0.4' -W '--accuracy 0.4' -T $nThreads -s $currentTemplate $f" >> $job
     chmod +x $job
+    sleep 1
 
     # the output of bsub is something like "Job <53135> is submitted to default queue <normal>."
     # the awk command below grabs the jobid without the brackets
-    id=`bsub -n $nThreads -o $job.o%J -e $job.e%J './$job' | awk '{ gsub("[<>]","",$2); print $2}'`
+    id=`bsub -n $nThreads -o $job.o%J -e $job.e%J "./$job" | awk '{ gsub("[<>]","",$2); print $2}'`
+    sleep 0.5 
     jobIds="$jobIds $id"
-    sleep 0.5
+    sleep 0.5 
     
     ((i++))
 done
@@ -101,37 +109,40 @@ function backup {
     mv cmtkReg*sh* $bak_dir
     mv *deformed.nii.gz $bak_dir
     mv Registration $bak_dir 
+    mv average-templateWarp* $bak_dir
+    mv average-templateAffine* $bak_dir
 
 }
 
 # See if this was interrupted before, and start from where this left off
-#find_current_iter
+find_current_iter
+
+echo "ref: $currentTemplate"
 
 thisdir=`pwd`
 
-#while [[ $currentIter < $nIters ]];
-#do
-#    echo "current iteration : $currentIter"
-#    echo "current template  : $currentTemplate"
-    #sleep 10 
-    #
-    #singleRegistrations
-    #
-    #cmtkWarpAverage $ref
-    #mv average-template.nii average-template_$currentIter.nii
-   
+while [[ $currentIter < $nIters ]];
+do
+    echo "current iteration : $currentIter"
+    echo "current template  : $currentTemplate"
+    sleep 1
+
+    singleRegistrations
+
+    cmtkWarpAverage $ref
+
     # Convert the cmtk transformations
-    
     srcdir="${thisdir}/Registration/warp"
     ref="${thisdir}/average-template.nii"
-    #cmtkAverageTransformationLSF $srcdir $ref "ants"
+    cmtkAverageTransformationLSF $srcdir $ref "ants"
  
     # Warp the average shape
     shapeupdate
 
-#    backup
-#
-#    currentTemplate="average-template_$currentIter.nii"
-#    ((currentIter++))
-#done
+    mv average-template.nii average-template_$currentIter.nii
+    backup
+
+    currentTemplate="average-template_$currentIter.nii"
+    ((currentIter++))
+done
 
