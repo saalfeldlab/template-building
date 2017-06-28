@@ -86,16 +86,25 @@ do
     # the output of bsub is something like "Job <53135> is submitted to default queue <normal>."
     # the awk command below grabs the jobid without the brackets
     id=`bsub -n $nThreads -o $job.o%J -e $job.e%J "./$job" | awk '{ gsub("[<>]","",$2); print $2}'`
-    sleep 0.5 
+    sleep 1
     jobIds="$jobIds $id"
-    sleep 0.5 
-    
+    sleep 1
+ 
     ((i++))
 done
 
+sleep 2
 # Wait for all the jobs to finish
 $waitScript 1 60 $jobIds
 
+}
+
+function genAverageTemplateLSF {
+    avgTemplateJob="avgTemplate_$currentIter.sh" 
+    echo "#!/bin/bash" > $avgTemplateJob
+    echo "cmtkWarpAverage $ref 4" >> $avgTemplateJob # Use 4 threads
+    chmod +x $avgTemplateJob
+    bsub -n 4 -o $avgTemplateJob.o%J -e $avgTemplateJob.e%J "./$avgTemplateJob"
 }
 
 function backup {
@@ -129,7 +138,8 @@ do
 
     singleRegistrations
 
-    cmtkWarpAverage $ref
+    #cmtkWarpAverage $ref
+    genAverageTemplateLSF
 
     # Convert the cmtk transformations
     srcdir="${thisdir}/Registration/warp"
