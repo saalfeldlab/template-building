@@ -138,7 +138,9 @@ function genAverageTemplateLSF {
     echo "#!/bin/bash" > $avgTemplateJob
     echo "cmtkWarpAverage $ref 4" >> $avgTemplateJob # Use 4 threads
     chmod +x $avgTemplateJob
-    bsub -n 4 -o $avgTemplateJob.o%J -e $avgTemplateJob.e%J "./$avgTemplateJob"
+
+    id=`bsub -n 4 -o $avgTemplateJob.o%J -e $avgTemplateJob.e%J "./$avgTemplateJob" | awk '{ gsub("[<>]","",$2); print $2}'`
+    $waitScript 1 60 $id
 }
 
 function backup {
