@@ -1,4 +1,6 @@
 #!/bin/bash
+# Returns the affine and deformable ants transforms for the input
+# subject.  Finds the correct files by matching the file prefix
 
 
 #REGDIR="/nrs/saalfeld/john/projects/flyChemStainAtlas/eval/data"

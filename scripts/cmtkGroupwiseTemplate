@@ -1,5 +1,8 @@
 #!/bin/bash
-
+# Generates a groupwise template using cmtk for registration, and
+# ants-like shape averaging.
+#
+ 
 waitScript="/groups/saalfeld/home/bogovicj/dev/template/template-building/scripts/waitForLSFJobs.pl"
 
 script="/groups/saalfeld/home/bogovicj/dev/jefferislab/AnalysisSuiteBin/munger.pl"
