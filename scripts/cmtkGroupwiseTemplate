@@ -17,6 +17,9 @@ gradientstep="0.25"
 currentIter="0"
 currentTemplate="$ref"
 
+# TODO pass this as an input
+cmtkAvgMode="total"
+
 
 function find_current_iter {
 
@@ -35,6 +38,34 @@ function find_current_iter {
     fi
 }
 
+# ANTS-like shape based averaging
+# Uses a transform that is a single displacement field that takes into
+# account both the affine and deformable parts
+function shapeupdatetotal {
+
+    # Variables that are constant for the moment, but I may change in
+    # the future
+    dim=3 
+    templatename="average-template"
+    template="average-template.nii"
+
+    echo
+    echo "--------------------------------------------------------------------------------------"
+    echo " shape update - Compute average warp "
+    echo "--------------------------------------------------------------------------------------"
+    ${ANTSPATH}/AverageImages $dim ${templatename}Warp.nii.gz 0 `ls Registration/warp/*/xform.nii`
+	${ANTSPATH}/MultiplyImages $dim ${templatename}Warp.nii.gz ${gradientstep} ${templatename}Warp.nii.gz
+
+    echo
+    echo "--------------------------------------------------------------------------------------"
+    echo " shape update - Transform template "
+    echo "--------------------------------------------------------------------------------------"
+    ${ANTSPATH}/WarpImageMultiTransform ${dim} ${template} ${template} ${templatename}Warp.nii.gz ${templatename}Warp.nii.gz ${templatename}Warp.nii.gz ${templatename}Warp.nii.gz -R ${template}
+
+}
+
+# ANTS-like shape based averaging
+# Uses a transform that is decomposed into affine and deformable parts
 function shapeupdate {
 
     # Variables that are constant for the moment, but I may change in
