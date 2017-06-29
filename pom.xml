@@ -14,7 +14,7 @@
   <parent>
   	<groupId>org.scijava</groupId>
   	<artifactId>pom-scijava</artifactId>
-  	<version>14.0.0</version>
+  	<version>15.0.0</version>
   </parent>
   <dependencies>
   	<dependency>
@@ -97,10 +97,6 @@
 		<groupId>net.imglib2</groupId>
 		<artifactId>imglib2-realtransform</artifactId>
 		<version>2.0.0-beta-38-SNAPSHOT</version>
-	</dependency>
-	<dependency>
-		<groupId>sc.fiji</groupId>
-		<artifactId>mpicbg-trakem2</artifactId>
 	</dependency>
 	<dependency>
 		<groupId>sc.fiji</groupId>
