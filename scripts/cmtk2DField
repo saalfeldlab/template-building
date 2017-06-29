@@ -25,7 +25,7 @@ reference="$2"
 registration="$3"
 
 echo "registration: $3"
-if [ $additionalargs == "$WARPONLY" ]
+if [[ $additionalargs == "$WARPONLY" ]]
 then
     echo "extracting affine part"
     if [[ "$toAnts" == "ants" ]]
@@ -39,7 +39,6 @@ then
 fi
 
 echo "$registration"
-
 if [[ "$registration" == *.gz ]]
 then
     regin=`echo $registration | sed 's/.gz//g'`
@@ -47,9 +46,23 @@ else
     regin="$registration"
 fi
 
-xform2scalar "$additionalargs" -o "$out"-x.nrrd --x-component $reference $regin
-xform2scalar "$additionalargs" -o "$out"-y.nrrd --y-component $reference $regin
-xform2scalar "$additionalargs" -o "$out"-z.nrrd --z-component $reference $regin
+echo "out: $out"
+echo "ref: $reference"
+echo "reg: $regin"
+echo "additional args: $additionalargs"
+
+
+if [[ "$additionalargs" == "$WARPONLY" ]];
+then
+    xform2scalar "$additionalargs" -o "$out"-x.nrrd --x-component $reference $regin
+    xform2scalar "$additionalargs" -o "$out"-y.nrrd --y-component $reference $regin
+    xform2scalar "$additionalargs" -o "$out"-z.nrrd --z-component $reference $regin
+else
+    echo "total"
+    xform2scalar -o "$out"-x.nrrd --x-component $reference $regin
+    xform2scalar -o "$out"-y.nrrd --y-component $reference $regin
+    xform2scalar -o "$out"-z.nrrd --z-component $reference $regin
+fi
 
 # Use this ants utility instead of my hacky thing
 CreateDisplacementField 3 0 ${out}-x.nrrd ${out}-y.nrrd ${out}-z.nrrd ${out}.nii
