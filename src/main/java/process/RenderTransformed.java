@@ -35,11 +35,14 @@ import net.imglib2.img.imageplus.ShortImagePlus;
 import net.imglib2.interpolation.randomaccess.NLinearInterpolatorFactory;
 import net.imglib2.realtransform.AffineTransform;
 import net.imglib2.realtransform.AffineTransform3D;
+import net.imglib2.realtransform.InverseRealTransform;
+import net.imglib2.realtransform.InvertibleDeformationFieldTransform;
 import net.imglib2.realtransform.InvertibleRealTransform;
 import net.imglib2.realtransform.InvertibleRealTransformSequence;
 import net.imglib2.realtransform.RealViews;
 import net.imglib2.realtransform.ants.ANTSDeformationField;
 import net.imglib2.realtransform.ants.ANTSLoadAffine;
+import net.imglib2.transform.InverseTransform;
 import net.imglib2.type.numeric.NumericType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.numeric.integer.ShortType;
@@ -206,11 +209,6 @@ public class RenderTransformed
 		}
 		else
 		{
-			if( invert )
-			{
-				System.out.println( "cant invert displacement field here");
-				return null;
-			}
 			
 			Img< FloatType > displacement = null;
 			if( filePath.endsWith( "nii" ))
@@ -234,8 +232,18 @@ public class RenderTransformed
 
 			if( displacement == null )
 				return null;
-			else
-				return new ANTSDeformationField( displacement, new double[]{ 1, 1, 1 } );
+
+			ANTSDeformationField dfield = new ANTSDeformationField( displacement, new double[]{ 1, 1, 1 } );
+
+			if( invert )
+			{
+				//System.out.println( "cant invert displacement field here");
+				InvertibleDeformationFieldTransform<FloatType> invxfm = new InvertibleDeformationFieldTransform<FloatType>(
+						dfield.getDefField());
+
+				return new InverseRealTransform( invxfm );
+			}
+			return dfield;
 		}
 		return null;
 	}
