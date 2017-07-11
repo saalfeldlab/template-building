@@ -1,0 +1,36 @@
+#!/bin/bash
+
+PAIRLIST="/nrs/saalfeld/john/projects/flyChemStainAtlas/eval/prefix_list_by_neuron.txt"
+SLICES="100 125 150 175 200 225"
+
+mkdir -p vis/overlay
+startdir=`pwd`
+
+while read line 
+do
+
+    ############################################
+    # FOR EACH PAIR OF IMAGES BELONGING TO SAME LINE
+    ############################################
+    thesepairs=`pairs $line`
+    echo "tp: $thesepairs"
+    while IFS= read -r p
+    do
+        m1=`echo $p | awk '{print $1}'`
+        m2=`echo $p | awk '{print $2}'`
+
+        f1=`ls $m1*Neuron_xfm.tif`
+        f2=`ls $m2*Neuron_xfm.tif`
+
+        out=$startdir/vis/overlay/${m1}-${m2}_overlay
+        echo $out
+
+        echo "$m1  - $m2 "
+        overlay $out $startdir/$f1 $startdir/$f2 $SLICES
+
+    done <<<"$thesepairs"
+
+done <$PAIRLIST
+
+# Back to where we started
+cd ../..
