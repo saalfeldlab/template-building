@@ -1,0 +1,29 @@
+#!/bin/bash
+# Returns the affine and deformable ants transforms for the input
+# subject.  Finds the correct files by matching the file prefix
+
+PATTERN="^\(201[6-7][0-9]\{4\}\_[0-9][0-9]_[A-Z][0-9]\).*"
+CONVERTED="--conv"
+
+xfmPattern="registration"
+if [ $1 == "$CONVERTED" ]
+then
+    xfmPattern="xform.nii"
+    shift
+fi
+
+in="$1"
+REGDIR="$2"
+
+if [[ -f $in ]];
+then
+#    echo "is a file"
+    input=${in##*/}  
+else
+    input="$in"
+fi
+
+prefix=`echo "$input" | sed "s/$PATTERN/\1/g"`
+xfm=`ls ${REGDIR}/Registration/warp/*$prefix*/$xfmPattern*`
+
+echo "$xfm"
