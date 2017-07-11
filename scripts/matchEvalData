@@ -10,15 +10,15 @@ REGDIR="$2"
 
 if [[ -f $in ]];
 then
-    echo "is a file"
+#    echo "is a file"
     input=${in##*/}  
 else
     input="$in"
 fi
 
-pattern="^\(2016[0-9]\{4\}\_[0-9][0-9]_[A-Z][0-9]\).*"
+pattern="^\(201[6-7][0-9]\{4\}\_[0-9][0-9]_[A-Z][0-9]\).*"
 
-echo "$input"
+#echo "$input"
 prefix=`echo "$input" | sed "s/$pattern/\1/g"`
 #echo $prefix
 
