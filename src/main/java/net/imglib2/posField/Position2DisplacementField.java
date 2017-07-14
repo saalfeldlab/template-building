@@ -54,11 +54,13 @@ public class Position2DisplacementField
 		{
 			dim_component = 1;
 			suffix="-y";
+			argIdx++;
 		}
 		else if( args[ argIdx ].equals( Z_COMPONENT ))
 		{
 			dim_component = 2;
 			suffix="-z";
+			argIdx++;
 		}
 		
 		String outArg = args[ argIdx++ ];
