@@ -1,6 +1,6 @@
 #!/bin/bash
 
-posFieldX="$1" # must be nii
+posFieldX="$1" # must be nii (or nrrd?)
 posFieldY="$2" # must be nii
 posFieldZ="$3" # must be nii
 ref="$4"
@@ -15,13 +15,19 @@ reformatx -o ${out}-z.nii --floating $posFieldZ $ref $reg
 unset CMTK_WRITE_UNCOMPRESSED
 
 # Convert position fields to displacement field
-position2Displacement ${out} ${out}-x.nii ${out}-y.nii ${out}-z.nii
+position2Displacement --x ${out} ${out}-x.nii 
+position2Displacement --y ${out} ${out}-y.nii 
+position2Displacement --z ${out} ${out}-z.nii 
 
 # Convert to nii
-resaveVolumeMipav ${out}.tif ${out}.nii
+resaveVolumeMipav ${out}-x.tif ${out}.nii
+resaveVolumeMipav ${out}-y.tif ${out}-y.nii
+resaveVolumeMipav ${out}-z.tif ${out}-z.nii
 
-# cleanup
-rm -v ${out}-x.nii
-rm -v ${out}-y.nii
-rm -v ${out}-z.nii
-rm -v ${out}.tif
+CreateDisplacementField 3 0 ${out}-x.nii ${out}-y.nii ${out}-z.nii ${out}.nii
+
+## cleanup
+#rm -v ${out}-x.nii
+#rm -v ${out}-y.nii
+#rm -v ${out}-z.nii
+#rm -v ${out}.tif
