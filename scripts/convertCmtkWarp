@@ -15,16 +15,16 @@ reformatx -o ${out}-z.nii --floating $posFieldZ $ref $reg
 unset CMTK_WRITE_UNCOMPRESSED
 
 # Convert position fields to displacement field
-position2Displacement --x ${out} ${out}-x.nii 
-position2Displacement --y ${out} ${out}-y.nii 
-position2Displacement --z ${out} ${out}-z.nii 
+position2Displacement --x ${out}-pos ${out}-x.nii
+position2Displacement --y ${out}-pos ${out}-y.nii 
+position2Displacement --z ${out}-pos ${out}-z.nii 
 
 # Convert to nii
-resaveVolumeMipav ${out}-x.tif ${out}.nii
-resaveVolumeMipav ${out}-y.tif ${out}-y.nii
-resaveVolumeMipav ${out}-z.tif ${out}-z.nii
+resaveVolumeMipav ${out}-pos-x.tif ${out}-pos-x.nii
+resaveVolumeMipav ${out}-pos-y.tif ${out}-pos-y.nii
+resaveVolumeMipav ${out}-pos-z.tif ${out}-pos-z.nii
 
-CreateDisplacementField 3 0 ${out}-x.nii ${out}-y.nii ${out}-z.nii ${out}.nii
+CreateDisplacementField 3 0 ${out}-pos-x.nii ${out}-pos-y.nii ${out}-pos-z.nii ${out}.nii
 
 ## cleanup
 #rm -v ${out}-x.nii
