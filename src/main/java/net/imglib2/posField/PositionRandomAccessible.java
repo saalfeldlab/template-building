@@ -10,8 +10,8 @@ import net.imglib2.type.numeric.RealType;
 public class PositionRandomAccessible<T extends RealType< T >>
 		implements RandomAccessible< T >
 {
-	private final int nd;
-	private final T t;
+	protected final int nd;
+	protected final T t;
 
 	public PositionRandomAccessible( int nd, T t )
 	{
