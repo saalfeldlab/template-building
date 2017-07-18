@@ -102,7 +102,49 @@ public class AffineFromDisplacement
 
 	}
 
+	/**
+	 * Removes the affine part from a displacement field 
+	 * @param displacementField the displacement field 
+	 * @param affine the affine part 
+	 * @param filter if true, ignores vectors in the field equal to (0,0,0)
+	 */
 	public static <T extends RealType< T >> void removeAffineComponent(
+			RandomAccessibleInterval< T > displacementField, AffineTransform3D affine,
+			boolean filter )
+	{
+
+		CompositeIntervalView< T, ? extends GenericComposite< T > > vectorField = Views
+				.collapse( displacementField );
+		Cursor< ? extends GenericComposite< T > > c = Views.flatIterable( vectorField )
+				.cursor();
+
+		RealPoint affineResult = new RealPoint( 3 );
+		RealPoint y = new RealPoint( 3 );
+
+		while ( c.hasNext() )
+		{
+			GenericComposite< T > vector = c.next();
+
+			if ( filter && 
+					vector.get( 0 ).getRealDouble() == 0 && 
+					vector.get( 1 ).getRealDouble() == 0 && 
+					vector.get( 2 ).getRealDouble() == 0 )
+			{
+				continue;
+			}
+
+			for ( int i = 0; i < 3; i++ )
+				y.setPosition( c.getDoublePosition( i ) + vector.get( i ).getRealDouble(), i );
+
+			affine.applyInverse( affineResult, y  );
+			for ( int i = 0; i < 3; i++ )
+				vector.get( i ).setReal(
+						 affineResult.getDoublePosition( i ) - c.getDoublePosition( i ) );
+
+		}
+	}
+
+	public static <T extends RealType< T >> void removeAffineComponentWRONG(
 			RandomAccessibleInterval< T > displacementField, AffineTransform3D affine,
 			boolean filter )
 	{
@@ -139,16 +181,18 @@ public class AffineFromDisplacement
 			int step, boolean filter )
 					throws NotEnoughDataPointsException, IllDefinedDataPointsException
 	{
-		SubsampleIntervalView< T > dFieldSub = Views.subsample( displacementField, step );
-		System.out.println( "sub INTERVAL: " + Util.printInterval( dFieldSub ));
 
-		// IntervalView< T > physicalSpace = Views.hyperSlice( displacementField, 3, 0 ); 
-		CompositeIntervalView< T, ? extends GenericComposite< T > > vectorField = Views.collapse( dFieldSub );
+		CompositeIntervalView< T, ? extends GenericComposite< T > > tmp = Views.collapse( displacementField );
+		System.out.println( "collapsed INTERVAL: " + Util.printInterval( tmp ));
+
+		SubsampleIntervalView< ? extends GenericComposite< T > > vectorField = Views.subsample( tmp, step );
+		System.out.println( "sub INTERVAL: " + Util.printInterval( vectorField ));
 
 		Cursor< ? extends GenericComposite< T > > c = Views.flatIterable( vectorField ).cursor();
 
 		int i = 0;
 		ArrayList<PointMatch> matches = new ArrayList<PointMatch>( (int)Intervals.numElements( vectorField ));
+		int numSkipped = 0;
 		while( c.hasNext())
 		{
 			GenericComposite< T > vector = c.next();
@@ -158,7 +202,9 @@ public class AffineFromDisplacement
 					vector.get( 1 ).getRealDouble() == 0  && 
 					vector.get( 2 ).getRealDouble() == 0 )
 			{
+				numSkipped++;
 				continue;
+
 			}
 
 			matches.add( new PointMatch( 
@@ -175,6 +221,7 @@ public class AffineFromDisplacement
 				));
 		}
 
+		System.out.println( "skipped " + numSkipped + " points.");
 		System.out.println( "fitting affine with " + matches.size() + " point matches.");
 
 		AffineModel3D estimator = new AffineModel3D();
@@ -229,3 +276,4 @@ public class AffineFromDisplacement
 	}	
 
 }
+
