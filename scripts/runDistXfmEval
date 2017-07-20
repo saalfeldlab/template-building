@@ -100,9 +100,9 @@ function pairwiseEval {
 }
 
 # Transform everything
-#transform
+transform
 
-#distanceTransforms
+distanceTransforms
 
 pairwiseEval
 
