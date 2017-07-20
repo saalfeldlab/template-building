@@ -8,9 +8,17 @@ deletePattern="s/_Scope_.*$//g"
 
 template="$1"
 
+isCmtk=""
+if [[ -d Registration ]];
+then
+    echo "is CMTK"
+    isCmtk="1"
+fi
+
 regdir=`pwd`
 mkdir -p eval
 cd eval
+
 
 dstdir=`pwd`
 #echo "now in dir: $dstdir"
@@ -19,9 +27,13 @@ line="face"
 
 # Transform
 function transform {
+# TODO detect whether this is cmtk or ants, and transform appropriately
 
-    imglist=`ls $IMGDIR/*C2*tif`
+    imglist=`ls $IMGDIR/*C2*Skeleton.tif`
     #echo " "
+
+    interval=`parseNiiInterval $template`
+    echo $interval
 
     for img in $imglist
     do
@@ -37,12 +49,26 @@ function transform {
             continue
         fi
 
-        xfmList="-i `ls $IMGDIR/${prefix}*down.txt`"
-        xfmList="$xfmList -i `matchEvalData $prefix $regdir`"
-        echo "$xfmList"
+        if [[ -n $isCmtk ]];
+        then
+            echo "really is CMTK"
+            xfmList="-i `ls $IMGDIR/${prefix}*down.txt | grep -v Neuron`"
+            xfmList="$xfmList `matchEvalDataCmtk --conv $prefix $regdir`"
+            echo " "
+            echo "xfmList"
+            echo "$xfmList"
+            echo " "
 
-        echo "transforming $img"
-        #renderTransformed $img $out $template $xfmList
+            echo "transforming $img"
+            renderTransformed $img $out $interval $xfmList -q 8
+        else
+            xfmList="-i `ls $IMGDIR/${prefix}*down.txt | grep -v Neuron`"
+            xfmList="$xfmList -i `matchEvalData $prefix $regdir`"
+            echo "$xfmList"
+
+            echo "transforming $img"
+            renderTransformed $img $out $interval $xfmList
+        fi
     done
 }
 
