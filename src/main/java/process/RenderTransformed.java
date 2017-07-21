@@ -131,9 +131,6 @@ public class RenderTransformed
 			i++;
 		}
 
-
-
-
 		System.out.println("transforming");
 		IntervalView< FloatType > imgHiXfm = Views.interval( 
 				Views.raster( 
@@ -233,6 +230,7 @@ public class RenderTransformed
 			if( displacement == null )
 				return null;
 
+			System.out.println( "DISPLACEMENT INTERVAL: " + Util.printInterval( displacement ));
 			ANTSDeformationField dfield = new ANTSDeformationField( displacement, new double[]{ 1, 1, 1 } );
 
 			if( invert )
