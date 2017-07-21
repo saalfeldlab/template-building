@@ -23,6 +23,6 @@ prefix=`echo "$input" | sed "s/$pattern/\1/g"`
 #echo $prefix
 
 affine=`ls ${REGDIR}/$prefix*Affine.mat`
-deformation=`ls ${REGDIR}/$prefix*Warp.nii`
+deformation=`ls ${REGDIR}/$prefix*Warp.nii | grep -v 'InverseWarp'`
 
 echo "$affine $deformation"
