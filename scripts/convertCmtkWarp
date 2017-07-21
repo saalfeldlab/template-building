@@ -4,8 +4,15 @@ posFieldX="$1" # must be nii (or nrrd?)
 posFieldY="$2" # must be nii
 posFieldZ="$3" # must be nii
 ref="$4"
-reg="$5"
+regIn="$5"
 out="$6"
+
+reg=$regIn
+if [[ "$regIn" == *.gz ]]
+then
+    reg=`echo $regIn | sed 's/.gz//g'`
+fi
+echo "$reg"
 
 export CMTK_WRITE_UNCOMPRESSED=1
 # Deform the coordinate images
@@ -27,7 +34,12 @@ resaveVolumeMipav ${out}-pos-z.tif ${out}-pos-z.nii
 CreateDisplacementField 3 0 ${out}-pos-x.nii ${out}-pos-y.nii ${out}-pos-z.nii ${out}.nii
 
 ## cleanup
-#rm -v ${out}-x.nii
-#rm -v ${out}-y.nii
-#rm -v ${out}-z.nii
-#rm -v ${out}.tif
+rm -v ${out}-x.nii
+rm -v ${out}-y.nii
+rm -v ${out}-z.nii
+rm -v ${out}-pos-x.nii
+rm -v ${out}-pos-y.nii
+rm -v ${out}-pos-z.nii
+rm -v ${out}-pos-x.tif
+rm -v ${out}-pos-y.tif
+rm -v ${out}-pos-z.tif
