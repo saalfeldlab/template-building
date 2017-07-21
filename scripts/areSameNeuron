@@ -3,7 +3,7 @@
 # Determines this by checking a pre-
 
 PAIRLIST="/nrs/saalfeld/john/projects/flyChemStainAtlas/eval/prefix_list_by_neuron.txt"
-PATTERN="^\(2016[0-9]\{4\}\_[0-9][0-9]_[A-Z][0-9]\).*"
+PATTERN="^\(201[67][0-9]\{4\}\_[0-9][0-9]_[A-Z][0-9]\).*"
 
 in1="$1"
 in2="$2"
