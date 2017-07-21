@@ -3,6 +3,7 @@
 *.cp
 *~
 *bak
+*swp
 .project
 .classpath
 /tmp_*/
