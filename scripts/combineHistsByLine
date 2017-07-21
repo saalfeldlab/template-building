@@ -1,0 +1,24 @@
+#!/bin/bash
+
+NEURONLIST="/nrs/saalfeld/john/projects/flyChemStainAtlas/eval/prefix_list_by_neuron.txt" 
+
+dir=`pwd`
+i=0
+while read line 
+do
+    #echo $line
+    combineUs=""
+    for sub in `echo $line`
+    do
+        #echo "  $sub"
+        combineUs="$combineUs `ls -1 ${dir}/${sub}*SAME_hist.csv`"
+    done
+
+#    echo "combineUs: "
+#    echo $combineUs
+
+    out="${dir}/combined_hist_line$i.csv"
+    combineHists $out $combineUs
+    ((i++))
+
+done <$NEURONLIST

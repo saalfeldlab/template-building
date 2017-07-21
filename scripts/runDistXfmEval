@@ -67,7 +67,7 @@ function transform {
             echo "$xfmList"
 
             echo "transforming $img"
-            renderTransformed $img $out $interval $xfmList
+            renderTransformed $img $out $interval $xfmList -q 8
         fi
     done
 }
@@ -131,4 +131,18 @@ transform
 distanceTransforms
 
 pairwiseEval
+
+# Some brief analysis
+combineHistsByLine
+
+for hf in `ls combined_hist_line*csv`
+do
+    echo $hf
+    out=`echo $hf | sed 's/.csv/_stats.csv/g'`
+    echo $out
+
+    histStat $hf 0.01 0.05 0.1 0.25 0.5 0.75 > $out
+    plotHistograms $hf
+done
+
 
