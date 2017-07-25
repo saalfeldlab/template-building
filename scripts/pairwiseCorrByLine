@@ -1,0 +1,37 @@
+#!/bin/bash
+
+#ls -1 *distXfm.tif | tr '\n' ' ' > tmp
+#dts=`ls -1 20170223_32_A*distXfm.tif | tr '\n' ' '`
+dts=`ls -1 *Neuron_xfm.tif | tr '\n' ' '`
+echo "$dts"
+pairs $dts > pairs
+
+mkdir -p neuron_corr
+
+while read line
+do
+    #echo "$line"
+    a=`echo "$line" | cut -d' ' -f1`
+    b=`echo "$line" | cut -d' ' -f2`
+    aim=`echo $a | sed 's/_Neuron_xfm.tif//g'`
+    bim=`echo $b | sed 's/_Neuron_xfm.tif//g'`
+
+    echo "$aim"
+    echo "$bim"
+    echo "$a"
+    echo "$b"
+
+    sameNeuron=`areSameNeuron $aim $bim`
+    echo "$sameNeuron"
+    suffix="DIFF"
+    if [[ "$sameNeuron" == "1" ]];
+    then
+        suffix="SAME"
+        out="neuron_corr/${aim}-${bim}_xcorr.txt"
+        imgCorr `pwd`/$a `pwd`/$b > $out
+        echo " "
+        echo " "
+    fi
+    #echo "suffix: $suffix"
+
+done <pairs
