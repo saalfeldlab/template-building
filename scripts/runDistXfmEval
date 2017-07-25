@@ -3,7 +3,7 @@
 PAIRLIST="/nrs/saalfeld/john/projects/flyChemStainAtlas/eval/prefix_list_by_neuron.txt"
 IMGDIR="/nrs/saalfeld/john/projects/flyChemStainAtlas/eval/dataNew"
 
-prefixPattern="\(2016[0-9]\{4\}\_[0-9][0-9]_[A-Z][0-9]\).*"
+prefixPattern="\(201[6-7][0-9]\{4\}\_[0-9][0-9]_[A-Z][0-9]\).*"
 deletePattern="s/_Scope_.*$//g"
 
 template="$1"
