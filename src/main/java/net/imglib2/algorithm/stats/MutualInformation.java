@@ -3,6 +3,8 @@ package net.imglib2.algorithm.stats;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.adobe.xmp.impl.Utils;
+
 import net.imglib2.Cursor;
 import net.imglib2.RandomAccessible;
 import net.imglib2.RandomAccessibleInterval;
@@ -12,6 +14,8 @@ import net.imglib2.histogram.HistogramNd;
 import net.imglib2.histogram.Real1dBinMapper;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.numeric.integer.LongType;
+import net.imglib2.util.Util;
+import net.imglib2.view.IntervalView;
 import net.imglib2.view.Views;
 
 public class MutualInformation
@@ -34,19 +38,20 @@ public class MutualInformation
 		double HB = marginalEntropy( jointHist, 1 );
 		double HAB = entropy( jointHist );
 		
-		double HA2 = entropy( rai, histmin, histmax, numBins );
-		double HB2 = entropy( Views.interval( ra, rai ), histmin, histmax, numBins );
+//		double HA2 = entropy( rai, histmin, histmax, numBins );
+//		double HB2 = entropy( Views.interval( ra, rai ), histmin, histmax, numBins );
 
 
 		System.out.println(" ");
 		System.out.println("HA  " + HA);
-		System.out.println("HA2 " + HA2);
+//		System.out.println("HA2 " + HA2);
 		System.out.println("HB  " + HB);
-		System.out.println("HB2 " + HB2);
+//		System.out.println("HB2 " + HB2);
 		
 		System.out.println("HAB " + HAB);
 
-		return ( HA2 + HB2 ) / HAB; 
+		return ( HA + HB ) / HAB;
+//		return ( HA2 + HB2 ) / HAB;
 	}
 	
 	/**
@@ -128,10 +133,12 @@ public class MutualInformation
 	 */ 
 	public static <T extends RealType< T >> double entropy( Histogram1d<T> hist )
 	{
+//		System.out.println( "  e tot: " + hist.totalCount());
 		double entropy = 0.0;
 		for( int i = 0; i < hist.getBinCount(); i++ )
 		{
 			double p = hist.relativeFrequency( i, false );
+//			System.out.println( "    ep : " + p );
 			if( p > 0 )
 				entropy -= p * Math.log( p );
 		}
@@ -154,7 +161,7 @@ public class MutualInformation
 			hc.fwd();
 			hc.localize( pos );
 			double p = hist.relativeFrequency( pos, false );
-			System.out.println( "    ep : " + p );
+//			System.out.println( "    ep : " + p );
 			if( p > 0 )
 				entropy -= p * Math.log( p );
 
@@ -164,32 +171,42 @@ public class MutualInformation
 	
 	public static <T extends RealType< T >> double marginalEntropy( HistogramNd<T> hist, int dim )
 	{
+		
 		final long ni = hist.dimension( dim );
-		final long total = hist.totalCount();
+		final long total = hist.valueCount();
+//		System.out.println( "  me tot: " + total );
 		long count = 0;
 		double entropy = 0.0;
+		long ctot = 0;
 		for( int i = 0; i < ni; i++ )
 		{
 			count = subHistCount( hist, dim, i );
+			ctot += count;
 			double p = 1.0 * count / total;
 
-			System.out.println( "   mep : " + p );
+//			System.out.println( "   mep : " + p );
 			if( p > 0 )
 				entropy -= p * Math.log( p );
 		}
 //		System.out.println("  me total: " + total);
 //		System.out.println("  me count: " + count);
+//		System.out.println("  me ctot: " + ctot);
 		return entropy;
 	}
 	
 	private static <T extends RealType< T >> long subHistCount( HistogramNd<T> hist, int dim, int pos )
 	{
 		long count = 0;
-		Cursor< LongType > c = Views.hyperSlice( hist, dim, pos ).cursor();
+		IntervalView< LongType > hs = Views.hyperSlice( hist, dim, pos );
+//		String s = "";
+//		System.out.println( "subHistInterval: " + Util.printInterval( hs ));
+		Cursor< LongType > c = hs.cursor();
 		while( c.hasNext() )
 		{
 			count += c.next().get();
+//			s += " " + c.get().get();
 		}
+//		System.out.println( s );
 		return count;
 	}
 }
