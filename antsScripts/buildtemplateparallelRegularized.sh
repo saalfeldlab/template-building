@@ -47,6 +47,7 @@ SGE=${ANTSPATH}/waitForSGEQJobs.pl
 PBS=${ANTSPATH}/waitForPBSQJobs.pl
 XGRID=${ANTSPATH}/waitForXGridJobs.pl
 SLURM=${ANTSPATH}/waitForSlurmJobs.pl
+LSFWAIT="/groups/saalfeld/home/bogovicj/dev/template/template-building/scripts/waitForLSFJobs.pl"
 
 fle_error=0
 for FLE in $ANTSSCRIPTNAME $PEXEC $SGE $XGRID $SLURM
@@ -91,7 +92,7 @@ should be invoked from that directory.
 Optional arguments:
 
      -c:  Control for parallel computation (default 1) -- 0 == run serially,  1 == SGE qsub,
-          2 == use PEXEC (localhost),  3 == Apple XGrid, 4 == PBS qsub, 5 == SLURM
+          2 == use PEXEC (localhost),  3 == Apple XGrid, 4 == PBS qsub, 5 == SLURM, 6 == LSF
 
      -q:  Set default queue for PBS jobs (default: nopreempt)
 
@@ -619,6 +620,8 @@ control_c()
      qdel $jobIDs
   elif [ $DOQSUB -eq 5 ]; then
      scancel $jobIDs
+  elif [ $DOQSUB -eq 6 ]; then
+     bkill $jobIDs
   fi
 
   exit $?
@@ -687,7 +690,7 @@ while getopts "c:q:d:g:i:j:h:m:n:o:p:s:r:t:x:z:e:" OPT
       c) #use SGE cluster
 	  DOQSUB=$OPTARG
 	  if [[ ${#DOQSUB} -gt 2 ]] ; then
-	      echo " DOQSUB must be an integer value (0=serial, 1=SGE qsub, 2=try pexec, 3=XGrid, 4=PBS qsub, 5=SLURM) you passed  -c $DOQSUB "
+	      echo " DOQSUB must be an integer value (0=serial, 1=SGE qsub, 2=try pexec, 3=XGrid, 4=PBS qsub, 5=SLURM, 6=LSF) you passed  -c $DOQSUB "
 	      exit 1
 	  fi
 	  ;;
@@ -742,6 +745,9 @@ while getopts "c:q:d:g:i:j:h:m:n:o:p:s:r:t:x:z:e:" OPT
       z) #initialization template
 	  REGTEMPLATE=$OPTARG
 	  ;;
+      2) #initialization template
+	  REGTEMPLATE=$OPTARG
+	  ;;
       \?) # getopts issues an error message
       echo "$USAGE" >&2
       exit 1
@@ -767,7 +773,7 @@ elif [ $nargs -lt 6 ]
 fi
 
 if [[ $DOQSUB -eq 1 || $DOQSUB -eq 4 ]] ; then
-  qq=`which  qsub`
+  qq=`which qsub`
   if [  ${#qq} -lt 1 ] ; then
     echo do you have qsub?  if not, then choose another c option ... if so, then check where the qsub alias points ...
     exit
@@ -777,6 +783,13 @@ if [[ $DOQSUB -eq 5 ]]; then
   qq=`which sbatch`
   if [[ ${#qq} -lt 1 ]]; then
     echo "do you have sbatch?  if not, then choose another c option ... if so, then check where the sbatch alias points ..."
+    exit
+  fi
+fi
+if [[ $DOQSUB -eq 6 ]] ; then
+  qq=`which bsub`
+  if [  ${#qq} -lt 1 ] ; then
+    echo do you have bsub?  if not, then choose another c option ... if so, then check where the bsub alias points ...
     exit
   fi
 fi
@@ -979,6 +992,14 @@ if [ "$RIGID" -eq 1 ] ;
          echo '#!/bin/sh' > $qscript
       fi
 
+      if [[ $DOQSUB -eq 6 ]]; then
+         # Set env variables in LSF job scripts 
+         echo '#!/bin/bash' > $qscript
+         echo "export ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS=4" >> $qscript
+         echo "export LD_LIBRARY_PATH=$LD_LIBRARY_PATH" >> $qscript
+         echo "export ANTSPATH=$ANTSPATH" >> $qscript
+      fi
+
       echo "$SCRIPTPREPEND" >> $qscript
 
       echo "$exe" >> $qscript
@@ -1005,6 +1026,10 @@ if [ "$RIGID" -eq 1 ] ;
       elif [[ $DOQSUB -eq 5 ]]; then
         id=`sbatch --job-name=antsrigid --export=ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS=1,LD_LIBRARY_PATH=$LD_LIBRARY_PATH,ANTSPATH=$ANTSPATH $QSUBOPTS --nodes=1 --cpus-per-task=1 --time=4:00:00 $qscript | rev | cut -f1 -d\ | rev`
         jobIDs="$jobIDs $id"
+        sleep 0.5
+      elif [[ $DOQSUB -eq 6 ]]; then
+		id=`bsub -n 4 -N antsBuildTemplate_rigid $QSUBOPTS -o ${qscript}.bout%J -e ${qscript}.berr%J "./$qscript" | awk '{ gsub("[<>]","",$2); print $2}'`
+		jobIDs="$jobIDs $id"
         sleep 0.5
       elif  [ $DOQSUB -eq 0 ] ; then
         # execute jobs in series
@@ -1096,6 +1121,22 @@ if [ "$RIGID" -eq 1 ] ;
 	fi
     fi
 
+    if [ $DOQSUB -eq 6 ];
+	then
+	# Run jobs on LSF and wait to finish
+	echo
+	echo "--------------------------------------------------------------------------------------"
+	echo " Starting ANTS rigid registration on LSF cluster. Submitted $count jobs "
+	echo "--------------------------------------------------------------------------------------"
+        # now wait for the jobs to finish. Rigid registration is quick, so poll queue every 60 seconds
+	$LSFWAIT 1 60 $jobIDs
+
+	# Returns 1 if there are errors
+	if [ ! $? -eq 0 ]; then
+	    echo "bsub submission failed - jobs went into error state"
+	    exit 1;
+	fi
+    fi
 
     # Update template
     ${ANTSPATH}/AverageImages $DIM $TEMPLATE 1 $RIGID_IMAGESET
@@ -1132,6 +1173,10 @@ if [ "$RIGID" -eq 1 ] ;
 
         # Remove qsub scripts
         rm -f ${outdir}/job_${count}_qsub.sh
+    elif [[ $DOQSUB -eq 6 ]];
+        then
+        mv *.bout* rigid/
+        mv *.berr* rigid/
     fi
 
 
@@ -1245,6 +1290,10 @@ while [  $i -lt ${ITERATIONLIMIT} ]
       id=`sbatch --mem-per-cpu=32768M --job-name=antsdef${i} --export=ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS=1,LD_LIBRARY_PATH=$LD_LIBRARY_PATH,ANTSPATH=$ANTSPATH --nodes=1 --cpus-per-task=1 --time=4:00:00 $QSUBOPTS $qscript | rev | cut -f1 -d\ | rev`
       jobIDs="$jobIDs $id"
       sleep 0.5
+    elif [ $DOQSUB -eq 6 ]; then
+	    id=`bsub -n 4 -N antsBuildTemplate_deformable_${i} $QSUBOPTS -o ${exe}.bout%J -e ${exe}.berr%J $exe | awk '{ gsub("[<>]","",$2); print $2}'`
+        jobIDs="$jobIDs $id"
+        sleep 0.5
     elif  [ $DOQSUB -eq 0 ] ; then
       bash $exe
     fi
@@ -1272,7 +1321,6 @@ while [  $i -lt ${ITERATIONLIMIT} ]
       fi
 
   elif [ $DOQSUB -eq 4 ];
-
       then
       echo
       echo "--------------------------------------------------------------------------------------"
@@ -1284,6 +1332,21 @@ while [  $i -lt ${ITERATIONLIMIT} ]
 
       if [ ! $? -eq 0 ]; then
         echo "qsub submission failed - jobs went into error state"
+        exit 1;
+      fi
+
+  elif [ $DOQSUB -eq 6 ];
+      then
+      echo
+      echo "--------------------------------------------------------------------------------------"
+      echo " Starting ANTS registration on LSF cluster. Iteration: $itdisplay of $ITERATIONLIMIT"
+      echo "--------------------------------------------------------------------------------------"
+
+      # now wait for the stuff to finish - this will take a while so poll queue every 10 mins
+      $LSFWAIT 1 600 $jobIDs
+
+      if [ ! $? -eq 0 ]; then
+        echo "bsub submission failed - jobs went into error state"
         exit 1;
       fi
 
