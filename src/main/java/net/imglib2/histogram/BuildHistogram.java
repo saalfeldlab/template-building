@@ -30,11 +30,23 @@ public class BuildHistogram {
 		final String maskF = args[ 5 ];
 		final float maskthresh = Float.parseFloat( args[ 6 ]);
 		
+		boolean tailBins = false;
+		if( args.length >= 8 )
+			tailBins = Boolean.parseBoolean( args[ 7 ] );
+
+		System.out.println( "tailBins: " + tailBins );
 		Real1dBinMapper<FloatType> binMapper = new Real1dBinMapper<FloatType>(
-				histmin, histmax, numBins, false );
+				histmin, histmax, numBins, tailBins );
 
 		IterableInterval<FloatType> img = ImageJFunctions.convertFloat( IJ.openImage( imF ));
-		IterableInterval<FloatType> maskRaw = ImageJFunctions.convertFloat( IJ.openImage( maskF ));
+		IterableInterval<FloatType> maskRaw = null;
+		if( maskF.equals( imF ))
+		{
+			System.out.println( "mask is same as input image");
+			maskRaw = img;
+		}
+		else
+			maskRaw = ImageJFunctions.convertFloat( IJ.openImage( maskF ));
 		
 		Converter<FloatType,BoolType> maskConv = new Converter<FloatType,BoolType>()
 		{
