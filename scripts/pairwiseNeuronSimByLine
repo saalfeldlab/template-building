@@ -1,12 +1,21 @@
 #!/bin/bash
+# pairwiseNeuronSimByLine
 
 #ls -1 *distXfm.tif | tr '\n' ' ' > tmp
 #dts=`ls -1 20170223_32_A*distXfm.tif | tr '\n' ' '`
-dts=`ls -1 *Neuron_xfm.tif | tr '\n' ' '`
+#dts=`ls -1 *Neuron_xfm.tif | tr '\n' ' '`
+
+# TODO group together results per line 
+
+NMI_HISTMIN="10.0"
+NMI_HISTMAX="1000.0"
+NMI_NBINS="32"
+
+dts=`ls -1 *Neuron_xfm.tif | sort`
 echo "$dts"
 pairs $dts > pairs
 
-mkdir -p neuron_corr
+mkdir -p neuron_sim
 
 while read line
 do
@@ -22,13 +31,23 @@ do
     echo "$b"
 
     sameNeuron=`areSameNeuron $aim $bim`
+    neuronIndex=`neuronIdx $aim`
     echo "$sameNeuron"
     suffix="DIFF"
     if [[ "$sameNeuron" == "1" ]];
     then
         suffix="SAME"
-        out="neuron_corr/${aim}-${bim}_xcorr.txt"
+        out="neuron_sim/${aim}-${bim}_xcorr.txt"
+        outnmi="neuron_sim/${aim}-${bim}_nmi.txt"
+
         imgCorr `pwd`/$a `pwd`/$b > $out
+        imgNMI `pwd`/$a `pwd`/$b $NMI_HISTMIN $NMI_HISTMAX $NMI_NBINS > $outnmi
+    
+        xcorr=`cat $out`
+        nmi=`cat $outnmi`
+        echo "$a $b $xorr" >> line_${neuronIndex}_xcorr
+        echo "$a $b $nmi" >> line_${neuronIndex}_nmi
+
         echo " "
         echo " "
     fi
