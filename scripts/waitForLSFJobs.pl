@@ -59,8 +59,8 @@ foreach my $i (0..$#header) {
     }
 }
 
-#print "  JOBID pos: $jobID_Pos\n";
-#print "  STAT pos : $statePos\n";
+print "  JOBID pos : $jobID_Pos\n";
+print "  STATE pos : $statePos\n";
 
 
 # If we can't parse the job IDs, something is very wrong
@@ -92,6 +92,10 @@ while ($jobsIncomplete) {
 	  if ( $tokens[$jobID_Pos] eq $job) {
 	      # Check status
           if ($tokens[$statePos] =~ m/E/) {
+              if ($verbose > 1) {
+              print "    Job $job has error.\n";
+              }
+
 		    $haveErrors = 1;
 	      }
 	      else {
@@ -133,8 +137,6 @@ else {
 }
 
 
-
-
 sub trim {
 
     my ($string) = @_;
@@ -150,7 +152,7 @@ sub myCleanup {
 
     print "   ***   CTRL-C pressed, deleting remaining jobs   ***\n\n";
  
-    my $cmd= "qdel " . join(" ", @jobIDs);
+    my $cmd= "bkill " . join(" ", @jobIDs);
 
     `$cmd`;
 
