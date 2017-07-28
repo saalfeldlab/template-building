@@ -1,4 +1,5 @@
-package net.imglib2.posField;
+package net.
+imglib2.posField;
 
 import java.io.File;
 import java.io.IOException;
@@ -7,6 +8,7 @@ import java.util.ArrayList;
 import ij.IJ;
 import ij.ImagePlus;
 import io.nii.NiftiIo;
+import io.nii.Nifti_Writer;
 import loci.formats.FormatException;
 import net.imglib2.Cursor;
 import net.imglib2.FinalInterval;
@@ -39,7 +41,49 @@ public class Position2DisplacementField
 
 	public static void main( String[] args ) throws ImgLibException
 	{
-		
+		if( args.length == 3 )
+		{
+			runSingle( args );
+		}
+		else if( args.length == 4 )
+		{
+			runAll( args );
+		}
+		else
+		{
+			System.out.println( "Position2Displacement: Invalid arguments");
+			System.out.println( "  accepts arguments of the form: ");
+			System.out.println( "    <--[xyz]> <output image> <input image> ");
+			System.out.println( "    or ");
+			System.out.println( "   <output image> <input image x> <input image y> <input image z>");
+		}
+	}
+
+	public static void runAll( String[] args ) throws ImgLibException
+	{
+		String outArg = args[ 0 ];
+
+		System.out.println( "reading image stack");
+		ArrayList<RandomAccessibleInterval<FloatType>> list = 
+				new ArrayList<RandomAccessibleInterval<FloatType>>( args.length - 1 );
+		for( int i = 1; i <= 3; i++ )
+		{
+			list.add( read( args[ i ]));
+		}
+		RandomAccessibleInterval< FloatType > posField = Views.stack( list );
+
+		// allocate
+		long[] dim = Intervals.dimensionsAsLongArray( posField );
+		FloatImagePlus< FloatType > displacement = ImagePlusImgs.floats( dim );
+
+		// do the work
+		position2Displacement( posField, displacement );
+
+		write( displacement.getImagePlus(), outArg ); 
+	}
+
+	public static void runSingle( String[] args ) throws ImgLibException
+	{
 		int argIdx = 0;
 		
 		int dim_component = -1;
@@ -104,7 +148,9 @@ public class Position2DisplacementField
 //		System.out.println( "distPerm    : " + Util.printInterval( dispPerm ));
 //		position2Displacement( posField, dispPerm );
 
-		IJ.save( displacement.getImagePlus(), outArg + suffix + ".tif" );
+//		IJ.save( displacement.getImagePlus(), outArg + suffix + ".tif" );
+
+		write( displacement.getImagePlus(), outArg + suffix + ".tif" ); 
 	}
 
 	/**
@@ -161,7 +207,37 @@ public class Position2DisplacementField
 			c.get().setReal( dst - src );
 		}
 	}
-	
+
+	public static boolean write( ImagePlus imp, String filePath )
+	{
+		if( filePath.endsWith( "tif" ))
+		{
+			IJ.save( imp, filePath );
+			return true;
+		}
+		else if( filePath.endsWith( "nii" ))
+		{
+			if( (imp.getNChannels() == 3 && imp.getNSlices()  > 1) ||
+				(imp.getNChannels()  > 1 && imp.getNSlices() == 3 )	)
+			{
+				System.out.println( "writing as displacement field" );
+				Nifti_Writer.writeDisplacementField3d( imp, new File( filePath ));
+			}
+			else 
+			{
+				File f = new File( filePath );
+				Nifti_Writer writer = new Nifti_Writer();
+				writer.save( imp, f.getParent(), f.getName() );
+			}
+
+			return true;
+		}
+		else
+		{
+			System.err.println( "can only write tif or nii files ");
+		}
+		return false;
+	}
 	
 	public static Img<FloatType> read( String filePath )
 	{
@@ -186,3 +262,4 @@ public class Position2DisplacementField
 		return null;
 	}
 }
+

@@ -1,0 +1,30 @@
+#!/bin/bash
+
+posFieldX="$1" # must be nii (or nrrd?)
+posFieldY="$2" # must be nii
+posFieldZ="$3" # must be nii
+ref="$4"
+regIn="$5"
+out="$6"
+
+reg=$regIn
+if [[ "$regIn" == *.gz ]]
+then
+    reg=`echo $regIn | sed 's/.gz//g'`
+fi
+echo "$reg"
+
+export CMTK_WRITE_UNCOMPRESSED=1
+# Deform the coordinate images
+reformatx -o ${out}-x.nii --floating $posFieldX $ref $reg
+reformatx -o ${out}-y.nii --floating $posFieldY $ref $reg
+reformatx -o ${out}-z.nii --floating $posFieldZ $ref $reg
+unset CMTK_WRITE_UNCOMPRESSED
+
+# Convert position fields to displacement field
+position2Displacement ${out} ${out}-x.nii ${out}-y.nii ${out}-z.nii
+
+# cleanup
+rm -v ${out}-x.nii
+rm -v ${out}-y.nii
+rm -v ${out}-z.nii
