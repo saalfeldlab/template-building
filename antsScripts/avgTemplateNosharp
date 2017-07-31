@@ -1,0 +1,56 @@
+#!/bin/bash
+# Very similar to to the shapeupdatetotemplate subroutine in 
+# buildtemplateparallel, but does not apply sharpening after averaging
+
+# Assumes the following exist: 
+# - Deformed subjects
+# - an affine for the template
+# - a warp field for the template
+
+dim="$1"
+outputname="$2" # output prefix
+
+warp="${outputname}-templatewarp.nii.gz"
+affine="${outputname}-templateAffine.txt"
+template="${outputname}-template-noSharp.nii"
+
+if [[ ! -f $warp ]] 
+then
+    echo "Warp file is missing"
+    return 1
+else
+    echo "Found a warp file: $warp"
+fi
+
+if [[ ! -f $affine ]];
+then
+    echo "Affine file is missing"
+    return 1
+else
+    echo "Found an affine file: $affine"
+fi
+
+N=`ls ${outputname}*deformed.nii* | wc -l`
+if [[ $N == "0" ]];
+then
+    echo "Could not find any files matching ${outputname}*deformed.nii*"
+    return 1
+else
+    echo "Found $N deformed files" 
+fi
+
+
+echo
+echo "--------------------------------------------------------------------------------------"
+echo " Average without sharpening"
+echo "--------------------------------------------------------------------------------------"
+# THIS IS THE MAIN CHANGE (Don't sharpen)
+echo "Output template ${template}"
+${ANTSPATH}/AverageImages $dim ${template} 0 ${outputname}*formed.nii.gz
+
+echo
+echo "--------------------------------------------------------------------------------------"
+echo " Deform"
+echo "--------------------------------------------------------------------------------------"
+
+${ANTSPATH}/WarpImageMultiTransform ${dim} ${template} ${template} -i ${affine} ${warp} ${warp} ${warp} ${warp} -R ${template}
