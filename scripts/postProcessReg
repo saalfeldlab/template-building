@@ -15,6 +15,17 @@ fi
 if [[ -n $isCmtk ]];
 then
     #CMTK
+
+    # Skip if we've done this already
+    Nreg=`ls Registration/warp/*/registration* | wc -l`
+    Nxform=`ls Registration/warp/*/xform.nii | wc -l`
+
+    if [[ $Nreg == $Nxform ]];
+    then
+        echo "xforms found, returning"
+        exit 0
+    fi
+
     qq=`which bsub`
     if [  ${#qq} -lt 1 ] ; then
       #executeRemote 'login2.int.janelia.org' 'bsub -n 4 -o cmtkConv.o%J -e cmtkConv.e%J ''runConvertCmtkWarps -w'''
