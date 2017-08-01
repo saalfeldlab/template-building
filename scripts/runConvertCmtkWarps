@@ -1,0 +1,141 @@
+#!/bin/bash
+
+waitScript="/groups/saalfeld/home/bogovicj/dev/template/template-building/scripts/waitForLSFJobs.pl"
+
+# Remember where we start
+startdir=`pwd`
+
+POSFIELDX="/nrs/saalfeld/john/projects/flyChemStainAtlas/posFields/pfx_850-650-250.nii"
+POSFIELDY="/nrs/saalfeld/john/projects/flyChemStainAtlas/posFields/pfy_850-650-250.nii"
+POSFIELDZ="/nrs/saalfeld/john/projects/flyChemStainAtlas/posFields/pfz_850-650-250.nii"
+
+# Input arguments
+# Try to auto-detect a reference image and directory that stores the
+# transformations
+
+doWait=""
+srcdir=""
+ref=""
+
+while getopts ":d:r:w" opt; do
+    case $opt in
+        d)
+            #echo "d triggered $OPTARG" >&2
+            srcdir=$OPTARG
+            ;;
+        r)
+            #echo "r triggered $OPTARG" >&2
+            ref=$OPTARG
+            ;;
+        w)
+            #echo "r triggered $OPTARG" >&2
+            doWait="1"
+            ;;
+        /?)
+            echo "Invalid option: -$OPTARG" >&2
+            exit 1
+            ;;
+        :)
+            echo "Option -$OPTARG requires an argument." >&2
+            exit 1
+            ;;
+    esac
+done
+
+if [[ -z $srcdir ]];
+then
+    echo "srcdir not passed with -d : trying to infer"
+    srcdir="$startdir/Registration/warp"
+    echo "srcdir: $srcdir"
+    if [[ ! -d $srcdir ]];
+    then
+        echo "Directory Registration/warp not found, exiting"
+        exit 1
+    fi
+else
+    echo "srcdir here"
+fi
+
+if [[ -z $ref ]];
+then
+    echo "reference not passed with -r : trying to infer"
+
+    ref=`ls *template*nii`
+    #ref=`ls *cow*nii`
+
+    lsreturn=`echo $?`
+    echo $lsreturn 
+
+    nr=( $ref )
+    echo "${#nr[@]}"
+
+    if [[ "$lsreturn" > 0  ]] || [[ ${#nr[@]} > 1 ]];
+    then
+        echo "too few or too many candidate templates - uh oh"
+        exit 2 
+    fi
+else
+    echo "ref here"
+fi
+
+echo $ref
+ref=`readlink -f $ref`
+echo $ref
+
+echo " "
+echo $srcdir
+echo $doWait
+
+if [[ -n $doWait ]];
+then
+    echo "waiting" 
+else
+    echo "not waiting" 
+fi
+
+cd $srcdir
+i=0
+
+for reg in `ls */registration.gz`
+do
+    echo $reg
+    fullpath=`readlink -f $reg`
+    ddir=${fullpath%/*} 
+
+    tmp=`readlink -f $reg`
+    xfm=`echo $tmp | sed 's/registration.gz/xform.nii/g'`
+    echo $xfm
+    if [[ -f $xfm ]];
+    then
+        echo "skipping job for $xfm"
+    else
+
+        # Make the job scripts
+        job="cmtk2dfield_$i.sh"
+        echo "#!/bin/bash" > $job
+        echo "export CMTK_NUM_THREADS=4" >> $job
+
+        echo "convertCmtkWarpFast $POSFIELDX $POSFIELDY $POSFIELDZ $ref $reg $xfm" >> $job
+        chmod +x $job
+    fi
+
+    ((i++))
+done
+
+# Submit the jobs and wait
+for j in `ls cmtk2dfield_*sh`
+do
+    id=`bsub -n 4 -R"affinity[core(1)]" -o $j.o%J -e $j.e%J "./$j" | awk '{ gsub("[<>]","",$2); print $2}'`
+    jobIds="$jobIds $id"
+    sleep 0.5
+done
+
+
+if [[ -n $doWait ]];
+then
+    $waitScript 1 60 $jobIds
+fi
+
+# Back to where we started
+cd $startdir
+

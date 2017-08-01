@@ -1,0 +1,31 @@
+#!/bin/bash
+# Do post processing on registration
+
+POSFIELDX="/nrs/saalfeld/john/projects/flyChemStainAtlas/posFields/pfx_850-650-250.nii"
+POSFIELDY="/nrs/saalfeld/john/projects/flyChemStainAtlas/posFields/pfy_850-650-250.nii"
+POSFIELDZ="/nrs/saalfeld/john/projects/flyChemStainAtlas/posFields/pfz_850-650-250.nii"
+
+
+if [[ -d Registration ]];
+then
+    echo "is CMTK"
+    isCmtk="1"
+fi
+
+if [[ -n $isCmtk ]];
+then
+    #CMTK
+    qq=`which bsub`
+    if [  ${#qq} -lt 1 ] ; then
+      #executeRemote 'login2.int.janelia.org' 'bsub -n 4 -o cmtkConv.o%J -e cmtkConv.e%J ''runConvertCmtkWarps -w'''
+      executeRemote 'login2.int.janelia.org' 'runConvertCmtkWarps -w'
+    else
+      bsub -n 4 -o cmtkConv.o%J -e cmtkConv.e%J 'runConvertCmtkWarps -w'
+    fi
+else
+    # ANTS
+    warpFiles=`ls *Warp.nii.gz | grep -v Inverse`
+    echo $warpFiles
+    gunzip -v $warpFiles
+    affineConv *Affine.txt
+fi
