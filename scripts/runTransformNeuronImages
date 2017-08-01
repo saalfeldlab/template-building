@@ -1,0 +1,50 @@
+#!/bin/bash
+
+neuronList="/nrs/saalfeld/john/projects/flyChemStainAtlas/eval/dataNew/neuron_list.txt"
+#intervalOut="0,0,0:1000,700,300"
+#intervalOut="0,0,0:799,424,213"
+
+template="$1"
+intervalOut=`parseNiiInterval $template`
+
+isCmtk=""
+if [[ -d Registration ]];
+then
+    echo "is CMTK"
+    isCmtk="1"
+fi
+
+dir=`pwd`
+i=0
+while read neurImg
+do
+    echo $neurImg
+    xfmList="-i"
+    downPattern=`echo "$neurImg" | sed 's/_C2_Neuron.tif/_C1/g'`
+    downXfm=`ls $downPattern*down.txt`
+    xfmList="$xfmList $downXfm"
+     
+    if [[ -n $isCmtk ]];
+    then
+        regXfms=`matchEvalDataCmtk --conv $neurImg $dir`
+    else
+        regXfms=`matchEvalData --conv $neurImg $dir`
+    fi
+    xfmList="$xfmList $regXfms"
+    echo $xfmList
+    
+    baseName=${neurImg##*/}
+    out=`echo $baseName | sed 's/.tif/_xfm.tif/g'`
+    echo $out
+      
+    job="neuron_xfm_$i.sh"
+    echo "#!/bin/bash" > $job
+    echo "renderTransformed $neurImg $dir/$out $intervalOut $xfmList -q 4" >> $job
+    chmod +x "$job"
+
+    ((i++))
+    #break
+
+done <$neuronList
+
+pairwiseNeuronSimByLine
