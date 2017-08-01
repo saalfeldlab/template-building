@@ -91,7 +91,7 @@ while ($jobsIncomplete) {
 
 	  if ( $tokens[$jobID_Pos] eq $job) {
 	      # Check status
-          if ($tokens[$statePos] =~ m/E/) {
+          if ($tokens[$statePos] =~ m/^E/) {
               if ($verbose > 1) {
               print "    Job $job has error.\n";
               }
