@@ -1,7 +1,13 @@
 #!/bin/bash
 
 PAIRLIST="/nrs/saalfeld/john/projects/flyChemStainAtlas/eval/prefix_list_by_neuron.txt"
-SLICES="100 125 150 175 200 225"
+
+DEFAULT_SLICES="100 125 150 175 200 225"
+
+#SLICES="50 85 120 145 180 210" # for 'agt' experiments
+
+SLICES="$1"
+echo "slices: ${SLICES:="$DEFAULT_SLICES"}"
 
 mkdir -p vis/overlay
 startdir=`pwd`
