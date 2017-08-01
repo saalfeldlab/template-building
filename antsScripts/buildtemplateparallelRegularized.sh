@@ -1200,7 +1200,22 @@ echo "--------------------------------------------------------------------------
 reportMappingParameters
 
 i=0
-while [  $i -lt ${ITERATIONLIMIT} ]
+
+# Detect current iteration
+echo "$TRANSFORMATIONTYPE"
+sleep 2
+itmp=`detectBuildTemplateIter $TRANSFORMATIONTYPE`
+echo "itmp: $itmp"
+if [[ ! -z $itmp ]];
+then
+    echo "setting i to $itmp"
+    i=$itmp
+fi
+sleep 2
+
+echo "i: $i"
+
+while [ $i -lt ${ITERATIONLIMIT} ]
   do
 
   itdisplay=$((i+1))
