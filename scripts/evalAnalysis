@@ -1,0 +1,86 @@
+#!/bin/bash
+# evalAnalysis
+
+DODISTXFM=""
+DOXFMNEURON=""
+DONEURONSIM=""
+DOVISNEURONOVERLAY=""
+
+PREFIX="ALLF"
+
+while getopts "dnpst:v" OPT
+do
+    case $OPT in
+    d) # distance transform
+        DODISTXFM="1"
+        ;;
+    n) # transform neuron 
+       DOXFMNEURON="1"
+       ;;
+    p) # prefix 
+       PREFIX=$OPTARG
+       echo "Prefix: $PREFIX"
+       ;;
+    t) # template 
+       TEMPLATE=$OPTARG
+       echo "Found template: $TEMPLATE"
+       ;;
+    s) # neuron similarity 
+       DONEURONSIM="1"
+       ;;
+    v) # vis neuron overlay 
+       DOVISNEURONOVERLAY="1"
+       echo "Found template: $TEMPLATE"
+       ;;
+    \?) # getopts issues an error message
+       echo "$USAGE" >&2
+       exit 1
+       ;;
+    esac
+done
+
+if [ -z $TEMPLATE ];
+then
+    echo "Trying to infer template"
+    TEMPLATE=`ls $PREFIX-template.nii*`
+
+    lsreturn=`echo $?`
+
+    nr=( $ref )
+    #echo "${#nr[@]}"
+
+    if [[ "$lsreturn" > 0  ]] || [[ ${#nr[@]} > 1 ]];
+    then
+        echo "too few or too many candidate templates - uh oh"
+        exit 2 
+    fi
+    TEMPLATE=`readlink -f $TEMPLATE`
+fi
+echo "TEMPLATE: $TEMPLATE"
+
+# This script detects if its necessary and skips if so
+postProcessReg
+
+# DISTANCE TRANSFORM
+if [ $DODISTXFM ]; then
+    echo "Doing distance transform"
+    runDistXfmEval $TEMPLATE
+fi
+
+# TRANSFORMING NEURON IMAGES
+if [ $DOXFMNEURON ]; then
+    echo "Transforming neurons"
+    runTransformNeuronImages $TEMPLATE
+fi
+
+# COMPUTE NEURON SIMILARITY
+if [ $DONEURONSIM ]; then
+    echo "Compute neuron similarity"
+    pairwiseNeuronSimByLine
+fi
+
+# VISUALIZE NEURON OVERLAY
+if [ $DOVISNEURONOVERLAY ]; then
+    echo "Visualize neuron overlay"
+    evalVisOverlays
+fi
