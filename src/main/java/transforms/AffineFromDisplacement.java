@@ -6,8 +6,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 
 import ij.IJ;
+import ij.ImagePlus;
 import io.AffineImglib2IO;
 import io.nii.NiftiIo;
+import io.nii.Nifti_Writer;
 import loci.formats.FormatException;
 import mpicbg.models.AffineModel3D;
 import mpicbg.models.IllDefinedDataPointsException;
@@ -51,13 +53,13 @@ public class AffineFromDisplacement
 
 		int step = Integer.parseInt( args[ argIdx++ ] );
 
+		ImagePlus imp = null;
 		Img< FloatType > displacement = null;
 		if( filePath.endsWith( "nii" ))
 		{
 			try
 			{
-				displacement = ImageJFunctions.convertFloat( 
-						NiftiIo.readNifti( new File( filePath ) ) );
+				imp = NiftiIo.readNifti( new File( filePath ) );
 			} catch ( FormatException e )
 			{
 				e.printStackTrace();
@@ -68,8 +70,9 @@ public class AffineFromDisplacement
 		}
 		else
 		{
-			displacement = ImageJFunctions.convertFloat( IJ.openImage( filePath ));
+			imp = IJ.openImage( filePath );
 		}
+		displacement = ImageJFunctions.convertFloat( imp );
 
 		if ( displacement == null )
 		{
@@ -96,10 +99,14 @@ public class AffineFromDisplacement
 			System.out.println( "removing affine part from warp" );
 			removeAffineComponent( displacement, affine, true );
 			System.out.println( "saving warp" );
-			IJ.save( ImageJFunctions.wrap( displacement, "warp" ),
-					outPath + "_warp.tif" );
-		}
 
+
+//				IJ.save( ImageJFunctions.wrap( displacement, "warp" ),
+//						outPath + "_warp.tif" );
+
+			Nifti_Writer.writeDisplacementField3d( imp, new File( outPath + "_warp.nii") );
+//			}
+		}
 	}
 
 	/**
