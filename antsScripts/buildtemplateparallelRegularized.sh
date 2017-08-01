@@ -940,22 +940,26 @@ fi
 
 # exit
 # check for an initial template image and perform rigid body registration if requested
-if [ ! -s $REGTEMPLATE ]
-    then
-    echo
-    echo "--------------------------------------------------------------------------------------"
-    echo " No initial template exists. Creating a population average image from the inputs."
-    echo "--------------------------------------------------------------------------------------"
-    ${ANTSPATH}/AverageImages $DIM $TEMPLATE 1 $IMAGESETVARIABLE
+if [ -f ${TEMPLATE} ];
+then
+    echo "Template ${TEMPLATE} already exists - continuing with that one"
+    sleep 5
 else
-    echo
-    echo "--------------------------------------------------------------------------------------"
-    echo " Initial template found.  This will be used for guiding the registration. use : $REGTEMPLATE and $TEMPLATE "
-    echo "--------------------------------------------------------------------------------------"
-	# now move the initial registration template to OUTPUTNAME, otherwise this input gets overwritten.
+    if [ ! -s $REGTEMPLATE ]
+        then
+        echo
+        echo "--------------------------------------------------------------------------------------"
+        echo " No initial template exists. Creating a population average image from the inputs."
+        echo "--------------------------------------------------------------------------------------"
+        ${ANTSPATH}/AverageImages $DIM $TEMPLATE 1 $IMAGESETVARIABLE
+    else
+        echo
+        echo "--------------------------------------------------------------------------------------"
+        echo " Initial template found.  This will be used for guiding the registration. use : $REGTEMPLATE and $TEMPLATE "
+        echo "--------------------------------------------------------------------------------------"
+        # now move the initial registration template to OUTPUTNAME, otherwise this input gets overwritten.
 
-    cp ${REGTEMPLATE} ${TEMPLATE}
-
+    fi
 fi
 
 
@@ -993,11 +997,12 @@ if [ "$RIGID" -eq 1 ] ;
       fi
 
       if [[ $DOQSUB -eq 6 ]]; then
-         # Set env variables in LSF job scripts 
-         echo '#!/bin/bash' > $qscript
-         echo "export ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS=4" >> $qscript
-         echo "export LD_LIBRARY_PATH=$LD_LIBRARY_PATH" >> $qscript
-         echo "export ANTSPATH=$ANTSPATH" >> $qscript
+        echo "Making script for LSF submission: $qscript" 
+        # Set env variables in LSF job scripts 
+        echo '#!/bin/bash' > $qscript
+        echo "export ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS=4" >> $qscript
+        echo "export LD_LIBRARY_PATH=$LD_LIBRARY_PATH" >> $qscript
+        echo "export ANTSPATH=$ANTSPATH" >> $qscript
       fi
 
       echo "$SCRIPTPREPEND" >> $qscript
@@ -1028,7 +1033,7 @@ if [ "$RIGID" -eq 1 ] ;
         jobIDs="$jobIDs $id"
         sleep 0.5
       elif [[ $DOQSUB -eq 6 ]]; then
-		id=`bsub -n 4 -N antsBuildTemplate_rigid $QSUBOPTS -o ${qscript}.bout%J -e ${qscript}.berr%J "./$qscript" | awk '{ gsub("[<>]","",$2); print $2}'`
+		id=`bsub -n 4 $QSUBOPTS -o ${qscript}.bout%J -e ${qscript}.berr%J "./$qscript" | awk '{ gsub("[<>]","",$2); print $2}'`
 		jobIDs="$jobIDs $id"
         sleep 0.5
       elif  [ $DOQSUB -eq 0 ] ; then
@@ -1306,7 +1311,16 @@ while [ $i -lt ${ITERATIONLIMIT} ]
       jobIDs="$jobIDs $id"
       sleep 0.5
     elif [ $DOQSUB -eq 6 ]; then
-	    id=`bsub -n 4 -N antsBuildTemplate_deformable_${i} $QSUBOPTS -o ${exe}.bout%J -e ${exe}.berr%J $exe | awk '{ gsub("[<>]","",$2); print $2}'`
+        qscript="antsdefjob_${count}_${i}.sh"
+        echo '#!/bin/bash' > $qscript
+        echo -e "export ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS=4" >> $qscript
+        echo -e "export ANTSPATH=$ANTSPATH" >> $qscript
+        echo -e "$exe" >> $qscript
+        chmod +x $qscript
+
+        echo "qsubopts: $QSUBOPTS"
+
+	    id=`bsub -n 4 $QSUBOPTS -o ${qscript}.bout%J -e ${qscript}.berr%J "./$qscript" | awk '{ gsub("[<>]","",$2); print $2}'`
         jobIDs="$jobIDs $id"
         sleep 0.5
     elif  [ $DOQSUB -eq 0 ] ; then
@@ -1358,7 +1372,7 @@ while [ $i -lt ${ITERATIONLIMIT} ]
       echo "--------------------------------------------------------------------------------------"
 
       # now wait for the stuff to finish - this will take a while so poll queue every 10 mins
-      $LSFWAIT 1 600 $jobIDs
+      $LSFWAIT 2 600 $jobIDs
 
       if [ ! $? -eq 0 ]; then
         echo "bsub submission failed - jobs went into error state"
