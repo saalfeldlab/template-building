@@ -1,0 +1,55 @@
+#!/bin/bash
+
+PATTERN="^\(2016[0-9]\{4\}\_[0-9][0-9]_[A-Z][0-9]\).*"
+
+HISTMIN="0.0" 
+HISTMAX="255.0" 
+HISTBINS="256"
+HISTTHRESH="1.0"
+
+dir=`pwd`
+
+im1="$1"
+im2="$2"
+
+name1="${im1##*/}"
+name2="${im2##*/}"
+
+dist_im1="${im1}_distXfm.tif"
+dist_im2="${im2}_distXfm.tif"
+
+prefix1=`echo "$name1" | sed "s/$PATTERN/\1/g"`
+prefix2=`echo "$name2" | sed "s/$PATTERN/\1/g"`
+echo "prefix1 $prefix1"
+echo "prefix2 $prefix2"
+
+# Generate
+if [ ! -f "$dist_im1" ];
+then
+    echo "distance transform of $im1"
+    runDistanceTransform "$im1"
+else
+    echo "skipping DT for $im1 - already exists"
+fi
+
+if [ ! -f "$dist_im2" ];
+then
+    echo "distance transform of $im2"
+    runDistanceTransform "$im2"
+else
+    echo "skipping DT for $im2 - already exists"
+fi
+
+# "Forward" direction
+echo "hist forward"
+h1="${dir}/${prefix1}-${prefix2}_hist.csv"
+maskedImageHist $h1 $dist_im1 $HISTMIN $HISTMAX $HISTBINS $im2 $HISTTHRESH
+plotHistograms $h1
+histStat $h1 0.25 0.5 0.75 > ${h1}_stats.csv
+
+# "Reverse" direction
+echo "hist reverse"
+h2="${dir}/${prefix2}-${prefix1}_hist.csv"
+maskedImageHist $h2 $dist_im2 $HISTMIN $HISTMAX $HISTBINS $im1 $HISTTHRESH
+plotHistograms $h2
+histStat $h2 0.25 0.5 0.75 > ${h2}_stats.csv
