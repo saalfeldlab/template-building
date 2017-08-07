@@ -42,13 +42,13 @@ public class MutualInformation
 //		double HB2 = entropy( Views.interval( ra, rai ), histmin, histmax, numBins );
 
 
-		System.out.println(" ");
-		System.out.println("HA  " + HA);
+//		System.out.println(" ");
+//		System.out.println("HA  " + HA);
 //		System.out.println("HA2 " + HA2);
-		System.out.println("HB  " + HB);
+//		System.out.println("HB  " + HB);
 //		System.out.println("HB2 " + HB2);
 		
-		System.out.println("HAB " + HAB);
+//		System.out.println("HAB " + HAB);
 
 		return ( HA + HB ) / HAB;
 //		return ( HA2 + HB2 ) / HAB;
