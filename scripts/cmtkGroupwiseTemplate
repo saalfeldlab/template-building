@@ -119,6 +119,7 @@ do
 
     # the output of bsub is something like "Job <53135> is submitted to default queue <normal>."
     # the awk command below grabs the jobid without the brackets
+
     id=`bsub -n $nThreads -o $job.o%J -e $job.e%J "./$job" | awk '{ gsub("[<>]","",$2); print $2}'`
     sleep 1
     jobIds="$jobIds $id"
@@ -150,7 +151,7 @@ function backup {
     # Make backup directory
     bak_dir="Iter_$currentIter"
     mkdir -p $bak_dir
-   
+ 
     mv cmtkReg*sh* $bak_dir
     mv *deformed.nii.gz $bak_dir
     mv Registration $bak_dir 
@@ -174,16 +175,18 @@ do
 
     singleRegistrations
 
-    #cmtkWarpAverage $ref
-    genAverageTemplateLSF
-
+#    # Old, not parallel way to average
+#    ##cmtkWarpAverage $ref
+#    genAverageTemplateLSF
+#
     # Convert the cmtk transformations
     srcdir="${thisdir}/Registration/warp"
     ref="${thisdir}/average-template.nii"
-    cmtkAverageTransformationLSF $srcdir $ref "ants"
- 
-    # Warp the average shape
-    shapeupdate
+    #cmtkAverageTransformationLSF $srcdir $ref "ants"
+    runConvertCmtkWarps -d $srcdir -r $ref -w
+
+   # Warp the average shape
+    shapeupdatetotal
 
     mv average-template.nii average-template_$currentIter.nii
     backup
