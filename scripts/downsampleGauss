@@ -1,5 +1,21 @@
 #!/bin/bash
+# Arguments:
+#   -i input
+#   -o output
+#   -f factors
+#   -j threads
+#   -p interp
+#   -s sourceSigmas
+#   -t targetSigmas
+
+javaOpts="-Xmx96g"
+if [[ $1 == '-j' ]];
+then
+    shift
+    javaOpts="$1"
+    shift
+fi
 
 BASEDIR=$(dirname "$0")
 cp=`cat "$BASEDIR/theclasspath.cp"`
-java -cp "$cp" -Xmx12g process.DownsampleGaussian "$@"
+java -cp "$cp" $javaOpts process.DownsampleGaussian "$@"
