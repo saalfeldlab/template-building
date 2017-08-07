@@ -45,8 +45,9 @@ do
     
         xcorr=`cat $out`
         nmi=`cat $outnmi`
-        echo "$a $b $xorr" >> line_${neuronIndex}_xcorr
-        echo "$a $b $nmi" >> line_${neuronIndex}_nmi
+        echo "$a $b" >> neuron_sim/line_${neuronIndex}_pairs
+        echo "$xcorr" >> neuron_sim/line_${neuronIndex}_xcorr
+        echo "$nmi" >> neuron_sim/line_${neuronIndex}_nmi
 
         echo " "
         echo " "
@@ -54,3 +55,11 @@ do
     #echo "suffix: $suffix"
 
 done <pairs
+
+# we have a fixed number of lines, so just hard code it in
+for i in 1 2 3 4
+do
+    echo $i
+    #python /groups/saalfeld/home/bogovicj/dev/template/template-building/python/quikstats.py neuron_sim/line_${i}_xcorr > neuron_sim/line_${i}_xcorr_stats
+    #python /groups/saalfeld/home/bogovicj/dev/template/template-building/python/quikstats.py neuron_sim_old/line_${i}_xcorr_dataOnly > neuron_sim_old/line_${i}_xcorr_stats
+done
