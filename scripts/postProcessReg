@@ -36,7 +36,11 @@ then
 else
     # ANTS
     warpFiles=`ls *Warp.nii.gz | grep -v Inverse`
-    echo $warpFiles
-    gunzip -v $warpFiles
+    if [ ! -z $warpFiles ];
+    then
+        gunzip -v $warpFiles
+    else
+        echo "  No compressed warps found."
+    fi
     affineConv *Affine.txt
 fi
