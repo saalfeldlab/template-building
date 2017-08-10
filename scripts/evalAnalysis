@@ -8,12 +8,18 @@ DOVISNEURONOVERLAY=""
 
 PREFIX="ALLF"
 
-while getopts "dnpst:v" OPT
+while getopts "adnpst:v" OPT
 do
     case $OPT in
-    d) # distance transform
-        DODISTXFM="1"
+    a) # do all
+       DODISTXFM="1"
+       DOXFMNEURON="1"
+       DONEURONSIM="1"
+       DOVISNEURONOVERLAY="1"
         ;;
+    d) # distance transform
+       DODISTXFM="1"
+       ;;
     n) # transform neuron 
        DOXFMNEURON="1"
        ;;
