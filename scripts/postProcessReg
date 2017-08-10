@@ -36,7 +36,7 @@ then
 else
     # ANTS
     warpFiles=`ls *Warp.nii.gz | grep -v Inverse`
-    if [ ! -z $warpFiles ];
+    if [[ ! -z "$warpFiles" ]];
     then
         gunzip -v $warpFiles
     else
