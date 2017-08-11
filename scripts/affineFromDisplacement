@@ -1,4 +1,11 @@
 #!/bin/bash
+# Usage:
+#  <--skip-warp> <--split-components> output-path xfm-field-path sub-sample-step
+#
+#   skip-warp 
+#       do not output the 'affine-subtracted' displacement field 
+#   split-components 
+#       output each component of the displacement field as a separate file
 
 BASEDIR=$(dirname "$0")
 cp=`cat "$BASEDIR/theclasspath.cp"`
