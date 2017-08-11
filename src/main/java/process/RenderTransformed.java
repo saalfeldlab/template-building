@@ -103,7 +103,9 @@ public class RenderTransformed
 		
 		// Concatenate all the transforms
 		InvertibleRealTransformSequence totalXfm = new InvertibleRealTransformSequence();
-		
+
+		int nThreads = 8;
+
 		int i = 3;
 		while( i < args.length )
 		{
@@ -112,6 +114,15 @@ public class RenderTransformed
 			{
 				invert = true;
 				i++;
+			}
+
+			if( args[ i ].equals( "-q" ))
+			{
+				i++;
+				nThreads = Integer.parseInt( args[ i ] );
+				i++;
+				System.out.println( "argument specifies " + nThreads + " threads" );
+				continue;
 			}
 			
 			if( invert )
@@ -126,7 +137,7 @@ public class RenderTransformed
 				System.err.println("  failed to load transform ");
 				System.exit( 1 );
 			}
-			
+
 			totalXfm.add( xfm );
 			i++;
 		}
@@ -154,8 +165,8 @@ public class RenderTransformed
 				renderInterval.min( 1 ),
 				renderInterval.min( 2 ));
 
-		System.out.println("copying with 8 threads");
-		RenderUtil.copyToImageStack( imgHiXfm, outTranslated, 8 );
+		System.out.println("copying with " + nThreads + " threads");
+		RenderUtil.copyToImageStack( imgHiXfm, outTranslated, nThreads );
 
 		try
 		{
