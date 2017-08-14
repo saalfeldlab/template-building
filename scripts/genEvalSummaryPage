@@ -3,27 +3,47 @@
 template="/groups/saalfeld/home/bogovicj/dev/template/template-building/scripts/expSummaryTemplate.tex"
 cp $template .
 
+dir=$(pwd)
+name=${dir##*/}
+cleanname=$(echo $name | sed 's/_/\\\\_/g')
 
-loss="loss.png"
-L0H=`ls combined_hist_line0.png`
-LL0H=`ls combined_hist_line0-logy.png`
+L0H=$(ls 'eval/combined_hist_line0.png')
+LL0H=$(ls 'eval/combined_hist_line0-logy.png')
 
-L1H=`ls combined_hist_line1.png`
-LL1H=`ls combined_hist_line1-logy.png`
+L1H=$(ls 'eval/combined_hist_line1.png')
+LL1H=$(ls 'eval/combined_hist_line1-logy.png')
 
-L2H=`ls combined_hist_line2.png`
-LL2H=`ls combined_hist_line2-logy.png`
+L2H=$(ls 'eval/combined_hist_line2.png')
+LL2H=$(ls 'eval/combined_hist_line2-logy.png')
 
-L3H=`ls combined_hist_line3.png`
-LL3H=`ls combined_hist_line3-logy.png`
-
+L3H=$(ls 'eval/combined_hist_line3.png')
+LL3H=$(ls 'eval/combined_hist_line3-logy.png')
 
 finalSummaryFile=summary.tex
 
-sed -e "s/%L0H/$L0H/g" -e "s/%LL0H/$LL0H/g" \
-    -e "s/%L1H/$L1H/g" -e "s/%LL1H/$LL1H/g" \
-    -e "s/%L2H/$L2H/g" -e "s/%LL2H/$LL2H/g" \
-    -e "s/%L3H/$L3H/g" -e "s/%LL3H/$LL3H/g" \
+statsL1=$(python ~/dev/template/template-building/python/quikstats.py neuron_sim/line_1_xcorr)
+statsL2=$(python ~/dev/template/template-building/python/quikstats.py neuron_sim/line_2_xcorr)
+statsL3=$(python ~/dev/template/template-building/python/quikstats.py neuron_sim/line_3_xcorr)
+statsL4=$(python ~/dev/template/template-building/python/quikstats.py neuron_sim/line_4_xcorr)
+
+# So many backslashes >.<
+# Needed for sed to work correctly below
+SL1frmt=$(echo $statsL1 | sed 's/\([0-9]\) /\1\\\\\\\\/g')
+SL2frmt=$(echo $statsL2 | sed 's/\([0-9]\) /\1\\\\\\\\/g')
+SL3frmt=$(echo $statsL3 | sed 's/\([0-9]\) /\1\\\\\\\\/g')
+SL4frmt=$(echo $statsL4 | sed 's/\([0-9]\) /\1\\\\\\\\/g')
+echo $SL1frmt
+
+# use colons in substitute commands since the variables
+sed -e "s:%NAME:$cleanname:g" \
+    -e "s:%L0H:$L0H:g" -e "s:%LL0H:$LL0H:g" \
+    -e "s:%L1H:$L1H:g" -e "s:%LL1H:$LL1H:g" \
+    -e "s:%L2H:$L2H:g" -e "s:%LL2H:$LL2H:g" \
+    -e "s:%L3H:$L3H:g" -e "s:%LL3H:$LL3H:g" \
+    -e "s:%XCORRSTATS1:$SL1frmt:g" \
+    -e "s:%XCORRSTATS2:$SL2frmt:g" \
+    -e "s:%XCORRSTATS3:$SL3frmt:g" \
+    -e "s:%XCORRSTATS4:$SL4frmt:g" \
     expSummaryTemplate.tex > "$finalSummaryFile"
 
 pdflatex "$finalSummaryFile"

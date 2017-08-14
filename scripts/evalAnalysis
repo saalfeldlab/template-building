@@ -5,6 +5,7 @@ DODISTXFM=""
 DOXFMNEURON=""
 DONEURONSIM=""
 DOVISNEURONOVERLAY=""
+DOREPORT=""
 
 PREFIX="ALLF"
 
@@ -16,7 +17,8 @@ do
        DOXFMNEURON="1"
        DONEURONSIM="1"
        DOVISNEURONOVERLAY="1"
-        ;;
+       DOREPORT="1"
+       ;;
     d) # distance transform
        DODISTXFM="1"
        ;;
@@ -30,6 +32,9 @@ do
     t) # template 
        TEMPLATE=$OPTARG
        echo "Found template: $TEMPLATE"
+       ;;
+    r) # report page
+       DOREPORT="1"
        ;;
     s) # neuron similarity 
        DONEURONSIM="1"
@@ -89,4 +94,10 @@ fi
 if [ $DOVISNEURONOVERLAY ]; then
     echo "Visualize neuron overlay"
     evalVisOverlays
+fi
+
+# RPORT PAGE
+if [ $DOREPORT ]; then
+    echo "Report summary"
+    genEvalSummaryPage
 fi

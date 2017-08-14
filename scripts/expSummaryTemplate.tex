@@ -1,40 +1,40 @@
 \documentclass{article}
 
 \usepackage{graphicx}
+\usepackage{pbox}
+\usepackage{array}
+\usepackage[margin=0.5in]{geometry}
 
 \begin{document}
 
-%\begin{figure}[!ht]
-%\caption{Loss curve}
-%    \centering
-%    \includegraphics[width=0.5\textwidth]{%LOSSPATH}
-%\end{figure}
-%
-%\begin{figure}[!ht]
-%\caption{Error histogram}
-%    \centering
-%    \includegraphics[width=0.5\textwidth]{%HISTPATH}
-%\end{figure}
-
 \begin{figure}
-\begin{tabular}{ccc}
-        & Distance histogram & Distance log-histogram \\
+\begin{tabular}{cccc}
+        %NAME & 
+        Distance histogram & Distance log-histogram & xcorr stats\\
 
         Line 0 &  
-        \includegraphics[width=0.4\textwidth]{%L0H} & 
-        \includegraphics[width=0.4\textwidth]{%LL0H} \\
+        \includegraphics[width=0.3\textwidth]{%L0H} & 
+        \includegraphics[width=0.3\textwidth]{%LL0H} & 
+        \pbox{10cm}{ %XCORRSTATS1 }
+        \\
 
         Line 1 &  
-        \includegraphics[width=0.4\textwidth]{%L1H} & 
-        \includegraphics[width=0.4\textwidth]{%LL1H} \\
+        \includegraphics[width=0.3\textwidth]{%L1H} & 
+        \includegraphics[width=0.3\textwidth]{%LL1H}& 
+        \pbox{10cm}{ %XCORRSTATS2 }
+        \\
 
         Line 2 &  
-        \includegraphics[width=0.4\textwidth]{%L2H} & 
-        \includegraphics[width=0.4\textwidth]{%LL2H} \\
+        \includegraphics[width=0.3\textwidth]{%L2H} & 
+        \includegraphics[width=0.3\textwidth]{%LL2H} & 
+        \pbox{10cm}{ %XCORRSTATS3 }
+        \\
         
         Line 3 &  
-        \includegraphics[width=0.4\textwidth]{%L3H} & 
-        \includegraphics[width=0.4\textwidth]{%LL3H} \\
+        \includegraphics[width=0.3\textwidth]{%L3H} & 
+        \includegraphics[width=0.3\textwidth]{%LL3H} & 
+        \pbox{10cm}{ %XCORRSTATS4 }
+        \\
     
 \end{tabular}
 \end{figure}
