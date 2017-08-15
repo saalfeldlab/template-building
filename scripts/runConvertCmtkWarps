@@ -104,6 +104,7 @@ do
 
     tmp=`readlink -f $reg`
     xfm=`echo $tmp | sed 's/registration.gz/xform.nii/g'`
+    out=`echo $tmp | sed 's/registration.gz/xform/g'`
     echo $xfm
     if [[ -f $xfm ]];
     then
@@ -116,6 +117,8 @@ do
         echo "export CMTK_NUM_THREADS=4" >> $job
 
         echo "convertCmtkWarpFast $POSFIELDX $POSFIELDY $POSFIELDZ $ref $reg $xfm" >> $job
+        echo "affineFromDisplacement $out $xfm 8" >> $job
+        echo "affineImglib2Itk ${out}_affine.txt > ${out}_affine_itk.txt" >> $job 
         chmod +x $job
     fi
 

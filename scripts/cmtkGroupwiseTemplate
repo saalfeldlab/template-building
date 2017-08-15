@@ -48,13 +48,14 @@ function shapeupdatetotal {
     dim=3 
     templatename="average-template"
     template="average-template.nii"
+    step=-${gradientstep} 
 
     echo
     echo "--------------------------------------------------------------------------------------"
     echo " shape update - Compute average warp "
     echo "--------------------------------------------------------------------------------------"
     ${ANTSPATH}/AverageImages $dim ${templatename}Warp.nii.gz 0 `ls Registration/warp/*/xform.nii`
-	${ANTSPATH}/MultiplyImages $dim ${templatename}Warp.nii.gz ${gradientstep} ${templatename}Warp.nii.gz
+	${ANTSPATH}/MultiplyImages $dim ${templatename}Warp.nii.gz ${step} ${templatename}Warp.nii.gz
 
     echo
     echo "--------------------------------------------------------------------------------------"
@@ -79,14 +80,15 @@ function shapeupdate {
     echo "--------------------------------------------------------------------------------------"
     echo " shape update - Compute average warp "
     echo "--------------------------------------------------------------------------------------"
-    ${ANTSPATH}/AverageImages $dim ${templatename}Warp.nii.gz 0 `ls Registration/warp/*/xform.nii`
+    ${ANTSPATH}/AverageImages $dim ${templatename}Warp.nii.gz 0 `ls Registration/warp/*/xform_warp.nii`
 	${ANTSPATH}/MultiplyImages $dim ${templatename}Warp.nii.gz ${gradientstep} ${templatename}Warp.nii.gz
+    ${ANTSPATH}/CopyImageHeaderInformation ${template} ${templatename}Warp.nii.gz ${templatename}Warp.nii.gz 1 1 1 # Make sure the warp header is correct
 
     echo
     echo "--------------------------------------------------------------------------------------"
     echo " shape update - Compute average affine "
     echo "--------------------------------------------------------------------------------------"
-    ${ANTSPATH}/AverageAffineTransform ${dim} ${templatename}Affine${afftype} ./Registration/warp/*/xformAffine.txt
+    ${ANTSPATH}/AverageAffineTransform ${dim} ${templatename}Affine${afftype} ./Registration/warp/*/xform_affine_itk.txt
 
     echo
     echo "--------------------------------------------------------------------------------------"
@@ -98,7 +100,8 @@ function shapeupdate {
     echo "--------------------------------------------------------------------------------------"
     echo " shape update - Transform template "
     echo "--------------------------------------------------------------------------------------"
-    ${ANTSPATH}/WarpImageMultiTransform ${dim} ${template} ${template} -i ${templatename}Affine${afftype} ${templatename}Warp.nii.gz ${templatename}Warp.nii.gz ${templatename}Warp.nii.gz ${templatename}Warp.nii.gz -R ${template}
+    #${ANTSPATH}/WarpImageMultiTransform ${dim} ${template} ${template} -i ${templatename}Affine${afftype} ${templatename}Warp.nii.gz ${templatename}Warp.nii.gz ${templatename}Warp.nii.gz ${templatename}Warp.nii.gz -R ${template}
+    ${ANTSPATH}/WarpImageMultiTransform ${dim} ${template} ${template} -i ${templatename}Affine${afftype} ${templatename}Warp.nii.gz ${templatename}Warp.nii.gz -R ${template}
 
 }
 
@@ -185,7 +188,8 @@ do
     runConvertCmtkWarps -d $srcdir -r $ref -w
 
    # Warp the average shape
-    shapeupdatetotal
+   # shapeupdatetotal
+    shapeupdate
 
     mv average-template.nii average-template_$currentIter.nii
     backup
