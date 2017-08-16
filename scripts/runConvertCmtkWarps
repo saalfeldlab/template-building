@@ -5,6 +5,7 @@ waitScript="/groups/saalfeld/home/bogovicj/dev/template/template-building/script
 # Remember where we start
 startdir=`pwd`
 
+POSFIELDDIR="/nrs/saalfeld/john/projects/flyChemStainAtlas/posFields"
 POSFIELDX="/nrs/saalfeld/john/projects/flyChemStainAtlas/posFields/pfx_850-650-250.nii"
 POSFIELDY="/nrs/saalfeld/john/projects/flyChemStainAtlas/posFields/pfy_850-650-250.nii"
 POSFIELDZ="/nrs/saalfeld/john/projects/flyChemStainAtlas/posFields/pfz_850-650-250.nii"
@@ -17,7 +18,7 @@ doWait=""
 srcdir=""
 ref=""
 
-while getopts ":d:r:w" opt; do
+while getopts ":d:r:wi" opt; do
     case $opt in
         d)
             #echo "d triggered $OPTARG" >&2
@@ -31,6 +32,13 @@ while getopts ":d:r:w" opt; do
             #echo "r triggered $OPTARG" >&2
             doWait="1"
             ;;
+        i)
+            #echo "r triggered $OPTARG" >&2
+            interval=$OPTARG
+            POSFIELDX="${POSFIELDDIR}/pfx_$interval.nii"
+            POSFIELDY="${POSFIELDDIR}/pfy_$interval.nii"
+            POSFIELDZ="${POSFIELDDIR}/pfz_$interval.nii"
+            ;;
         /?)
             echo "Invalid option: -$OPTARG" >&2
             exit 1
@@ -41,6 +49,12 @@ while getopts ":d:r:w" opt; do
             ;;
     esac
 done
+
+echo $POSFIELDX
+echo $POSFIELDY
+echo $POSFIELDZ
+
+# Detect which pos field size to use
 
 if [[ -z $srcdir ]];
 then

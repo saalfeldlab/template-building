@@ -19,6 +19,7 @@ currentTemplate="$ref"
 
 # TODO pass this as an input
 cmtkAvgMode="total"
+interval="1000-700-300"
 
 
 function find_current_iter {
@@ -101,7 +102,7 @@ function shapeupdate {
     echo " shape update - Transform template "
     echo "--------------------------------------------------------------------------------------"
     #${ANTSPATH}/WarpImageMultiTransform ${dim} ${template} ${template} -i ${templatename}Affine${afftype} ${templatename}Warp.nii.gz ${templatename}Warp.nii.gz ${templatename}Warp.nii.gz ${templatename}Warp.nii.gz -R ${template}
-    ${ANTSPATH}/WarpImageMultiTransform ${dim} ${template} ${template} -i ${templatename}Affine${afftype} ${templatename}Warp.nii.gz ${templatename}Warp.nii.gz -R ${template}
+    ${ANTSPATH}/WarpImageMultiTransform ${dim} ${template} ${template} -i ${templatename}Affine${afftype} ${templatename}Warp.nii.gz ${templatename}Warp.nii.gz ${templatename}Warp.nii.gz ${templatename}Warp.nii.gz  -R ${template}
 
 }
 

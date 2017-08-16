@@ -1,0 +1,11 @@
+#!/bin/bash
+
+POSFIELDDIR="/nrs/saalfeld/john/projects/flyChemStainAtlas/posFields"
+
+in="$1"
+
+interval=$(parseNiiInterval $in)
+out=${interval##*:}
+sz=$(echo $out | sed s'/,/-/g' )
+
+echo "${POSFIELDDIR}/pfx_${sz}.nii ${POSFIELDDIR}/pfy_${sz}.nii  ${POSFIELDDIR}/pfz_${sz}.nii"
