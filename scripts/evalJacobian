@@ -59,18 +59,17 @@ do
     echo $houtlog
       
     # Make job 
-#    job="jacobian/jacobian_hist_$i.sh"
     job="jacobian/jacobian_$i.sh"
-    #if [[ -f $dir/jacobian/$out ]];
-    #then
-    #    echo "skipping $out"
-    #else
+    if [[ -f $dir/jacobian/$out ]];
+    then
+        echo "skipping $out"
+    else
         echo "#!/bin/bash" > $job
-        #echo "ANTSJacobian 3 $field $dir/jacobian/$out 0" >> $job
-        #echo "ANTSJacobian 3 $field $dir/jacobian/$out 1" >> $job
+        echo "ANTSJacobian 3 $field $dir/jacobian/$out 0" >> $job
+        echo "ANTSJacobian 3 $field $dir/jacobian/$out 1" >> $job
         echo "gunzip -v $dir/jacobian/${out}jacobian.nii.gz" >> $job
         echo "gunzip -v $dir/jacobian/${out}logjacobian.nii.gz" >> $job
-    #fi
+    fi
 
     echo "maskedImageHist $dir/jacobian/$hout $dir/jacobian/${out}jacobian.nii $HISTMIN $HISTMAX $HISTBINS $ref $HISTTHRESH true" >> $job
     echo "maskedImageHist $dir/jacobian/$houtlog $dir/jacobian/${out}logjacobian.nii $LOGHISTMIN $LOGHISTMAX $HISTBINS $ref $HISTTHRESH true" >> $job
