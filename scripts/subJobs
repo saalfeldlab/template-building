@@ -1,0 +1,60 @@
+#!/bin/bash
+
+DOWAIT=""
+BSUBOPTS=""
+HOST='login2.int.janelia.org'
+
+while getopts "h:o:w" OPT
+do
+    case $OPT in
+    h) # wait
+       HOST=$OPTARG
+       ;;
+    o) # wait
+       BSUBOPTS=$OPTARG
+       ;;
+    w) # wait
+       DOWAIT="1"
+       ;;
+    \?) # getopts issues an error message
+       echo "$USAGE" >&2
+       exit 1
+       ;;
+    esac
+done
+
+
+haveBsub=`which bsub`
+if [ $haveBsub ]; 
+then
+    echo "yes bsub: $haveBsub"
+    jobIds=""
+    for j in `ls neuron_xfm*sh`
+    do
+        id=`bsub $BSUBOPTS -o $j.o%J -e $j.e%J "./$j" | awk '{ gsub("[<>]","",$2); print $2}'`
+        jobIds="$jobIds $id"
+        sleep 1
+    done
+    if [ $DOWAIT ]; then
+        $waitScript 1 60 $jobIds
+    fi
+else
+    echo "no bsub"
+    submitJobScript="submit_neuron_xfm_jobs.sh"
+    echo "#!/bin/bash" > $submitJobScript
+    echo 'jobIds=""' >> $submitJobScript
+    for j in $@
+    do
+        bsubcmd="bsub $BSUBOPTS -o $j.o%J -e $j.e%J ""./$j"
+        awkcmd=' | awk '"'"'{ gsub("[<>]","",$2); print $2}'"'"
+        echo "id=\`${bsubcmd}${awkcmd}\`" >> $submitJobScript
+        echo 'jobIds="$jobIds $id"' >> $submitJobScript
+        echo "sleep 1" >> $submitJobScript
+    done
+    if [ $DOWAIT ]; then
+       echo "$waitScript 1 60 "'$jobIds' >> $submitJobScript
+    fi
+    chmod +x $submitJobScript
+    executeRemote $HOST "./$submitJobScript"
+fi
+
