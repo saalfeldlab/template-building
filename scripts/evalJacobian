@@ -38,26 +38,21 @@ do
     if [[ -n $isCmtk ]];
     then
         regXfms=`matchEvalDataCmtk --conv $neurImg $dir`
+        echo "regXfms: $regXfms"
         field=$regXfms
     else
         regXfms=`matchEvalData $neurImg $dir`
         field=$(echo $regXfms | awk '{print $2}')   
     fi
-    echo $field
+    echo "field: $field"
     
     baseName=${field##*/}
-    #out=`echo $baseName | sed 's/.nii/_jac.nii/g'`
-    #outlog=`echo $baseName | sed 's/.nii/_logjac.nii/g'`
-
     out=`echo $baseName | sed 's/.nii//g'`
-    #echo $out
-    #echo $outlog
 
     hout=`echo $baseName | sed 's/.nii/_hist.csv/g'`
     houtlog=`echo $baseName | sed 's/.nii/_loghist.csv/g'`
-    echo $hout
-    echo $houtlog
-      
+    echo " "
+
     # Make job 
     job="jacobian/jacobian_$i.sh"
     if [[ -f $dir/jacobian/$out ]];
@@ -84,4 +79,4 @@ do
 
 done <$neuronList
 
-#subJobs -w -n 2 jacobian/jacobian_hist*sh
+#subJobs -w -o '-n 2' jacobian/jacobian_hist*sh
