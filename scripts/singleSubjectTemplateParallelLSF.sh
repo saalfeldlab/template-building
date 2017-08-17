@@ -47,6 +47,7 @@ SGE=${ANTSPATH}/waitForSGEQJobs.pl
 PBS=${ANTSPATH}/waitForPBSQJobs.pl
 XGRID=${ANTSPATH}/waitForXGridJobs.pl
 SLURM=${ANTSPATH}/waitForSlurmJobs.pl
+LSFWAIT="/groups/saalfeld/home/bogovicj/dev/template/template-building/scripts/waitForLSFJobs.pl"
 
 fle_error=0
 for FLE in $ANTSSCRIPTNAME $PEXEC $SGE $XGRID $SLURM
@@ -91,7 +92,7 @@ should be invoked from that directory.
 Optional arguments:
 
      -c:  Control for parallel computation (default 1) -- 0 == run serially,  1 == SGE qsub,
-          2 == use PEXEC (localhost),  3 == Apple XGrid, 4 == PBS qsub, 5 == SLURM
+          2 == use PEXEC (localhost),  3 == Apple XGrid, 4 == PBS qsub, 5 == SLURM, 6 == LSF
 
      -q:  Set default queue for PBS jobs (default: nopreempt)
 
@@ -420,7 +421,7 @@ function updatetotemplate {
 #    echo "--------------------------------------------------------------------------------------"
 #    echo
 #    ${ANTSPATH}/MeasureMinMaxMean ${dim} ${templatename}warp.nii.gz ${templatename}warplog.txt 1
-
+#
 
 }
 
@@ -619,6 +620,8 @@ control_c()
      qdel $jobIDs
   elif [ $DOQSUB -eq 5 ]; then
      scancel $jobIDs
+  elif [ $DOQSUB -eq 6 ]; then
+     bkill $jobIDs
   fi
 
   exit $?
@@ -644,7 +647,7 @@ DEFQUEUE=nopreempt
 DOQSUB=2 # By default, buildtemplateparallel tries to do things in parallel
 GRADIENTSTEP=0.25 # Gradient step size, smaller in magnitude means more smaller (more cautious) steps
 ITERATIONLIMIT=4
-CORES=2
+CORES=4
 TDIM=0
 RIGID=0
 RIGIDTYPE=" --do-rigid" # set to an empty string to use affine initialization
@@ -687,7 +690,7 @@ while getopts "c:q:d:g:i:j:h:m:n:o:p:s:r:t:x:z:e:" OPT
       c) #use SGE cluster
 	  DOQSUB=$OPTARG
 	  if [[ ${#DOQSUB} -gt 2 ]] ; then
-	      echo " DOQSUB must be an integer value (0=serial, 1=SGE qsub, 2=try pexec, 3=XGrid, 4=PBS qsub, 5=SLURM) you passed  -c $DOQSUB "
+	      echo " DOQSUB must be an integer value (0=serial, 1=SGE qsub, 2=try pexec, 3=XGrid, 4=PBS qsub, 5=SLURM, 6=LSF) you passed  -c $DOQSUB "
 	      exit 1
 	  fi
 	  ;;
@@ -770,7 +773,7 @@ elif [ $nargs -lt 6 ]
 fi
 
 if [[ $DOQSUB -eq 1 || $DOQSUB -eq 4 ]] ; then
-  qq=`which  qsub`
+  qq=`which qsub`
   if [  ${#qq} -lt 1 ] ; then
     echo do you have qsub?  if not, then choose another c option ... if so, then check where the qsub alias points ...
     exit
@@ -780,6 +783,13 @@ if [[ $DOQSUB -eq 5 ]]; then
   qq=`which sbatch`
   if [[ ${#qq} -lt 1 ]]; then
     echo "do you have sbatch?  if not, then choose another c option ... if so, then check where the sbatch alias points ..."
+    exit
+  fi
+fi
+if [[ $DOQSUB -eq 6 ]] ; then
+  qq=`which bsub`
+  if [  ${#qq} -lt 1 ] ; then
+    echo do you have bsub?  if not, then choose another c option ... if so, then check where the bsub alias points ...
     exit
   fi
 fi
@@ -930,22 +940,28 @@ fi
 
 # exit
 # check for an initial template image and perform rigid body registration if requested
-if [ ! -s $REGTEMPLATE ]
-    then
-    echo
-    echo "--------------------------------------------------------------------------------------"
-    echo " No initial template exists. Exiting!"
-    echo "--------------------------------------------------------------------------------------"
-    exit 1
+if [ -f ${TEMPLATE} ];
+then
+    echo "Template ${TEMPLATE} already exists - continuing with that one"
+    sleep 5
 else
-    echo
-    echo "--------------------------------------------------------------------------------------"
-    echo " Initial template found.  This will be used for guiding the registration. use : $REGTEMPLATE and $TEMPLATE "
-    echo "--------------------------------------------------------------------------------------"
-	# now move the initial registration template to OUTPUTNAME, otherwise this input gets overwritten.
+    if [ ! -s $REGTEMPLATE ]
+        then
+        echo
+        echo "--------------------------------------------------------------------------------------"
+        echo " No initial template exists. Creating a population average image from the inputs."
+        echo "--------------------------------------------------------------------------------------"
+        ${ANTSPATH}/AverageImages $DIM $TEMPLATE 1 $IMAGESETVARIABLE
+    else
+        echo
+        echo "--------------------------------------------------------------------------------------"
+        echo " Initial template found.  This will be used for guiding the registration. use : $REGTEMPLATE and $TEMPLATE "
+        echo "--------------------------------------------------------------------------------------"
+        # now move the initial registration template to OUTPUTNAME, otherwise this input gets overwritten.
 
-    cp ${REGTEMPLATE} ${TEMPLATE}
+        cp ${REGTEMPLATE} ${TEMPLATE}
 
+    fi
 fi
 
 
@@ -982,6 +998,15 @@ if [ "$RIGID" -eq 1 ] ;
          echo '#!/bin/sh' > $qscript
       fi
 
+      if [[ $DOQSUB -eq 6 ]]; then
+        echo "Making script for LSF submission: $qscript" 
+        # Set env variables in LSF job scripts 
+        echo '#!/bin/bash' > $qscript
+        echo "export ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS=4" >> $qscript
+        echo "export LD_LIBRARY_PATH=$LD_LIBRARY_PATH" >> $qscript
+        echo "export ANTSPATH=$ANTSPATH" >> $qscript
+      fi
+
       echo "$SCRIPTPREPEND" >> $qscript
 
       echo "$exe" >> $qscript
@@ -1008,6 +1033,10 @@ if [ "$RIGID" -eq 1 ] ;
       elif [[ $DOQSUB -eq 5 ]]; then
         id=`sbatch --job-name=antsrigid --export=ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS=1,LD_LIBRARY_PATH=$LD_LIBRARY_PATH,ANTSPATH=$ANTSPATH $QSUBOPTS --nodes=1 --cpus-per-task=1 --time=4:00:00 $qscript | rev | cut -f1 -d\ | rev`
         jobIDs="$jobIDs $id"
+        sleep 0.5
+      elif [[ $DOQSUB -eq 6 ]]; then
+		id=`bsub -n 4 $QSUBOPTS -o ${qscript}.bout%J -e ${qscript}.berr%J "./$qscript" | awk '{ gsub("[<>]","",$2); print $2}'`
+		jobIDs="$jobIDs $id"
         sleep 0.5
       elif  [ $DOQSUB -eq 0 ] ; then
         # execute jobs in series
@@ -1099,6 +1128,22 @@ if [ "$RIGID" -eq 1 ] ;
 	fi
     fi
 
+    if [ $DOQSUB -eq 6 ];
+	then
+	# Run jobs on LSF and wait to finish
+	echo
+	echo "--------------------------------------------------------------------------------------"
+	echo " Starting ANTS rigid registration on LSF cluster. Submitted $count jobs "
+	echo "--------------------------------------------------------------------------------------"
+        # now wait for the jobs to finish. Rigid registration is quick, so poll queue every 60 seconds
+	$LSFWAIT 1 60 $jobIDs
+
+	# Returns 1 if there are errors
+	if [ ! $? -eq 0 ]; then
+	    echo "bsub submission failed - jobs went into error state"
+	    exit 1;
+	fi
+    fi
 
     # Update template
     ${ANTSPATH}/AverageImages $DIM $TEMPLATE 1 $RIGID_IMAGESET
@@ -1135,6 +1180,10 @@ if [ "$RIGID" -eq 1 ] ;
 
         # Remove qsub scripts
         rm -f ${outdir}/job_${count}_qsub.sh
+    elif [[ $DOQSUB -eq 6 ]];
+        then
+        mv *.bout* rigid/
+        mv *.berr* rigid/
     fi
 
 
@@ -1158,7 +1207,22 @@ echo "--------------------------------------------------------------------------
 reportMappingParameters
 
 i=0
-while [  $i -lt ${ITERATIONLIMIT} ]
+
+# Detect current iteration
+echo "$TRANSFORMATIONTYPE"
+sleep 2
+itmp=`detectBuildTemplateIter $TRANSFORMATIONTYPE`
+echo "itmp: $itmp"
+if [[ ! -z $itmp ]];
+then
+    echo "setting i to $itmp"
+    i=$itmp
+fi
+sleep 2
+
+echo "i: $i"
+
+while [ $i -lt ${ITERATIONLIMIT} ]
   do
 
   itdisplay=$((i+1))
@@ -1214,6 +1278,7 @@ while [  $i -lt ${ITERATIONLIMIT} ]
     # 5 prepare registration command
     exe="${ANTSSCRIPTNAME} -d ${DIM} -r ${dir}/${TEMPLATE} -i ${dir}/${IMG} -o ${dir}/${OUTFN} -m ${MAXITERATIONS} -n ${N4CORRECT} -s ${METRICTYPE} -t ${TRANSFORMATIONTYPE} -e $REGULARIZATION -f 1 "
     pexe=" $exe >> job_${count}_${i}_metriclog.txt "
+    echo "pexe: $pexe"
 
     # 6 submit to SGE (DOQSUB=1), PBS (DOQSUB=4), PEXEC (DOQSUB=2), XGrid (DOQSUB=3) or else run locally (DOQSUB=0)
     if [ $DOQSUB -eq 1 ]; then
@@ -1247,6 +1312,19 @@ while [  $i -lt ${ITERATIONLIMIT} ]
       id=`sbatch --mem-per-cpu=32768M --job-name=antsdef${i} --export=ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS=1,LD_LIBRARY_PATH=$LD_LIBRARY_PATH,ANTSPATH=$ANTSPATH --nodes=1 --cpus-per-task=1 --time=4:00:00 $QSUBOPTS $qscript | rev | cut -f1 -d\ | rev`
       jobIDs="$jobIDs $id"
       sleep 0.5
+    elif [ $DOQSUB -eq 6 ]; then
+        qscript="antsdefjob_${count}_${i}.sh"
+        echo '#!/bin/bash' > $qscript
+        echo -e "export ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS=4" >> $qscript
+        echo -e "export ANTSPATH=$ANTSPATH" >> $qscript
+        echo -e "$exe" >> $qscript
+        chmod +x $qscript
+
+        echo "qsubopts: $QSUBOPTS"
+
+	    id=`bsub -n 4 $QSUBOPTS -o ${qscript}.bout%J -e ${qscript}.berr%J "./$qscript" | awk '{ gsub("[<>]","",$2); print $2}'`
+        jobIDs="$jobIDs $id"
+        sleep 0.5
     elif  [ $DOQSUB -eq 0 ] ; then
       bash $exe
     fi
@@ -1274,7 +1352,6 @@ while [  $i -lt ${ITERATIONLIMIT} ]
       fi
 
   elif [ $DOQSUB -eq 4 ];
-
       then
       echo
       echo "--------------------------------------------------------------------------------------"
@@ -1286,6 +1363,21 @@ while [  $i -lt ${ITERATIONLIMIT} ]
 
       if [ ! $? -eq 0 ]; then
         echo "qsub submission failed - jobs went into error state"
+        exit 1;
+      fi
+
+  elif [ $DOQSUB -eq 6 ];
+      then
+      echo
+      echo "--------------------------------------------------------------------------------------"
+      echo " Starting ANTS registration on LSF cluster. Iteration: $itdisplay of $ITERATIONLIMIT"
+      echo "--------------------------------------------------------------------------------------"
+
+      # now wait for the stuff to finish - this will take a while so poll queue every 10 mins
+      $LSFWAIT 2 600 $jobIDs
+
+      if [ ! $? -eq 0 ]; then
+        echo "bsub submission failed - jobs went into error state"
         exit 1;
       fi
 
