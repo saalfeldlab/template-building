@@ -11,7 +11,7 @@ do
        HOST=$OPTARG
        ;;
     o) # wait
-       BSUBOPTS=$OPTARG
+       BSUBOPTS="$OPTARG"
        ;;
     w) # wait
        DOWAIT="1"
@@ -23,14 +23,18 @@ do
     esac
 done
 
+echo "bsub opts: $BSUBOPTS"
+# shift away all getopts arguments 
+shift $(($OPTIND - 1))
 
 haveBsub=`which bsub`
 if [ $haveBsub ]; 
 then
     echo "yes bsub: $haveBsub"
     jobIds=""
-    for j in `ls neuron_xfm*sh`
+    for j in $@
     do
+        #echo $j
         id=`bsub $BSUBOPTS -o $j.o%J -e $j.e%J "./$j" | awk '{ gsub("[<>]","",$2); print $2}'`
         jobIds="$jobIds $id"
         sleep 1
@@ -45,6 +49,7 @@ else
     echo 'jobIds=""' >> $submitJobScript
     for j in $@
     do
+        echo "j: $j"
         bsubcmd="bsub $BSUBOPTS -o $j.o%J -e $j.e%J ""./$j"
         awkcmd=' | awk '"'"'{ gsub("[<>]","",$2); print $2}'"'"
         echo "id=\`${bsubcmd}${awkcmd}\`" >> $submitJobScript
