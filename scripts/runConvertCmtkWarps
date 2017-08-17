@@ -17,8 +17,9 @@ POSFIELDZ="/nrs/saalfeld/john/projects/flyChemStainAtlas/posFields/pfz_850-650-2
 doWait=""
 srcdir=""
 ref=""
+interval=""
 
-while getopts ":d:r:wi" opt; do
+while getopts ":d:r:wi:" opt; do
     case $opt in
         d)
             #echo "d triggered $OPTARG" >&2
@@ -35,6 +36,7 @@ while getopts ":d:r:wi" opt; do
         i)
             #echo "r triggered $OPTARG" >&2
             interval=$OPTARG
+            echo "interval: $interval"
             POSFIELDX="${POSFIELDDIR}/pfx_$interval.nii"
             POSFIELDY="${POSFIELDDIR}/pfy_$interval.nii"
             POSFIELDZ="${POSFIELDDIR}/pfz_$interval.nii"
@@ -50,9 +52,9 @@ while getopts ":d:r:wi" opt; do
     esac
 done
 
-echo $POSFIELDX
-echo $POSFIELDY
-echo $POSFIELDZ
+echo "pfx: $POSFIELDX"
+echo "pfy: $POSFIELDY"
+echo "pfz: $POSFIELDZ"
 
 # Detect which pos field size to use
 
