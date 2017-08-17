@@ -1,0 +1,88 @@
+#!/bin/bash
+# 
+
+neuronList="/nrs/saalfeld/john/projects/flyChemStainAtlas/eval/dataNew/neuron_list.txt"
+
+HISTBINS="128"
+HISTTHRESH="0.5"
+
+HISTMIN="-2"
+HISTMAX="4"
+
+LOGHISTMIN="-2"
+LOGHISTMAX="2" 
+
+ref="$1"
+if [[ -z $ref ]];
+then
+    echo "Must specify reference" 
+    exit 1
+fi
+
+isCmtk=""
+if [[ -d Registration ]];
+then
+    echo "is CMTK"
+    isCmtk="1"
+fi
+
+mkdir -p jacobian
+
+dir=`pwd`
+i=0
+
+while read neurImg
+do
+    echo $neurImg
+     
+    if [[ -n $isCmtk ]];
+    then
+        regXfms=`matchEvalDataCmtk --conv $neurImg $dir`
+        field=$regXfms
+    else
+        regXfms=`matchEvalData $neurImg $dir`
+        field=$(echo $regXfms | awk '{print $2}')   
+    fi
+    echo $field
+    
+    baseName=${field##*/}
+    #out=`echo $baseName | sed 's/.nii/_jac.nii/g'`
+    #outlog=`echo $baseName | sed 's/.nii/_logjac.nii/g'`
+
+    out=`echo $baseName | sed 's/.nii//g'`
+    #echo $out
+    #echo $outlog
+
+    hout=`echo $baseName | sed 's/.nii/_hist.csv/g'`
+    houtlog=`echo $baseName | sed 's/.nii/_loghist.csv/g'`
+    echo $hout
+    echo $houtlog
+      
+    # Make job 
+#    job="jacobian/jacobian_hist_$i.sh"
+    job="jacobian/jacobian_$i.sh"
+    #if [[ -f $dir/jacobian/$out ]];
+    #then
+    #    echo "skipping $out"
+    #else
+        echo "#!/bin/bash" > $job
+        #echo "ANTSJacobian 3 $field $dir/jacobian/$out 0" >> $job
+        #echo "ANTSJacobian 3 $field $dir/jacobian/$out 1" >> $job
+        echo "gunzip -v $dir/jacobian/${out}jacobian.nii.gz" >> $job
+        echo "gunzip -v $dir/jacobian/${out}logjacobian.nii.gz" >> $job
+    #fi
+
+    echo "maskedImageHist $dir/jacobian/$hout $dir/jacobian/${out}jacobian.nii $HISTMIN $HISTMAX $HISTBINS $ref $HISTTHRESH true" >> $job
+    echo "maskedImageHist $dir/jacobian/$houtlog $dir/jacobian/${out}logjacobian.nii $LOGHISTMIN $LOGHISTMAX $HISTBINS $ref $HISTTHRESH true" >> $job
+    echo "histStat $dir/jacobian/$hout 0.01 0.05 0.1 0.25 0.5 0.75 0.9 0.95 0.99 >> $dir/jacobian/hist_stats.csv" >> $job
+    echo "histStat $dir/jacobian/$houtlog 0.01 0.05 0.1 0.25 0.5 0.75 0.9 0.95 0.99 >> $dir/jacobian/loghist_stats.csv" >> $job
+    echo "plotHistograms $dir/jacobian/$hout" >> $job
+    echo "plotHistograms $dir/jacobian/$houtlog" >> $job
+    chmod +x "$job"
+
+    ((i++))
+    #break
+
+done <$neuronList
+
+#subJobs -w -n 2 jacobian/jacobian_hist*sh
