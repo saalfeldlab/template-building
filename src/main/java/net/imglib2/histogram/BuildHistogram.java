@@ -1,10 +1,14 @@
 package net.imglib2.histogram;
 
 import java.io.BufferedWriter;
+import java.io.File;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 
 import ij.IJ;
+import io.nii.NiftiIo;
+import loci.formats.FormatException;
 import net.imglib2.IterableInterval;
 import net.imglib2.RandomAccess;
 import net.imglib2.converter.Converter;
@@ -20,7 +24,7 @@ import net.imglib2.type.numeric.real.FloatType;
 
 public class BuildHistogram {
 
-	public static void main(String[] args)
+	public static void main(String[] args) throws FormatException, IOException
 	{
 		final String outF = args[ 0 ];
 		final String imF = args[ 1 ];
@@ -38,7 +42,18 @@ public class BuildHistogram {
 		Real1dBinMapper<FloatType> binMapper = new Real1dBinMapper<FloatType>(
 				histmin, histmax, numBins, tailBins );
 
-		IterableInterval<FloatType> img = ImageJFunctions.convertFloat( IJ.openImage( imF ));
+		System.out.println( "imF   : " + imF );
+		System.out.println( "maskF : " + maskF );
+		IterableInterval<FloatType> img;
+		if( imF.endsWith( "nii" ))
+		{
+			img = ImageJFunctions.convertFloat( NiftiIo.readNifti( new File( imF )));
+		}
+		else
+		{
+			img = ImageJFunctions.convertFloat( IJ.openImage( imF ) );	
+		}
+		
 		IterableInterval<FloatType> maskRaw = null;
 		if( maskF.equals( imF ))
 		{
@@ -46,7 +61,16 @@ public class BuildHistogram {
 			maskRaw = img;
 		}
 		else
-			maskRaw = ImageJFunctions.convertFloat( IJ.openImage( maskF ));
+		{
+			if( maskF.endsWith( "nii" ))
+			{
+				maskRaw = ImageJFunctions.convertFloat( NiftiIo.readNifti( new File( maskF )));
+			}
+			else
+			{
+				maskRaw = ImageJFunctions.convertFloat( IJ.openImage( maskF ) );	
+			}
+		}
 		
 		Converter<FloatType,BoolType> maskConv = new Converter<FloatType,BoolType>()
 		{
