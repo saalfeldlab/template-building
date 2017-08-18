@@ -1,5 +1,7 @@
 #!/bin/bash
 
+waitScript="/groups/saalfeld/home/bogovicj/dev/template/template-building/scripts/waitForLSFJobs.pl"
+
 DOWAIT=""
 BSUBOPTS=""
 HOST='login2.int.janelia.org'
@@ -44,7 +46,8 @@ then
     fi
 else
     echo "no bsub"
-    submitJobScript="submit_neuron_xfm_jobs.sh"
+    dt=`date +%Y%m%d%H%M%S`
+    submitJobScript="submit_jobs_$dt.sh"
     echo "#!/bin/bash" > $submitJobScript
     echo 'jobIds=""' >> $submitJobScript
     for j in $@
