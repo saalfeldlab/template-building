@@ -84,7 +84,7 @@ fi
 
 # TRANSFORMING NEURON IMAGES
 if [ $DOJACOBIAN ]; then
-    echo "Transforming neurons"
+    echo "Computing Jacobian"
     evalJacobian $TEMPLATE
 fi
 

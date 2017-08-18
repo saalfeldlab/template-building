@@ -75,7 +75,7 @@ do
 
     # Make job 
     job="jacobian/jacobian_$i.sh"
-    if [[ -f $dir/jacobian/$out ]];
+    if [[ -f "$dir/jacobian/${out}jacobian.nii" ]];
     then
         echo "skipping $out"
     else
@@ -103,6 +103,8 @@ done <$neuronList
 # submit the jobs and wait
 subJobs -w -o '-n 2' jacobian/jacobian*sh
 
+cd jacobian
+
 combineHistsByLine
 
 for hf in `ls combined_hist_line*csv`
@@ -114,3 +116,5 @@ do
     histStat $hf 0.01 0.05 0.1 0.25 0.5 0.75 0.9 0.95 0.99 > $out
     plotHistograms $hf
 done
+
+cd ..
