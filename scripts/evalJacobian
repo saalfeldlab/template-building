@@ -1,6 +1,8 @@
 #!/bin/bash
 # 
 
+PATTERN=".*\(201[6-7][0-9]\{4\}\_[0-9][0-9]_[A-Z][0-9]\).*"
+
 neuronList="/nrs/saalfeld/john/projects/flyChemStainAtlas/eval/dataNew/neuron_list.txt"
 
 HISTBINS="128"
@@ -45,12 +47,30 @@ do
         field=$(echo $regXfms | awk '{print $2}')   
     fi
     echo "field: $field"
-    
-    baseName=${field##*/}
-    out=`echo $baseName | sed 's/.nii//g'`
 
-    hout=`echo $baseName | sed 's/.nii/_hist.csv/g'`
-    houtlog=`echo $baseName | sed 's/.nii/_loghist.csv/g'`
+    if [[ $isCmtk ]];
+    then
+        echo "editing name for Cmtk"
+        #echo "field: $field"
+
+        tmp=$(dirname $field)
+        #echo "tmp $tmp"
+
+        #parentDir=${tmp##*/}
+        #echo "parentDir: $parentDir"
+
+        prefix=$(echo $tmp | sed "s/$PATTERN/\1/g")
+        #echo "prefix: $prefix"
+
+        out="${prefix}_xform"
+    else
+        baseName=${field##*/}
+        out=`echo $baseName | sed 's/.nii//g'`
+    fi
+    echo "out: $out"
+
+    hout="${out}jacobian_hist.csv"
+    houtlog="${out}logjacobian_hist.csv"
     echo " "
 
     # Make job 
@@ -61,17 +81,18 @@ do
     else
         echo "#!/bin/bash" > $job
         echo "ANTSJacobian 3 $field $dir/jacobian/$out 0" >> $job
-        echo "ANTSJacobian 3 $field $dir/jacobian/$out 1" >> $job
+        #echo "ANTSJacobian 3 $field $dir/jacobian/$out 1" >> $job
         echo "gunzip -v $dir/jacobian/${out}jacobian.nii.gz" >> $job
-        echo "gunzip -v $dir/jacobian/${out}logjacobian.nii.gz" >> $job
+        #echo "gunzip -v $dir/jacobian/${out}logjacobian.nii.gz" >> $job
     fi
 
     echo "maskedImageHist $dir/jacobian/$hout $dir/jacobian/${out}jacobian.nii $HISTMIN $HISTMAX $HISTBINS $ref $HISTTHRESH true" >> $job
-    echo "maskedImageHist $dir/jacobian/$houtlog $dir/jacobian/${out}logjacobian.nii $LOGHISTMIN $LOGHISTMAX $HISTBINS $ref $HISTTHRESH true" >> $job
-    echo "histStat $dir/jacobian/$hout 0.01 0.05 0.1 0.25 0.5 0.75 0.9 0.95 0.99 >> $dir/jacobian/hist_stats.csv" >> $job
-    echo "histStat $dir/jacobian/$houtlog 0.01 0.05 0.1 0.25 0.5 0.75 0.9 0.95 0.99 >> $dir/jacobian/loghist_stats.csv" >> $job
-    echo "plotHistograms $dir/jacobian/$hout" >> $job
-    echo "plotHistograms $dir/jacobian/$houtlog" >> $job
+    #echo "maskedImageHist $dir/jacobian/$houtlog $dir/jacobian/${out}logjacobian.nii $LOGHISTMIN $LOGHISTMAX $HISTBINS $ref $HISTTHRESH true" >> $job
+
+    #echo "histStat $dir/jacobian/$hout 0.01 0.05 0.1 0.25 0.5 0.75 0.9 0.95 0.99 >> $dir/jacobian/hist_stats.csv" >> $job
+    #echo "histStat $dir/jacobian/$houtlog 0.01 0.05 0.1 0.25 0.5 0.75 0.9 0.95 0.99 >> $dir/jacobian/loghist_stats.csv" >> $job
+    #echo "plotHistograms $dir/jacobian/$hout" >> $job
+    #echo "plotHistograms $dir/jacobian/$houtlog" >> $job
     chmod +x "$job"
 
     ((i++))
@@ -79,4 +100,17 @@ do
 
 done <$neuronList
 
-#subJobs -w -o '-n 2' jacobian/jacobian_hist*sh
+# submit the jobs and wait
+subJobs -w -o '-n 2' jacobian/jacobian*sh
+
+combineHistsByLine
+
+for hf in `ls combined_hist_line*csv`
+do
+    echo $hf
+    out=`echo $hf | sed 's/.csv/_stats.csv/g'`
+    echo $out
+
+    histStat $hf 0.01 0.05 0.1 0.25 0.5 0.75 0.9 0.95 0.99 > $out
+    plotHistograms $hf
+done

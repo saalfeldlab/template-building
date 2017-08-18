@@ -11,7 +11,7 @@ do
     for sub in `echo $line`
     do
         #echo "  $sub"
-        combineUs="$combineUs `ls -1 ${dir}/${sub}*SAME_hist.csv`"
+        combineUs="$combineUs `ls -1 ${dir}/${sub}*hist.csv`"
     done
 
 #    echo "combineUs: "

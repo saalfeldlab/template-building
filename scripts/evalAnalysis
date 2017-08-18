@@ -3,13 +3,14 @@
 
 DODISTXFM=""
 DOXFMNEURON=""
+DOJACOBIAN=""
 DONEURONSIM=""
 DOVISNEURONOVERLAY=""
 DOREPORT=""
 
 PREFIX="ALLF"
 
-while getopts "adnpst:v" OPT
+while getopts "adjnpst:v" OPT
 do
     case $OPT in
     a) # do all
@@ -21,6 +22,9 @@ do
        ;;
     d) # distance transform
        DODISTXFM="1"
+       ;;
+    j) # jacobian 
+       DOJACOBIAN="1"
        ;;
     n) # transform neuron 
        DOXFMNEURON="1"
@@ -76,6 +80,12 @@ postProcessReg
 if [ $DODISTXFM ]; then
     echo "Doing distance transform"
     runDistXfmEval $TEMPLATE
+fi
+
+# TRANSFORMING NEURON IMAGES
+if [ $DOJACOBIAN ]; then
+    echo "Transforming neurons"
+    evalJacobian $TEMPLATE
 fi
 
 # TRANSFORMING NEURON IMAGES
