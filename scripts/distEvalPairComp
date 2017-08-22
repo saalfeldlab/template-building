@@ -1,0 +1,37 @@
+#!/bin/bash
+
+PATTERN="^\(2016[0-9]\{4\}\_[0-9][0-9]_[A-Z][0-9]\).*"
+DELETEPATTERN="_Scope_.*"
+
+HISTMIN="0.0" 
+HISTMAX="255.0" 
+HISTBINS="256"
+
+dir=`pwd`
+
+im1="$1"
+im2="$2"
+dist_im1="$3"
+dist_im2="$4"
+compartments="$5"
+suffix="$6"
+
+name1="${dist_im1##*/}"
+name2="${dist_im2##*/}"
+
+prefix1=`echo "$name1" | sed "s/$DELETEPATTERN//g"`
+prefix2=`echo "$name2" | sed "s/$DELETEPATTERN//g"`
+echo "prefix1 $prefix1"
+echo "prefix2 $prefix2"
+
+# "Forward" direction
+echo "hist forward"
+h1="${dir}/${prefix1}-${prefix2}_${suffix}_hist"
+compartmentImageHist $h1 $dist_im1 $HISTMIN $HISTMAX $HISTBINS $compartments $im2 true
+#histStat $h1 0.01 0.05 0.1 0.25 0.5 0.75 > ${h1}_stats.csv
+
+# "Reverse" direction
+echo "hist reverse"
+h2="${dir}/${prefix2}-${prefix1}_${suffix}_hist"
+compartmentImageHist $h2 $dist_im2 $HISTMIN $HISTMAX $HISTBINS $im1 true
+#histStat $h2 0.01 0.05 0.1 0.25 0.5 0.75 > ${h2}_stats.csv

@@ -1,0 +1,147 @@
+#!/bin/bash
+# runDistXfmEvalComp
+
+PAIRLIST="/nrs/saalfeld/john/projects/flyChemStainAtlas/eval/prefix_list_by_neuron.txt"
+IMGDIR="/nrs/saalfeld/john/projects/flyChemStainAtlas/eval/dataNew"
+
+prefixPattern="\(201[6-7][0-9]\{4\}\_[0-9][0-9]_[A-Z][0-9]\).*"
+deletePattern="s/_Scope_.*$//g"
+
+template="$1"
+compartments="$2"
+
+isCmtk=""
+if [[ -d Registration ]];
+then
+    echo "is CMTK"
+    isCmtk="1"
+fi
+
+regdir=`pwd`
+mkdir -p eval
+cd eval
+
+
+dstdir=`pwd`
+#echo "now in dir: $dstdir"
+
+line="face"
+
+# Transform
+function transform {
+# TODO detect whether this is cmtk or ants, and transform appropriately
+
+    imglist=`ls $IMGDIR/*C2*Skeleton.tif`
+    #echo " "
+
+    interval=`parseNiiInterval $template`
+    echo $interval
+
+    for img in $imglist
+    do
+        name="${img##*/}"
+        out="$dstdir/${name}_xfm.tif"
+
+        #prefix=`echo "$name" | sed "s/$prefixPattern/\1/g"`
+        prefix=`echo "$name" | sed $deletePattern`
+        echo "prefix: $prefix"
+
+        if [ -f $out ]; then
+            echo "Exists, skipping $out"
+            continue
+        fi
+
+        if [[ -n $isCmtk ]];
+        then
+            echo "really is CMTK"
+            xfmList="-i `ls $IMGDIR/${prefix}*down.txt | grep -v Neuron`"
+            xfmList="$xfmList `matchEvalDataCmtk --conv $prefix $regdir`"
+            echo " "
+            echo "xfmList"
+            echo "$xfmList"
+            echo " "
+
+            echo "transforming $img"
+            renderTransformed $img $out $interval $xfmList -q 8
+        else
+            xfmList="-i `ls $IMGDIR/${prefix}*down.txt | grep -v Neuron`"
+            xfmList="$xfmList -i `matchEvalData $prefix $regdir`"
+            echo "$xfmList"
+
+            echo "transforming $img"
+            renderTransformed $img $out $interval $xfmList -q 8
+        fi
+    done
+}
+
+function distanceTransforms {
+   
+    for im in `ls *Skeleton.tif_xfm.tif`
+    do
+        #echo "computing DT for $im"
+        dist_im="${im}_distXfm.tif"
+
+        if [ ! -f "$dist_im" ];
+        then
+            echo "distance transform of $im"
+            runDistanceTransform "$dstdir/$im"
+        else
+            echo "skipping DT for $im - already exists"
+        fi
+    done
+}
+
+function pairwiseEval {
+    dts=`ls -1 *distXfm.tif | tr '\n' ' '`
+    #echo "$dts"
+    pairs $dts > pairs
+
+    while read line
+    do
+        #echo "$line"
+        a=`echo "$line" | cut -d' ' -f1`
+        b=`echo "$line" | cut -d' ' -f2`
+        aim=`echo $a | sed 's/_distXfm.tif//g'`
+        bim=`echo $b | sed 's/_distXfm.tif//g'`
+
+        echo "$aim"
+        echo "$bim"
+        echo "$a"
+        echo "$b"
+
+        sameNeuron=`areSameNeuron $aim $bim`
+        echo "$sameNeuron"
+        suffix="DIFF"
+        if [[ "$sameNeuron" == "1" ]];
+        then
+            suffix="SAME"
+        fi
+        echo "suffix: $suffix"
+
+        distEvalPairComp `pwd`/$aim `pwd`/$bim `pwd`/$a `pwd`/$b "$compartments" "$suffix"
+        echo " "
+        echo " "
+    done <pairs
+
+}
+
+# Transform everything
+transform
+
+distanceTransforms
+
+pairwiseEval
+
+# Some brief analysis
+#combineHistsByLine
+
+#for hf in `ls combined_hist_line*csv`
+#do
+#    echo $hf
+#    out=`echo $hf | sed 's/.csv/_stats.csv/g'`
+#    echo $out
+#
+#    histStat $hf 0.01 0.05 0.1 0.25 0.5 0.75 > $out
+#    plotHistograms $hf
+#done
+
