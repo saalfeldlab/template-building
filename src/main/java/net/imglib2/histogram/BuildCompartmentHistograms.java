@@ -5,7 +5,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -13,7 +13,6 @@ import ij.IJ;
 import ij.ImagePlus;
 import io.nii.NiftiIo;
 import loci.formats.FormatException;
-import mpicbg.imglib.type.numeric.NumericType;
 import net.imglib2.Cursor;
 import net.imglib2.IterableInterval;
 import net.imglib2.RandomAccess;
@@ -29,16 +28,15 @@ import net.imglib2.img.imageplus.ShortImagePlus;
 import net.imglib2.type.logic.BoolType;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.RealType;
-import net.imglib2.type.numeric.integer.IntType;
 import net.imglib2.type.numeric.integer.LongType;
 import net.imglib2.type.numeric.integer.UnsignedByteType;
 import net.imglib2.type.numeric.integer.UnsignedShortType;
 import net.imglib2.type.numeric.real.FloatType;
 
 
-public class BuildCompartmentHistograms {
+public class BuildCompartmentHistograms
+{
 
-	@SuppressWarnings("unchecked")
 	public static void main(String[] args) throws FormatException, IOException
 	{
 		final String outF = args[ 0 ];
@@ -58,14 +56,14 @@ public class BuildCompartmentHistograms {
 
 		System.out.println( "imF   : " + imF );
 		System.out.println( "maskF : " + maskF );
-		IterableInterval<FloatType> img;
+		ImagePlus imp = null;
 		if( imF.endsWith( "nii" ))
 		{
-			img = ImageJFunctions.convertFloat( NiftiIo.readNifti( new File( imF )));
+			imp = NiftiIo.readNifti( new File( imF ));
 		}
 		else
 		{
-			img = ImageJFunctions.convertFloat( IJ.openImage( imF ) );	
+			imp = IJ.openImage( imF );
 		}
 	
 		ImagePlus maskImp = null;
@@ -77,19 +75,65 @@ public class BuildCompartmentHistograms {
 		{
 			maskImp = ( IJ.openImage( maskF ) );	
 		}
-		
-		Set<IntType> uniqueList = uniqueValues( (IterableInterval<? extends IntegerType<?>>) maskRaw );
-		
-	
-		for( IntType i : uniqueList )
-		{
-			IterableInterval<BoolType> mask = getMask( maskImp, i );
-			
-			final Histogram1d<FloatType> hist = new Histogram1d<>( binMapper );
-			MaskedIterableFilter<FloatType,BoolType> mit = 
-					new MaskedIterableFilter<FloatType,BoolType>( mask.iterator() );
 
-			mit.set( img );
+		findAllHistograms( imp, maskImp, binMapper, outF );
+
+	}
+
+	public static <T extends IntegerType<T>> IterableInterval<BoolType> getMask( IterableInterval<T> img, T i )
+	{
+		return Converters.convert( img, 
+				new Converter<T,BoolType>()
+				{
+					@Override
+					public void convert( T input, BoolType output) {
+						if( input.equals( i ) )
+						{
+							output.set( true );
+						}
+						else
+						{
+							output.set( false );
+						}
+					}
+				}, 
+				new BoolType());
+	}
+
+	public static void findAllHistograms( ImagePlus imgImp, ImagePlus maskimp, Real1dBinMapper<FloatType> mapper, String outF )
+	{
+		Img< FloatType > img = ImageJFunctions.convertFloat( imgImp );
+		if( maskimp.getType() == ImagePlus.GRAY8 )
+		{
+			ByteImagePlus< UnsignedByteType > labels = ImagePlusAdapter.wrapByte( maskimp );
+			Collection<UnsignedByteType> uniques = uniqueValues( labels );
+			findAllHistograms( img, labels, uniques, mapper, outF );
+		}
+		else if( maskimp.getType() == ImagePlus.GRAY16 )
+		{
+			ShortImagePlus< UnsignedShortType > labels = ImagePlusAdapter.wrapShort( maskimp );
+			Collection<UnsignedShortType> uniques = uniqueValues( labels );
+			findAllHistograms( img, labels, uniques, mapper, outF );
+		}
+		else
+		{
+			System.err.println( "mask must be byte or short image" );
+		}
+	}
+	
+	public static <I extends IntegerType<I>, T extends RealType<T>> void findAllHistograms( 
+			Img<T> img, Img<I> labels, Collection<I> uniques, Real1dBinMapper<T> binMapper, String outF )
+	{
+		System.out.println( uniques );
+		for( I i : uniques )
+		{
+			System.out.println( i );
+			IterableInterval<BoolType> mask = getMask( labels, i );
+
+			final Histogram1d<T> hist = new Histogram1d<>( binMapper );
+			MaskedIterableFilter<T,BoolType> mit = 
+					new MaskedIterableFilter<T,BoolType>( mask.iterator(), img );
+
 			hist.countData( mit );
 			MaskedIterator<FloatType,BoolType> mi = (MaskedIterator<FloatType,BoolType>)mit.iterator();
 
@@ -98,80 +142,22 @@ public class BuildCompartmentHistograms {
 			System.out.println( "mi invalid : " + mi.getNumInvalid() );
 			System.out.println( "hist total : " + hist.totalCount() );
 
-			writeHistogram( outF + "_" + i.get() + ".csv", hist );
+			String outputPath = outF + "_" + i.toString() + ".csv";
+			System.out.println( "outputPath: " + outputPath );
+
+			writeHistogram( outputPath, hist );
 		}
-	}
-	public static <T extends IntegerType<T>> IterableInterval<BoolType> getMask( ImagePlus imp, T i )
-	{
-		if( imp.getType() == ImagePlus.GRAY8 )
-		{
-			//ByteImagePlus<UnsignedByteType> img = ImagePlusAdapter.wrapByte(imp);
-			IterableInterval<UnsignedByteType> img = ImagePlusAdapter.wrapByte(imp);
-			return Converters.convert( img, 
-					new Converter<UnsignedByteType,BoolType>()
-					{
-						@Override
-						public void convert( UnsignedByteType input, BoolType output) {
-							if( input.equals( i ) )
-							{
-								output.set( true );
-							}
-							else
-							{
-								output.set( false );
-							}
-						}
-					}, 
-					new BoolType());
-		}
-		else if( imp.getType() == ImagePlus.GRAY16 )
-		{
-			IterableInterval<UnsignedShortType> img = ImagePlusAdapter.wrapShort(imp);
-			return Converters.convert( img, 
-					new Converter<UnsignedShortType,BoolType>()
-					{
-						@Override
-						public void convert( UnsignedShortType input, BoolType output) {
-							if( input.equals( i ) )
-							{
-								output.set( true );
-							}
-							else
-							{
-								output.set( false );
-							}
-						}
-					}, 
-					new BoolType());
-		}
-		return null;
 	}
 	
-	public static <T extends NumericType<T>, S extends NumericType<S>> Converter<T, BoolType> getConverter( IterableInterval<T> img , S i )
-	{
-		return new Converter<T,BoolType>()
-		{
-			@Override
-			public void convert(T input, BoolType output) {
-				if( input.equals( i ) )
-				{
-					output.set( true );
-				}
-				else
-				{
-					output.set( false );
-				}
-			}
-		};
-	}
-	
-	public static Set<IntType> uniqueValues( IterableInterval<? extends IntegerType<?>> img )
+	public static <T extends IntegerType<T>> Collection<T> uniqueValues( IterableInterval<T> img )
 	{
 		Set<T> uniqueList = new HashSet<T>();
-		Cursor<T> c = img.cursor();
+		Cursor< T > c = img.cursor();
 		while( c.hasNext())
-			uniqueList.add( c.next());
-
+		{
+			uniqueList.add( c.next().copy());
+		}
+		System.out.println( "uniqueList " + uniqueList );
 		return uniqueList;
 	}
 	
