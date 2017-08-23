@@ -33,6 +33,7 @@ import net.imglib2.img.Img;
 import net.imglib2.img.ImgFactory;
 import net.imglib2.img.display.imagej.ImageJFunctions;
 import net.imglib2.img.imageplus.ByteImagePlus;
+import net.imglib2.img.imageplus.FloatImagePlus;
 import net.imglib2.img.imageplus.ShortImagePlus;
 import net.imglib2.type.BooleanType;
 import net.imglib2.type.logic.BoolType;
@@ -116,7 +117,7 @@ public class BuildCompartmentHistograms
 				.collect( Collectors.toList() );
 	}
 
-	public static <T extends IntegerType<T>> IterableInterval<BoolType> getMask( IterableInterval<T> img, T i )
+	public static <T extends RealType<T>> IterableInterval<BoolType> getMask( IterableInterval<T> img, T i )
 	{
 		return Converters.convert( img, 
 				new Converter<T,BoolType>()
@@ -185,13 +186,25 @@ public class BuildCompartmentHistograms
 
 			findAllHistograms( img, maskImg, labels, uniques, mapper, outF, labellist );
 		}
+		else if( compartmentImp.getType() == ImagePlus.GRAY32 )
+		{
+			FloatImagePlus< FloatType > labels = ImagePlusAdapter.wrapFloat( compartmentImp );
+			Collection<FloatType> uniques;
+			if( labellist == null)
+				uniques = uniqueValues( labels );
+			else
+				uniques = labellist.parallelStream().map( FloatType::new )
+						.collect( Collectors.toList() );
+
+			findAllHistograms( img, maskImg, labels, uniques, mapper, outF, labellist );
+		}
 		else
 		{
 			System.err.println( "mask must be byte or short image" );
 		}
 	}
 	
-	public static <I extends IntegerType<I>, T extends RealType<T>> void findAllHistograms( 
+	public static <I extends RealType<I>, T extends RealType<T>> void findAllHistograms( 
 			Img<T> img, IterableInterval<BoolType> mask, Img<I> labels, Collection<I> uniques, Real1dBinMapper<T> binMapper,
 			String outF, List<Integer> labellist )
 	{
@@ -221,7 +234,7 @@ public class BuildCompartmentHistograms
 		}
 	}
 	
-	public static <T extends IntegerType<T>> Collection<T> uniqueValues( IterableInterval<T> img )
+	public static <T extends RealType<T>> Collection<T> uniqueValues( IterableInterval<T> img )
 	{
 		Set<T> uniqueList = new HashSet<T>();
 		Cursor< T > c = img.cursor();
@@ -229,7 +242,6 @@ public class BuildCompartmentHistograms
 		{
 			uniqueList.add( c.next().copy());
 		}
-		System.out.println( "uniqueList " + uniqueList );
 		return uniqueList;
 	}
 	
