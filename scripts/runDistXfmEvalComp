@@ -95,7 +95,9 @@ function pairwiseEval {
     dts=`ls -1 *distXfm.tif | tr '\n' ' '`
     #echo "$dts"
     pairs $dts > pairs
+    dir=$(pwd)
 
+    i=0
     while read line
     do
         #echo "$line"
@@ -112,17 +114,26 @@ function pairwiseEval {
         sameNeuron=`areSameNeuron $aim $bim`
         echo "$sameNeuron"
         suffix="DIFF"
+        # ONLY COMPUTE DISTANCE TRANSFORMS FOR PAIRS BELONGING TO THE
+        # SAME LINE
         if [[ "$sameNeuron" == "1" ]];
         then
             suffix="SAME"
+            echo "suffix: $suffix"
+            job="distCompEvalJob_$i.sh"
+            echo "#!/bin/bash" > $job
+            echo "distEvalPairComp $dir/$aim $dir/$bim $dir/$a $dir/$b $compartments $suffix" >> $job
+            chmod +x $job
+            ((i++))
         fi
-        echo "suffix: $suffix"
 
-        distEvalPairComp `pwd`/$aim `pwd`/$bim `pwd`/$a `pwd`/$b "$compartments" "$suffix"
         echo " "
         echo " "
     done <pairs
 
+    # submit all the jobs
+    echo "submitting jobs"
+    subJobs -w -o '-n 2' distCompEvalJob*sh
 }
 
 # Transform everything
@@ -133,15 +144,22 @@ distanceTransforms
 pairwiseEval
 
 # Some brief analysis
-#combineHistsByLine
+labellist=$(uniqueLabels $compartments)
+echo $labellist
+for label in $labellist;
+do
+    echo $label
+    combineHistsByLine "_labelHist_$label"
+done
 
-#for hf in `ls combined_hist_line*csv`
-#do
-#    echo $hf
-#    out=`echo $hf | sed 's/.csv/_stats.csv/g'`
-#    echo $out
-#
-#    histStat $hf 0.01 0.05 0.1 0.25 0.5 0.75 > $out
-#    plotHistograms $hf
-#done
+for hf in `ls combined__hist*line*csv`
+do
+    echo $hf
+    out=`echo $hf | sed 's/.csv/_stats.csv/g'`
+    echo $out
 
+    histStat $hf 0.01 0.05 0.1 0.25 0.5 0.75 0.9 0.95 0.99 > $out
+    plotHistograms $hf
+done
+
+cd ..
