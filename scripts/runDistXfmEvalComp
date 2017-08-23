@@ -152,7 +152,7 @@ do
     combineHistsByLine "_labelHist_$label"
 done
 
-for hf in `ls combined__hist*line*csv`
+for hf in `ls combined__labelHist*line*csv`
 do
     echo $hf
     out=`echo $hf | sed 's/.csv/_stats.csv/g'`
