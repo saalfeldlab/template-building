@@ -9,10 +9,10 @@ HOST='login2.int.janelia.org'
 while getopts "h:o:w" OPT
 do
     case $OPT in
-    h) # wait
+    h) # host
        HOST=$OPTARG
        ;;
-    o) # wait
+    o) # bsub options
        BSUBOPTS="$OPTARG"
        ;;
     w) # wait
