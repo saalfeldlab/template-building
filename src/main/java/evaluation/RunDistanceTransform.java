@@ -2,12 +2,13 @@ package evaluation;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import bdv.util.Bdv;
-import bdv.util.BdvFunctions;
+import org.janelia.utility.parse.ParseUtils;
+
 import ij.IJ;
 import ij.ImagePlus;
 import io.nii.NiftiIo;
@@ -31,11 +32,27 @@ public class RunDistanceTransform
 
 	public static void main( String[] args ) throws InterruptedException, ExecutionException, FormatException, IOException, ImgLibException
 	{
-		String imgF = args[ 0 ];
-		
+		int idx = 0;
+		String imgF = args[ idx ];
+		idx++;
+
+		double[] res = new double[]{ 1.0, 1.0, 1.0 };
+		if( args.length > idx )
+		{
+			res = ParseUtils.parseDoubleArray( args[ idx ] );
+			System.out.println( "res: " + Arrays.toString( res ));
+			idx++;
+		}
+
+		System.out.println( idx );
+		System.out.println( args.length );
 		String baseOutputName = imgF;
-		if( args.length > 1 )
-			baseOutputName = args[ 1 ];
+		if( args.length > idx)
+		{
+			baseOutputName = args[ idx ];
+			System.out.println( "output name: " + baseOutputName );
+			idx++;
+		}
 
 		Img<FloatType> img = ImageJFunctions.convertFloat( read( imgF ));
 
@@ -47,7 +64,7 @@ public class RunDistanceTransform
 		final int nThreads = 4;
 		final ExecutorService es = Executors.newFixedThreadPool( nThreads );
 		System.out.println( "computing distance");
-		DistanceTransform.transform( sc, tmp, dist, DistanceTransform.DISTANCE_TYPE.EUCLIDIAN, es, nThreads, new double[]{ 1.0, 1.0, 1.0 } );
+		DistanceTransform.transform( sc, tmp, dist, DistanceTransform.DISTANCE_TYPE.EUCLIDIAN, es, nThreads, res );
 		sqrt( dist );
 
 //		Bdv bdv = BdvFunctions.show( scDist, "dist" );
