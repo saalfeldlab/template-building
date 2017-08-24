@@ -6,7 +6,13 @@ do
     echo $f
     echo $out
     out=`echo $f | sed 's/.txt/.mat/g'`
-    # Call the ants script 
-    ConvertTransformFile 3 $f $out --hm 
-    echo " "
+    if [ -f $out ];
+    then
+        echo "  Already exists... skipping"
+        echo " "
+    else
+        # Call the ants script 
+        ConvertTransformFile 3 $f $out --hm 
+        echo " "
+    fi
 done
