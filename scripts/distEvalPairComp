@@ -32,4 +32,4 @@ compartmentImageHist $h1 $dist_im1 $HISTMIN $HISTMAX $HISTBINS $compartments $im
 # "Reverse" direction
 echo "hist reverse"
 h2="${dir}/${prefix2}-${prefix1}_${suffix}_labelHist"
-compartmentImageHist $h2 $dist_im2 $HISTMIN $HISTMAX $HISTBINS $im1 'true'
+compartmentImageHist $h2 $dist_im2 $HISTMIN $HISTMAX $HISTBINS $compartments $im1 'true'
