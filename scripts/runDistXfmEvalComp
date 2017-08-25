@@ -14,6 +14,9 @@ deletePattern="s/_Scope_.*$//g"
 template="$1"
 compartments="$2"
 
+res=$(templateResolution $template)
+echo "RESOLUTION: $res"
+
 isCmtk=""
 if [[ -d Registration ]];
 then
@@ -22,8 +25,8 @@ then
 fi
 
 regdir=`pwd`
-mkdir -p eval
-cd eval
+mkdir -p evalComp
+cd evalComp
 
 
 dstdir=`pwd`
@@ -84,11 +87,14 @@ function distanceTransforms {
     do
         #echo "computing DT for $im"
         dist_im="${im}_distXfm.tif"
+        dist_im_path="$dstdir/$dist_im"
 
         if [ ! -f "$dist_im" ];
         then
             echo "distance transform of $im"
-            runDistanceTransform "$dstdir/$im"
+            echo $dist_im_path
+            echo "RESOLUTION: $res"
+            runDistanceTransform "$dstdir/$im" "$res" "$dstdir/$dist_im"
         else
             echo "skipping DT for $im - already exists"
         fi

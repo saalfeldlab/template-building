@@ -1,0 +1,16 @@
+#!/bin/bash
+# templateResolution - 
+
+in="$1"
+
+JFRCRES='0.622088,0.622088,0.622088'
+DEFAULTRES='0.7530756,0.7530756,0.76'
+
+if [[ $in == JFRC* ]];
+then
+    #echo "JFRC"
+    echo "$JFRCRES"
+else
+    #echo "other"
+    echo "$DEFAULTRES"
+fi
