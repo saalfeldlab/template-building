@@ -1,5 +1,9 @@
 #!/bin/bash
 # runDistXfmEvalComp
+# Estimates distance between two skeletons using distance transforms.
+# Does this for all pairs of skeletons belonging to the same gal4 line
+# then computes histograms / percentiles of those distances for each
+# compartment label
 
 PAIRLIST="/nrs/saalfeld/john/projects/flyChemStainAtlas/eval/prefix_list_by_neuron.txt"
 IMGDIR="/nrs/saalfeld/john/projects/flyChemStainAtlas/eval/dataNew"

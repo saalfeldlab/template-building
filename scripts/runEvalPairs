@@ -14,7 +14,6 @@ dstdir=`pwd`
 
 line="face"
 
-
 function transform {
     #echo "transform - $sub"
 
@@ -38,10 +37,10 @@ function transform {
         echo "transforming $img"
         renderTransformed $img $out $template $xfmList
     done
-
 }
 
 # Start doing the work
+# For each pair of distance transforms that belong to the same line:
 while read line
 do
 
@@ -51,10 +50,9 @@ do
        transform 
     done
 
+    # For each pair of samples belonging to this line
     thesepairs=`pairs $line`
     echo "tp: $thesepairs"
-    #for p in "`pairs $line`"
-    #while read p
     while IFS= read -r p
     do
         echo "p: $p"
