@@ -959,6 +959,8 @@ else
         echo "--------------------------------------------------------------------------------------"
         # now move the initial registration template to OUTPUTNAME, otherwise this input gets overwritten.
 
+        cp ${REGTEMPLATE} ${TEMPLATE}
+
     fi
 fi
 
