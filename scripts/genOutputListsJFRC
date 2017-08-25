@@ -1,0 +1,32 @@
+#!/bin/bash
+
+# The prefix that ANTs adds to the results
+dir=`pwd`
+
+
+# All Affines (excluding the template's affine)
+readlink -f *Affine.mat | grep -v 'templateAffine' | sort > list_all_affine.txt
+
+# Unflipped Affines (excluding the template's affine)
+readlink -f *Affine.mat | grep -v 'FlipAffine' | grep -v 'templateAffine' | sort > list_unflipped_affine.txt
+
+# Flipped Affines (excluding the template's affine)
+readlink -f *Affine.mat | grep 'FlipAffine' | sort > list_flipped_affine.txt
+
+# All Warps (excluding the template's affine)
+readlink -f *Warp.nii* | grep -v 'InverseWarp' | sort > list_all_warp.txt
+
+# Unflipped Warps (excluding the template's affine)
+readlink -f *Warp.nii* | grep -v 'InverseWarp' | grep -v 'FlipWarp' | sort > list_unflipped_warp.txt
+
+# Flipped Warps (excluding the template's affine)
+readlink -f *Warp.nii* | grep -v 'InverseWarp' | grep 'FlipWarp' | sort > list_flipped_warp.txt
+
+## All mipav Warps (excluding the template's affine)
+#readlink -f "$prefix"-*Warp-mipav.nii* | grep -v 'InverseWarp' | sort > list_mipav_all_warp.txt
+#
+## mipav Unflipped Warps (excluding the template's affine)
+#readlink -f "$prefix"-*Warp-mipav.nii* | grep -v 'InverseWarp' | grep -v 'flipHRWarp' | sort > list_mipav_unflipped_warp.txt
+#
+## mipav Flipped Warps (excluding the template's affine)
+#readlink -f "$prefix"-*Warp-mipav.nii* | grep -v 'InverseWarp' | grep 'flipHRWarp' | sort > list_mipav_flipped_warp.txt
