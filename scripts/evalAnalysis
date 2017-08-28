@@ -2,6 +2,7 @@
 # evalAnalysis
 
 DODISTXFM=""
+DODISTXFMLABELS=""
 DOXFMNEURON=""
 DOJACOBIAN=""
 DONEURONSIM=""
@@ -10,21 +11,29 @@ DOREPORT=""
 
 PREFIX="ALLF"
 
-while getopts "adjnpst:v" OPT
+while getopts "ac:djlnpst:v" OPT
 do
     case $OPT in
     a) # do all
-       DODISTXFM="1"
+       DODISTXFMLABELS="1"
        DOXFMNEURON="1"
        DONEURONSIM="1"
        DOVISNEURONOVERLAY="1"
+       DOJACOBIAN="1"
        DOREPORT="1"
+       ;;
+    c) # compartment labels
+       COMPARTMENTS=$OPTARG
+       echo "Using compartment labels: $COMPARTMENTS"
        ;;
     d) # distance transform
        DODISTXFM="1"
        ;;
     j) # jacobian 
        DOJACOBIAN="1"
+       ;;
+    l) # distance transform labels
+       DODISTXFMLABELS="1"
        ;;
     n) # transform neuron 
        DOXFMNEURON="1"
@@ -73,6 +82,16 @@ then
 fi
 echo "TEMPLATE: $TEMPLATE"
 
+if [ -z $COMPARTMENTS ] && [ $DODISTXFMLABELS ];
+then
+    echo "Need to specify compartment labels"
+
+    # TODO try autodetecting these
+    #COMPARTMENTS=`findCompartments`
+
+    exit 99
+fi
+
 # This script detects if its necessary and skips if so
 postProcessReg
 
@@ -80,6 +99,12 @@ postProcessReg
 if [ $DODISTXFM ]; then
     echo "Doing distance transform"
     runDistXfmEval $TEMPLATE
+fi
+
+# DISTANCE TRANSFORM LABEL-WISE
+if [ $DODISTXFMLABELS ]; then
+    echo "Doing distance transform label-wise"
+    runDistXfmEvalComp $TEMPLATE $COMPARTMENTS
 fi
 
 # TRANSFORMING NEURON IMAGES
