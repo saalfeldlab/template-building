@@ -118,13 +118,13 @@ function pairwiseEval {
         suffix="DIFF"
         if [[ "$sameNeuron" == "1" ]];
         then
+            echo "suffix: $suffix"
             suffix="SAME"
+            distEvalPair `pwd`/$aim `pwd`/$bim `pwd`/$a `pwd`/$b "$suffix"
+            echo " "
+            echo " "
         fi
-        echo "suffix: $suffix"
 
-        distEvalPair `pwd`/$aim `pwd`/$bim `pwd`/$a `pwd`/$b "$suffix"
-        echo " "
-        echo " "
     done <pairs
 
 }
