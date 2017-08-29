@@ -4,4 +4,4 @@ BASEDIR=$(dirname "$0")
 cp=`cat "$BASEDIR/theclasspath.cp"`
 /misc/local/jdk1.8.0_102/bin/java -cp "$cp" -Xmx64g net.imglib2.histogram.UniqueLabels "$@" \
     | grep labels: \
-    | sed -e 's/labels: //g' -e 's/, / /g' -e 's/\[//g' -e 's/\]//g'
+    | sed -e 's/\([0-9]\).0/\1/g' -e 's/labels: //g' -e 's/, / /g' -e 's/\[//g' -e 's/\]//g'

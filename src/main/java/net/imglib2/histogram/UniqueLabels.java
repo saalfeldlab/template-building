@@ -9,9 +9,11 @@ import io.nii.NiftiIo;
 import loci.formats.FormatException;
 import net.imglib2.img.ImagePlusAdapter;
 import net.imglib2.img.imageplus.ByteImagePlus;
+import net.imglib2.img.imageplus.FloatImagePlus;
 import net.imglib2.img.imageplus.ShortImagePlus;
 import net.imglib2.type.numeric.integer.UnsignedByteType;
 import net.imglib2.type.numeric.integer.UnsignedShortType;
+import net.imglib2.type.numeric.real.FloatType;
 
 
 public class UniqueLabels
@@ -41,6 +43,11 @@ public class UniqueLabels
 		else if( imp.getType() == ImagePlus.GRAY16 )
 		{
 			ShortImagePlus< UnsignedShortType > labels = ImagePlusAdapter.wrapShort( imp );
+			System.out.println( "labels: " + BuildCompartmentHistograms.uniqueValues( labels ));
+		}
+		else if( imp.getType() == ImagePlus.GRAY32 )
+		{
+			FloatImagePlus< FloatType > labels = ImagePlusAdapter.wrapFloat( imp );
 			System.out.println( "labels: " + BuildCompartmentHistograms.uniqueValues( labels ));
 		}
 		else
