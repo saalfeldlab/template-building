@@ -1,5 +1,8 @@
 #!/bin/bash
 
+export ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS=4
+echo "THREADS: $ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS"
+
 in="$1"
 nc82Img="/groups/saalfeld/public/vfb/JFRCtemplate2010.nrrd"
 compartmentImg="/groups/saalfeld/public/vfb/JFRCtempate2010_mask130819_Original.nrrd"
@@ -20,5 +23,3 @@ $script -d 3 -r $target -i $moving -o $output -m $maxiters -n 0 \
 
 WarpImageMultiTransform 3 $compartmentImg ${output}_labels.nii -R $target ${output}Warp.nii.gz ${output}Affine.txt --use-NN 
 ConvertImage 3 ${output}_labels.nii ${output}_labels_uShort.nii 2
-
-#antsRegOwl $nc82Img $in labels2
