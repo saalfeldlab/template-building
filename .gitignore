@@ -1,9 +1,11 @@
 /target/
 /.settings/
 *.cp
+*.pyc
 *~
 *bak
 *swp
 .project
 .classpath
+/python/.ipynb_checkpoints/
 /tmp_*/
