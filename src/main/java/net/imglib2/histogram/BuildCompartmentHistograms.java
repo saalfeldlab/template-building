@@ -11,9 +11,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
-
-import com.adobe.xmp.impl.Utils;
-import com.google.common.collect.Streams;
+import java.util.stream.StreamSupport;
 
 import ij.IJ;
 import ij.ImagePlus;
@@ -23,6 +21,7 @@ import net.imglib2.AbstractCursor;
 import net.imglib2.Cursor;
 import net.imglib2.IterableInterval;
 import net.imglib2.RandomAccess;
+import net.imglib2.algorithm.stats.WindowedCentileStats;
 import net.imglib2.converter.Converter;
 import net.imglib2.converter.Converters;
 import net.imglib2.filter.MaskedIterableFilter;
@@ -62,10 +61,14 @@ public class BuildCompartmentHistograms
 		final String maskF = args[ 6 ];
 		final boolean tailBins = Boolean.parseBoolean( args[ 7 ] );
 
+		// parse centiles
+		final double[] centiles = Arrays.stream( args[ 8 ].split( "," ))
+				.mapToDouble( Double::parseDouble ).toArray();
+
 		List<Integer> labellist = null;
-		if( args.length >= 9 )
+		if( args.length >= 10 )
 		{
-			labellist = parseLabels( args[ 8 ]);
+			labellist = parseLabels( args[ 9 ]);
 			System.out.println("labellist: " + labellist );
 		}
 
@@ -76,6 +79,7 @@ public class BuildCompartmentHistograms
 		System.out.println( "imF          : " + imF );
 		System.out.println( "maskF        : " + maskF );
 		System.out.println( "compartmentF : " + compartmentF );
+		System.out.println( "centiles     : " + Arrays.toString( centiles ));
 		ImagePlus imp = null;
 		if( imF.endsWith( "nii" ))
 		{
@@ -106,7 +110,7 @@ public class BuildCompartmentHistograms
 			compartmentImg = ( IJ.openImage( compartmentF ) );
 		}
 
-		findAllHistograms( imp, maskImg, compartmentImg, binMapper, outF, labellist );
+		run( imp, maskImg, compartmentImg, binMapper, centiles, outF, labellist );
 
 	}
 
@@ -117,7 +121,7 @@ public class BuildCompartmentHistograms
 				.collect( Collectors.toList() );
 	}
 
-	public static <T extends RealType<T>> IterableInterval<BoolType> getMask( IterableInterval<T> img, T i )
+	public static <T extends RealType<T>> IterableInterval<BoolType> getLabelMask( IterableInterval<T> img, T i )
 	{
 		return Converters.convert( img, 
 				new Converter<T,BoolType>()
@@ -157,8 +161,8 @@ public class BuildCompartmentHistograms
 				new BoolType());
 	}
 
-	public static void findAllHistograms( ImagePlus imgImp, IterableInterval< BoolType > maskImg, ImagePlus compartmentImp, 
-			Real1dBinMapper<FloatType> mapper, 
+	public static void run( ImagePlus imgImp, IterableInterval< BoolType > maskImg, ImagePlus compartmentImp, 
+			Real1dBinMapper<FloatType> mapper, double[] centiles,
 			String outF, List<Integer> labellist )
 	{
 		Img< FloatType > img = ImageJFunctions.convertFloat( imgImp );
@@ -172,7 +176,12 @@ public class BuildCompartmentHistograms
 				uniques = labellist.parallelStream().map( UnsignedByteType::new )
 						.collect( Collectors.toList() );
 
-			findAllHistograms( img, maskImg, labels, uniques, mapper, outF, labellist );
+			System.out.println( "centiles[0] " + centiles[ 0 ]);
+			if( centiles[ 0 ] > 0 )
+				centileStats( img, maskImg, labels, uniques, centiles, outF );
+
+			findAllHistograms( img, maskImg, labels, uniques, mapper, outF );
+
 		}
 		else if( compartmentImp.getType() == ImagePlus.GRAY16 )
 		{
@@ -184,7 +193,12 @@ public class BuildCompartmentHistograms
 				uniques = labellist.parallelStream().map( UnsignedShortType::new )
 						.collect( Collectors.toList() );
 
-			findAllHistograms( img, maskImg, labels, uniques, mapper, outF, labellist );
+			System.out.println( "centiles[0] " + centiles[ 0 ]);
+			if( centiles[ 0 ] > 0 )
+				centileStats( img, maskImg, labels, uniques, centiles, outF );
+
+			findAllHistograms( img, maskImg, labels, uniques, mapper, outF );
+
 		}
 		else if( compartmentImp.getType() == ImagePlus.GRAY32 )
 		{
@@ -196,30 +210,35 @@ public class BuildCompartmentHistograms
 				uniques = labellist.parallelStream().map( FloatType::new )
 						.collect( Collectors.toList() );
 
-			findAllHistograms( img, maskImg, labels, uniques, mapper, outF, labellist );
+			System.out.println( "centiles[0] " + centiles[ 0 ]);
+			if( centiles[ 0 ] > 0 )
+				centileStats( img, maskImg, labels, uniques, centiles, outF );
+
+			findAllHistograms( img, maskImg, labels, uniques, mapper, outF );
 		}
 		else
 		{
-			System.err.println( "mask must be byte or short image" );
+			System.err.println( "invalid image type" );
 		}
 	}
 	
 	public static <I extends RealType<I>, T extends RealType<T>> void findAllHistograms( 
 			Img<T> img, IterableInterval<BoolType> mask, Img<I> labels, Collection<I> uniques, Real1dBinMapper<T> binMapper,
-			String outF, List<Integer> labellist )
+			String outF )
 	{
 		T t = img.firstElement().copy();
 		System.out.println( uniques );
 		for( I i : uniques )
 		{
 			System.out.println( i );
-			IterableInterval<BoolType> compartmentAndMask = new And( getMask( labels, i ), mask );
+			IterableInterval<BoolType> compartmentAndMask = new And( getLabelMask( labels, i ), mask );
 
 			final Histogram1d<T> hist = new Histogram1d<>( binMapper );
 			MaskedIterableFilter<T,BoolType> mit = 
 					new MaskedIterableFilter<T,BoolType>( compartmentAndMask.iterator(), img );
 
 			hist.countData( mit );
+			@SuppressWarnings("unchecked")
 			MaskedIterator<FloatType,BoolType> mi = (MaskedIterator<FloatType,BoolType>)mit.iterator();
 
 			System.out.println( "MI total   : " + mi.getNumTotal() );
@@ -228,12 +247,50 @@ public class BuildCompartmentHistograms
 			System.out.println( "hist total : " + hist.totalCount() );
 
 			String outputPath = outF + "_" + i.toString() + ".csv";
+			outputPath = outputPath.replaceAll( ".0.csv", ".csv" );
 			System.out.println( "outputPath: " + outputPath );
 
 			writeHistogram( outputPath, hist, t );
 		}
 	}
 	
+	public static <I extends RealType<I>, T extends RealType<T>> void centileStats( 
+			Img<T> img, IterableInterval<BoolType> mask, Img<I> labels, Collection<I> uniques, double[] centiles,
+			String outF )
+	{
+		System.out.println( "computing centileStats" );
+		for( I i : uniques )
+		{
+			System.out.println( i );
+			IterableInterval<BoolType> compartmentAndMask = new And( getLabelMask( labels, i ), mask );
+			MaskedIterableFilter<T,BoolType> mit = 
+					new MaskedIterableFilter<T,BoolType>( compartmentAndMask.iterator(), img );
+
+			double[] data = StreamSupport.stream( mit.spliterator(), false )
+					.mapToDouble( x -> x.getRealDouble() ).toArray();
+			WindowedCentileStats centilesAlg = new WindowedCentileStats( centiles );
+			double[] results = centilesAlg.centiles( data );
+
+			String outputPath = outF + "_stats_" + i.toString() + ".csv";
+			outputPath = outputPath.replaceAll( ".0.csv", ".csv" );
+			System.out.println( "outputPath: " + outputPath );
+
+			String centileStatsString = Arrays.toString( centiles ).replaceAll( "[\\],\\[]", "" ).replaceAll(" ", ",");
+			centileStatsString += "\n";
+			centileStatsString += Arrays.toString( results ).replaceAll( "[\\],\\[]", "" ).replaceAll(" ", ",");
+
+			try
+			{
+				Files.write(Paths.get( outputPath ), centileStatsString.getBytes());
+			}
+			catch ( IOException e )
+			{
+				e.printStackTrace();
+			}
+
+		}
+	}
+
 	public static <T extends RealType<T>> Collection<T> uniqueValues( IterableInterval<T> img )
 	{
 		Set<T> uniqueList = new HashSet<T>();

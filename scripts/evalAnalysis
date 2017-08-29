@@ -9,9 +9,11 @@ DONEURONSIM=""
 DOVISNEURONOVERLAY=""
 DOREPORT=""
 
+CENTILES='0.01,0.05,0.1,0.25,0.5,0.75,0.9,0.95,0.99'
+
 PREFIX="ALLF"
 
-while getopts "ac:djlnpst:v" OPT
+while getopts "ac:djlnprst:v" OPT
 do
     case $OPT in
     a) # do all

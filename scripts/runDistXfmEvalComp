@@ -13,6 +13,7 @@ deletePattern="s/_Scope_.*$//g"
 
 template="$1"
 compartments="$2"
+centiles="$3"
 
 res=$(templateResolution $template)
 echo "RESOLUTION: $res"
@@ -132,7 +133,7 @@ function pairwiseEval {
             echo "suffix: $suffix"
             job="distCompEvalJob_$i.sh"
             echo "#!/bin/bash" > $job
-            echo "distEvalPairComp $dir/$aim $dir/$bim $dir/$a $dir/$b $compartments $suffix" >> $job
+            echo "distEvalPairComp $dir/$aim $dir/$bim $dir/$a $dir/$b $compartments $centiles $suffix" >> $job
             chmod +x $job
             ((i++))
         fi
