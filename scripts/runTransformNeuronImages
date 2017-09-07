@@ -31,6 +31,7 @@ do
         regXfms=`matchEvalDataCmtk --conv $neurImg $dir`
     else
         regXfms=`matchEvalData $neurImg $dir`
+        regXfms="-i $regXfms"
     fi
     xfmList="$xfmList $regXfms"
     echo $xfmList
@@ -49,33 +50,4 @@ do
 
 done <$neuronList
 
-
-haveBsub=`which bsub`
-if [ $haveBsub ]; 
-then
-    echo "yes bsub: $haveBsub"
-    jobIds=""
-    for j in `ls neuron_xfm*sh`
-    do
-        id=`bsub -n 4 -o $j.o%J -e $j.e%J "./$j" | awk '{ gsub("[<>]","",$2); print $2}'`
-        jobIds="$jobIds $id"
-        sleep 1
-    done
-    $waitScript 1 60 $jobIds
-else
-    echo "no bsub"
-    submitJobScript="submit_neuron_xfm_jobs.sh"
-    echo "#!/bin/bash" > $submitJobScript
-    echo 'jobIds=""' >> $submitJobScript
-    for j in `ls neuron_xfm*sh`
-    do
-        bsubcmd="bsub -n 4 -o $j.o%J -e $j.e%J ""./$j"
-        awkcmd=' | awk '"'"'{ gsub("[<>]","",$2); print $2}'"'"
-        echo "id=\`${bsubcmd}${awkcmd}\`" >> $submitJobScript
-        echo 'jobIds="$jobIds $id"' >> $submitJobScript
-        echo "sleep 1" >> $submitJobScript
-    done
-    echo "$waitScript 1 60 "'$jobIds' >> $submitJobScript
-    chmod +x $submitJobScript
-    executeRemote 'login2.int.janelia.org' "./$submitJobScript"
-fi
+subJobs -o '-n 4' neuron_xfm_*sh
