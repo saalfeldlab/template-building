@@ -247,7 +247,8 @@ public class BuildCompartmentHistograms
 			System.out.println( "hist total : " + hist.totalCount() );
 
 			String outputPath = outF + "_" + i.toString() + ".csv";
-			outputPath = outputPath.replaceAll( ".0.csv", ".csv" );
+			System.out.println( "tmp outputPath: " + outputPath );
+			outputPath = outputPath.replaceAll( "\\.0.csv", ".csv" );
 			System.out.println( "outputPath: " + outputPath );
 
 			writeHistogram( outputPath, hist, t );
@@ -272,7 +273,8 @@ public class BuildCompartmentHistograms
 			double[] results = centilesAlg.centiles( data );
 
 			String outputPath = outF + "_stats_" + i.toString() + ".csv";
-			outputPath = outputPath.replaceAll( ".0.csv", ".csv" );
+			System.out.println( "tmp outputPath: " + outputPath );
+			outputPath = outputPath.replaceAll( "\\.0.csv", ".csv" );
 			System.out.println( "outputPath: " + outputPath );
 
 			String centileStatsString = Arrays.toString( centiles ).replaceAll( "[\\],\\[]", "" ).replaceAll(" ", ",");
