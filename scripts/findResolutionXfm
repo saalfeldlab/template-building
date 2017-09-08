@@ -1,0 +1,11 @@
+#!/bin/bash
+# Returns an affine transformation that indicates the resolution of the
+# template in this directory.  Outputs nothing if it does not exist. 
+
+REGDIR="$1"
+
+resolutionXfmFile="$REGDIR/resXfm.txt"
+
+if [[ -f "$resolutionXfmFile" ]]; then
+    echo "$resolutionXfmFile"
+fi
