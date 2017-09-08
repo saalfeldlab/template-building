@@ -7,7 +7,8 @@ neuronList="/nrs/saalfeld/john/projects/flyChemStainAtlas/eval/dataNew/neuron_li
 #intervalOut="0,0,0:799,424,213"
 
 template="$1"
-intervalOut=`parseNiiInterval $template`
+#intervalOut=`parseNiiInterval $template`
+intervalOut=`parseNiiSize $template`
 
 isCmtk=""
 if [[ -d Registration ]];
@@ -25,6 +26,8 @@ do
     downPattern=`echo "$neurImg" | sed 's/_C2_Neuron.tif/_C1/g'`
     downXfm=`ls $downPattern*down.txt`
     xfmList="$xfmList $downXfm"
+
+    resXfm=$(findResolutionXfm $dir)
      
     if [[ -n $isCmtk ]];
     then
@@ -34,6 +37,11 @@ do
         regXfms="-i $regXfms"
     fi
     xfmList="$xfmList $regXfms"
+
+    if [[ $resXfm ]]; then
+        xfmList="$xfmList -i $resXfm"
+    fi
+
     echo $xfmList
     
     baseName=${neurImg##*/}
