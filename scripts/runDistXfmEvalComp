@@ -2,8 +2,7 @@
 # runDistXfmEvalComp
 # Estimates distance between two skeletons using distance transforms.
 # Does this for all pairs of skeletons belonging to the same gal4 line
-# then computes histograms / percentiles of those distances for each
-# compartment label
+# and dumps the raw data to a text file
 
 PAIRLIST="/nrs/saalfeld/john/projects/flyChemStainAtlas/eval/prefix_list_by_neuron.txt"
 IMGDIR="/nrs/saalfeld/john/projects/flyChemStainAtlas/eval/dataNew"
@@ -13,7 +12,6 @@ deletePattern="s/_Scope_.*$//g"
 
 template="$1"
 compartments="$2"
-centiles="$3"
 
 res=$(templateResolution $template)
 echo "RESOLUTION: $res"
@@ -42,8 +40,12 @@ function transform {
     imglist=`ls $IMGDIR/*C2*Skeleton.tif`
     #echo " "
 
-    interval=`parseNiiInterval $template`
-    echo $interval
+    #interval=`parseNiiInterval $template`
+    #echo $interval
+
+    echo "template: $template"
+    interval=`parseNiiSize $template`
+    echo "interval: $interval"
 
     for img in $imglist
     do
@@ -59,11 +61,16 @@ function transform {
             continue
         fi
 
+        resXfm=$(findResolutionXfm $regdir)
+
         if [[ -n $isCmtk ]];
         then
             echo "really is CMTK"
             xfmList="-i `ls $IMGDIR/${prefix}*down.txt | grep -v Neuron`"
             xfmList="$xfmList `matchEvalDataCmtk --conv $prefix $regdir`"
+            if [[ $resXfm ]]; then
+                xfmList="$xfmList -i $resXfm"
+            fi
             echo " "
             echo "xfmList"
             echo "$xfmList"
@@ -74,6 +81,9 @@ function transform {
         else
             xfmList="-i `ls $IMGDIR/${prefix}*down.txt | grep -v Neuron`"
             xfmList="$xfmList -i `matchEvalData $prefix $regdir`"
+            if [[ $resXfm ]]; then
+                xfmList="$xfmList -i $resXfm"
+            fi
             echo "$xfmList"
 
             echo "transforming $img"
@@ -131,9 +141,9 @@ function pairwiseEval {
         then
             suffix="SAME"
             echo "suffix: $suffix"
-            job="distCompEvalJob_$i.sh"
+            job="distDataCompEvalJob_$i.sh"
             echo "#!/bin/bash" > $job
-            echo "distEvalPairComp $dir/$aim $dir/$bim $dir/$a $dir/$b $compartments $centiles $suffix" >> $job
+            echo "distDataPairComp $dir/$aim $dir/$bim $dir/$a $dir/$b $compartments $suffix" >> $job
             chmod +x $job
             ((i++))
         fi
@@ -144,7 +154,7 @@ function pairwiseEval {
 
     # submit all the jobs
     echo "submitting jobs"
-    subJobs -w -o '-n 2' distCompEvalJob*sh
+    subJobs -w -o '-n 2' distDataCompEvalJob*sh
 }
 
 # Transform everything
@@ -160,7 +170,7 @@ echo $labellist
 for label in $labellist;
 do
     echo $label
-    combineHistsByLine "_labelHist_$label"
+    combineDataByLine "_labelData_$label"
 done
 
 for hf in `ls combined__labelHist*line*csv`

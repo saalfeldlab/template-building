@@ -36,8 +36,10 @@ function transform {
     imglist=`ls $IMGDIR/*C2*Skeleton.tif`
     #echo " "
 
-    interval=`parseNiiInterval $template`
-    echo $interval
+    #interval=`parseNiiInterval $template`
+    echo "template: $template"
+    interval=`parseNiiSize $template`
+    echo "interval: $interval"
 
     for img in $imglist
     do
@@ -53,11 +55,16 @@ function transform {
             continue
         fi
 
+        resXfm=$(findResolutionXfm $regdir)
+
         if [[ -n $isCmtk ]];
         then
             echo "really is CMTK"
             xfmList="-i `ls $IMGDIR/${prefix}*down.txt | grep -v Neuron`"
             xfmList="$xfmList `matchEvalDataCmtk --conv $prefix $regdir`"
+            if [[ $resXfm ]]; then
+                xfmList="$xfmList -i $resXfm"
+            fi
             echo " "
             echo "xfmList"
             echo "$xfmList"
@@ -68,6 +75,10 @@ function transform {
         else
             xfmList="-i `ls $IMGDIR/${prefix}*down.txt | grep -v Neuron`"
             xfmList="$xfmList -i `matchEvalData $prefix $regdir`"
+
+            if [[ $resXfm ]]; then
+                xfmList="$xfmList -i $resXfm"
+            fi
             echo "$xfmList"
 
             echo "transforming $img"

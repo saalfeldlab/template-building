@@ -1,0 +1,12 @@
+#!/bin/bash
+#Extracts
+
+niiFile="$1"
+
+spacingLine=`PrintHeader $niiFile | grep 'Voxel Spacing'`
+#echo $spacingLine
+
+spacing=`echo $spacingLine | sed -e 's/.*\[//g' -e 's/\]//g' -e 's/ //g'`
+#echo $spacing
+
+echo $spacing | awk -F, '{print $1, 0, 0, 0, 0, $2, 0, 0, 0, 0, $3, 0}'
