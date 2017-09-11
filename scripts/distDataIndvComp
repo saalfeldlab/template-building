@@ -1,0 +1,31 @@
+#!/bin/bash
+
+PATTERN="^\(2016[0-9]\{4\}\_[0-9][0-9]_[A-Z][0-9]\).*"
+DELETEPATTERN="_Scope.*"
+
+dir=`pwd`
+compartments="$1"
+
+i=0
+for name in `ls *distXfm.tif`
+do
+    dist_im="${dir}/$name"
+    #name="${dist_im##*/}"
+
+    echo $name
+    prefix=`echo "$name" | sed "s/$DELETEPATTERN//g"`
+   echo "prefix $prefix"
+    
+    # "Forward" direction
+    echo "hist forward"
+    h1="${dir}/${prefix}_distXfmData"
+
+    job="jobDistIndvData_$i.sh"
+    echo "#!/bin/bash" > $job
+    echo "compartmentImageData $h1 $dist_im $compartments $compartments" >> $job 
+    chmod +x $job
+
+    ((i++))
+done
+
+subJobs -o '-n 2' *jobDistIndvData*sh 
