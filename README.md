@@ -36,6 +36,25 @@ Usage:
   -c Estimate pixelwise percentiles distribution of flip-Variance (for percentiles = {0, 10, 50, 90, 100})
 ```
 
+### Skeleton analysis script
+The `evalAnalysis` script works on a directory in which neuron and
+skeleton images have been transformed into template space, and measures
+proxies of registration accuracy (i.e. skeleton distance, and neuron
+image similarity)
+```
+Usage:
+  evalAnalysis [OPTIONS]
+  -p [PREFIX] Specify the prefix for output of template building (Default='ALLF')
+  -t [TEMPLATE] Specifies the template to use for analyis (Default='$PREFIX-template.nii.gz')
+  -c Compartment label file
+  -d Do the distance transform analysis
+  -l Do the distance transform analysis per label
+  -n Transfomr neuron images
+  -r Generate report page
+  -s Do neuron similarity
+  -v Visualize neuron overlay
+```
+
 ## Examples
 ### Finding a "symmetrizing" transformation
 `runSymmetry` takes one argument - the image to be symmetrized.
