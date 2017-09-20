@@ -18,6 +18,12 @@ public class MaskedIterableFilter<T extends RealType<T>, B extends BooleanType<B
 		this.maskIt = maskIt;
 	}
 
+	public MaskedIterableFilter( Iterator<B> maskIt, Iterable<T> it )
+	{
+		this.maskIt = maskIt;
+		set( it );
+	}
+
 	public void set( Iterable<T> it )
 	{
 		this.it = it;
