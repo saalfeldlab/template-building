@@ -1,0 +1,8 @@
+#!/bin/bash
+# Usage:
+#   centerAffine <affine-imglib-uncentered> <center>
+
+BASEDIR=$(dirname "$0")
+cp=`cat "$BASEDIR/theclasspath.cp"`
+
+/misc/local/jdk1.8.0_102/bin/java -cp "$cp" -Xmx2g transforms.CenterAffineTransform.java $@
