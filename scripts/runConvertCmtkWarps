@@ -6,9 +6,14 @@ waitScript="/groups/saalfeld/home/bogovicj/dev/template/template-building/script
 startdir=`pwd`
 
 POSFIELDDIR="/nrs/saalfeld/john/projects/flyChemStainAtlas/posFields"
-POSFIELDX="/nrs/saalfeld/john/projects/flyChemStainAtlas/posFields/pfx_850-650-250.nii"
-POSFIELDY="/nrs/saalfeld/john/projects/flyChemStainAtlas/posFields/pfy_850-650-250.nii"
-POSFIELDZ="/nrs/saalfeld/john/projects/flyChemStainAtlas/posFields/pfz_850-650-250.nii"
+
+#POSFIELDX="/nrs/saalfeld/john/projects/flyChemStainAtlas/posFields/pfx_850-650-250.nii"
+#POSFIELDY="/nrs/saalfeld/john/projects/flyChemStainAtlas/posFields/pfy_850-650-250.nii"
+#POSFIELDZ="/nrs/saalfeld/john/projects/flyChemStainAtlas/posFields/pfz_850-650-250.nii"
+
+POSFIELDX=""
+POSFIELDY=""
+POSFIELDZ=""
 
 # Input arguments
 # Try to auto-detect a reference image and directory that stores the
@@ -37,9 +42,9 @@ while getopts ":d:r:wi:" opt; do
             #echo "r triggered $OPTARG" >&2
             interval=$OPTARG
             echo "interval: $interval"
-            POSFIELDX="${POSFIELDDIR}/pfx_$interval.nii"
-            POSFIELDY="${POSFIELDDIR}/pfy_$interval.nii"
-            POSFIELDZ="${POSFIELDDIR}/pfz_$interval.nii"
+            #POSFIELDX="${POSFIELDDIR}/pfx_$interval.nii"
+            #POSFIELDY="${POSFIELDDIR}/pfy_$interval.nii"
+            #POSFIELDZ="${POSFIELDDIR}/pfz_$interval.nii"
             ;;
         /?)
             echo "Invalid option: -$OPTARG" >&2
@@ -52,12 +57,9 @@ while getopts ":d:r:wi:" opt; do
     esac
 done
 
-echo "pfx: $POSFIELDX"
-echo "pfy: $POSFIELDY"
-echo "pfz: $POSFIELDZ"
 
-# Detect which pos field size to use
 
+# Detect which directory to use
 if [[ -z $srcdir ]];
 then
     echo "srcdir not passed with -d : trying to infer"
@@ -72,6 +74,7 @@ else
     echo "srcdir here"
 fi
 
+# Try to autodetect a reference
 if [[ -z $ref ]];
 then
     echo "reference not passed with -r : trying to infer"
@@ -97,6 +100,22 @@ fi
 echo $ref
 ref=`readlink -f $ref`
 echo $ref
+
+if [[ -z $interval ]];
+then
+    # Check to make sure that the specified posfield sizes agree with the reference
+    interval=$(parseNiiInterval $ref | sed -e 's/0,0,0://g' -e 's/,/-/g')
+    echo $interval
+fi
+
+POSFIELDX="${POSFIELDDIR}/pfx_$interval.nii"
+POSFIELDY="${POSFIELDDIR}/pfy_$interval.nii"
+POSFIELDZ="${POSFIELDDIR}/pfz_$interval.nii"
+
+echo "pfx: $POSFIELDX"
+echo "pfy: $POSFIELDY"
+echo "pfz: $POSFIELDZ"
+
 
 echo " "
 echo $srcdir
@@ -141,18 +160,12 @@ do
     ((i++))
 done
 
-# Submit the jobs and wait
-for j in `ls cmtk2dfield_*sh`
-do
-    id=`bsub -n 4 -R"affinity[core(1)]" -o $j.o%J -e $j.e%J "./$j" | awk '{ gsub("[<>]","",$2); print $2}'`
-    jobIds="$jobIds $id"
-    sleep 0.5
-done
-
-
-if [[ -n $doWait ]];
+## Submit the jobs and wait
+if [ $doWait ];
 then
-    $waitScript 1 60 $jobIds
+    subJobs -o '-n 4 -R"affinity[core(1)]"' -w cmtk2dfield_*sh
+else
+    subJobs -o '-n 4 -R"affinity[core(1)]"' cmtk2dfield_*sh
 fi
 
 # Back to where we started
