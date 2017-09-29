@@ -20,11 +20,12 @@ POSFIELDZ=""
 # transformations
 
 doWait=""
+doAffine="1"
 srcdir=""
 ref=""
 interval=""
 
-while getopts ":d:r:wi:" opt; do
+while getopts ":d:r:wi:s" opt; do
     case $opt in
         d)
             #echo "d triggered $OPTARG" >&2
@@ -37,6 +38,10 @@ while getopts ":d:r:wi:" opt; do
         w)
             #echo "r triggered $OPTARG" >&2
             doWait="1"
+            ;;
+        s)
+            #echo "s triggered $OPTARG" >&2
+            doAffine=""
             ;;
         i)
             #echo "r triggered $OPTARG" >&2
@@ -108,6 +113,9 @@ then
     echo $interval
 fi
 
+center=$(echo $interval | awk -F '-' '{print $1/2, $2/2, $3/2}')
+echo $center
+
 POSFIELDX="${POSFIELDDIR}/pfx_$interval.nii"
 POSFIELDY="${POSFIELDDIR}/pfy_$interval.nii"
 POSFIELDZ="${POSFIELDDIR}/pfz_$interval.nii"
@@ -140,6 +148,8 @@ do
     tmp=`readlink -f $reg`
     xfm=`echo $tmp | sed 's/registration.gz/xform.nii/g'`
     out=`echo $tmp | sed 's/registration.gz/xform/g'`
+    affine="${out}_affine_itk.txt"
+    warp="${out}_warp.nii"
     echo $xfm
     if [[ -f $xfm ]];
     then
@@ -152,8 +162,17 @@ do
         echo "export CMTK_NUM_THREADS=4" >> $job
 
         echo "convertCmtkWarpFast $POSFIELDX $POSFIELDY $POSFIELDZ $ref $reg $xfm" >> $job
-        echo "affineFromDisplacement $out $xfm 8" >> $job
-        echo "affineImglib2Itk ${out}_affine.txt > ${out}_affine_itk.txt" >> $job 
+
+
+        if [[ -n $doAffine ]];
+        then
+            echo "cmtkAffine2Itk $reg $center > $affine" >> $job
+            echo "displacementRemoveAffine $warp $out.nii $affine" >> $job
+        fi
+
+        # The old way of doing it
+        #echo "affineFromDisplacement $out $xfm 8" >> $job
+        #echo "affineImglib2Itk ${out}_affine.txt > ${out}_affine_itk.txt" >> $job 
         chmod +x $job
     fi
 
