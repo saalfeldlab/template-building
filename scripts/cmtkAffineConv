@@ -11,7 +11,8 @@ else
 fi
 echo '}' >> tmp
  
-dof2mat --transpose tmp | tr '\n' '\t' | sed -e 's/\t\t/,/g' -e 's/\t/,/g' -e 's/,$/\n/g'
+#dof2mat --transpose tmp | tr '\n' '\t' | sed -e 's/\t\t/,/g' -e 's/\t/,/g' -e 's/,$/\n/g'
+dof2mat tmp | tr '\n' '\t' | sed -e 's/\t\t/,/g' -e 's/\t/,/g' -e 's/,$/\n/g'
 
 rm tmp
 
