@@ -16,6 +16,9 @@ echo '}' >> tmp
 #dof2mat --transpose tmp | tr '\n' ' '
 paramsImglib=$(dof2mat --transpose tmp | tr '\n' '\t' | sed -e 's/\t\t/,/g' -e 's/\t/,/g' -e 's/,$/\n/g')
 params=$(echo $paramsImglib | awk -F, 'BEGIN {OFS=","} {print $1,$2,$3, $5,$6,$7, $9,$10,$11, $4,$8,$12 }')
-echo $params
 
-#rm tmp
+#echo $params
+#echo " "
+centerAffine $params $center
+
+rm tmp
