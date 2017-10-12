@@ -1,0 +1,8 @@
+#!/bin/bash
+# Usage:
+#  displacementRemoveAffine <output> <displacement-field> <affine>
+#
+
+BASEDIR=$(dirname "$0")
+cp=`cat "$BASEDIR/theclasspath.cp"`
+java -cp "$cp" -Xmx64g transforms.RemoveAffineFromDisplacement $@
