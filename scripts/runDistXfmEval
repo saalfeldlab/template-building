@@ -12,6 +12,9 @@ deletePattern="s/_Scope_.*$//g"
 
 template="$1"
 
+res=$(templateResolution $template)
+echo "RESOLUTION: $res"
+
 isCmtk=""
 if [[ -d Registration ]];
 then
