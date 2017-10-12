@@ -2,7 +2,18 @@
 # Generates a groupwise template using cmtk for registration, and
 # ants-like shape averaging.
 #
- 
+
+doTotalShapeAveraging=""
+cmtkConvertArgs=""
+if [ $# -gt '0' ]; then
+    if [ $1 == "--total" ]; then
+        doTotalShapeAveraging="1"
+        cmtkConvertArgs="-s"
+    fi
+fi
+echo "do total: $doTotalShapeAveraging"
+
+
 waitScript="/groups/saalfeld/home/bogovicj/dev/template/template-building/scripts/waitForLSFJobs.pl"
 
 script="/groups/saalfeld/home/bogovicj/dev/jefferislab/AnalysisSuiteBin/munger.pl"
@@ -62,7 +73,8 @@ function shapeupdatetotal {
     echo "--------------------------------------------------------------------------------------"
     echo " shape update - Transform template "
     echo "--------------------------------------------------------------------------------------"
-    ${ANTSPATH}/WarpImageMultiTransform ${dim} ${template} ${template} ${templatename}Warp.nii.gz ${templatename}Warp.nii.gz ${templatename}Warp.nii.gz ${templatename}Warp.nii.gz -R ${template}
+    #${ANTSPATH}/WarpImageMultiTransform ${dim} ${template} ${template} ${templatename}Warp.nii.gz ${templatename}Warp.nii.gz ${templatename}Warp.nii.gz ${templatename}Warp.nii.gz -R ${template}
+    ${ANTSPATH}/WarpImageMultiTransform ${dim} ${template} ${template} ${templatename}Warp.nii.gz -R ${template}
 
 }
 
@@ -76,33 +88,36 @@ function shapeupdate {
     templatename="average-template"
     template="average-template.nii"
     afftype=".txt"
+    step=-${gradientstep} 
 
     echo
     echo "--------------------------------------------------------------------------------------"
     echo " shape update - Compute average warp "
     echo "--------------------------------------------------------------------------------------"
     ${ANTSPATH}/AverageImages $dim ${templatename}Warp.nii.gz 0 `ls Registration/warp/*/xform_warp.nii`
-	${ANTSPATH}/MultiplyImages $dim ${templatename}Warp.nii.gz ${gradientstep} ${templatename}Warp.nii.gz
+    echo "mult"
+	${ANTSPATH}/MultiplyImages $dim ${templatename}Warp.nii.gz ${step} ${templatename}Warp.nii.gz
+    echo "hdr"
     ${ANTSPATH}/CopyImageHeaderInformation ${template} ${templatename}Warp.nii.gz ${templatename}Warp.nii.gz 1 1 1 # Make sure the warp header is correct
 
     echo
     echo "--------------------------------------------------------------------------------------"
     echo " shape update - Compute average affine "
     echo "--------------------------------------------------------------------------------------"
-    ${ANTSPATH}/AverageAffineTransform ${dim} ${templatename}Affine${afftype} ./Registration/warp/*/xform_affine_itk.txt
+    ${ANTSPATH}/AverageAffineTransform ${dim} ${templatename}Affine${afftype} Registration/warp/*/xform_affine_itk.txt
 
     echo
     echo "--------------------------------------------------------------------------------------"
     echo " shape update - Update warps "
     echo "--------------------------------------------------------------------------------------"
-    ${ANTSPATH}/WarpImageMultiTransform ${dim} ${templatename}Warp.nii.gz ${templatename}Warp.nii.gz -i  ${templatename}Affine${afftype} -R ${template}
+    ${ANTSPATH}/WarpImageMultiTransform ${dim} ${templatename}Warp.nii.gz ${templatename}Warp.nii.gz -i ${templatename}Affine${afftype} -R ${template}
 
     echo
     echo "--------------------------------------------------------------------------------------"
     echo " shape update - Transform template "
     echo "--------------------------------------------------------------------------------------"
     #${ANTSPATH}/WarpImageMultiTransform ${dim} ${template} ${template} -i ${templatename}Affine${afftype} ${templatename}Warp.nii.gz ${templatename}Warp.nii.gz ${templatename}Warp.nii.gz ${templatename}Warp.nii.gz -R ${template}
-    ${ANTSPATH}/WarpImageMultiTransform ${dim} ${template} ${template} -i ${templatename}Affine${afftype} ${templatename}Warp.nii.gz ${templatename}Warp.nii.gz ${templatename}Warp.nii.gz ${templatename}Warp.nii.gz  -R ${template}
+    ${ANTSPATH}/WarpImageMultiTransform ${dim} ${template} ${template} -i ${templatename}Affine${afftype} ${templatename}Warp.nii.gz  -R ${template}
 
 }
 
@@ -186,11 +201,16 @@ do
     srcdir="${thisdir}/Registration/warp"
     ref="${thisdir}/average-template.nii"
     #cmtkAverageTransformationLSF $srcdir $ref "ants"
-    runConvertCmtkWarps -d $srcdir -r $ref -w
+    runConvertCmtkWarps -d $srcdir -r $ref -w $cmtkConvertArgs
 
    # Warp the average shape
-   # shapeupdatetotal
-    shapeupdate
+   if [[ $doTotalShapeAveraging ]]; then 
+       echo "total shape averaging"
+       shapeupdatetotal
+   else
+       echo "affine-deformable shape averaging"
+       shapeupdate
+   fi
 
     mv average-template.nii average-template_$currentIter.nii
     backup
