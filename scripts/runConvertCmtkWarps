@@ -41,6 +41,7 @@ while getopts ":d:r:wi:s" opt; do
             ;;
         s)
             #echo "s triggered $OPTARG" >&2
+            # Skip affine
             doAffine=""
             ;;
         i)
@@ -113,8 +114,8 @@ then
     echo $interval
 fi
 
-center=$(echo $interval | awk -F '-' '{print $1/2, $2/2, $3/2}')
-echo $center
+center=$(echo $interval | awk -F '-' 'BEGIN {OFS=","} {print $1/2, $2/2, $3/2}')
+echo "center: $center"
 
 POSFIELDX="${POSFIELDDIR}/pfx_$interval.nii"
 POSFIELDY="${POSFIELDDIR}/pfy_$interval.nii"
@@ -151,9 +152,9 @@ do
     affine="${out}_affine_itk.txt"
     warp="${out}_warp.nii"
     echo $xfm
-    if [[ -f $xfm ]];
+    if [[ -f $warp ]];
     then
-        echo "skipping job for $xfm"
+        echo "skipping job for $warp"
     else
 
         # Make the job scripts
@@ -162,7 +163,6 @@ do
         echo "export CMTK_NUM_THREADS=4" >> $job
 
         echo "convertCmtkWarpFast $POSFIELDX $POSFIELDY $POSFIELDZ $ref $reg $xfm" >> $job
-
 
         if [[ -n $doAffine ]];
         then
