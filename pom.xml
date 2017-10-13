@@ -108,5 +108,10 @@
 		<artifactId>imglib2-algorithm</artifactId>
 		<version>0.8.0</version>
 	</dependency>
+	<dependency>
+		<groupId>org.json</groupId>
+		<artifactId>json</artifactId>
+		<version>20151123</version>
+	</dependency>
   </dependencies>
 </project>
