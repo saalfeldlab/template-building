@@ -15,19 +15,24 @@ import io.nii.Nifti_Writer;
 import loci.formats.FormatException;
 import net.imglib2.FinalInterval;
 import net.imglib2.Interval;
+import net.imglib2.exception.ImgLibException;
 import net.imglib2.img.Img;
 import net.imglib2.img.display.imagej.ImageJFunctions;
+import net.imglib2.img.imageplus.FloatImagePlus;
+import net.imglib2.img.imageplus.ImagePlusImgs;
 import net.imglib2.interpolation.randomaccess.NLinearInterpolatorFactory;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.realtransform.RealViews;
 import net.imglib2.type.numeric.real.FloatType;
+import net.imglib2.util.Intervals;
 import net.imglib2.view.IntervalView;
 import net.imglib2.view.Views;
 import transforms.AffineHelper;
+import util.RenderUtil;
 
 public class FlipX
 {
-	public static void main( String[] args ) throws IOException, FormatException
+	public static void main( String[] args ) throws IOException, FormatException, ImgLibException
 	{
 		String destdir = args[ 0 ];
 		
@@ -87,13 +92,6 @@ public class FlipX
 			AffineTransform3D totalXfm = new AffineTransform3D();
 			totalXfm.set( -1.0, 0.0, 0.0, 2*xcenter, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0 );
 
-			if( isNii )
-			{
-				AffineTransform3D flipY = new AffineTransform3D();
-				flipY.set( 1.0, 0.0, 0.0, 0.0, 0.0, -1.0, 0.0, 2*center[1], 0.0, 0.0, 1.0, 0.0 );
-				totalXfm.concatenate( flipY );
-			}
-
 			IntervalView< FloatType > result = Views.interval(
 					Views.raster( RealViews.affine(
 							Views.interpolate( Views.extendZero( img ),
@@ -104,19 +102,23 @@ public class FlipX
 			System.out.println( "writing xfm" );
 			AffineImglib2IO.writeXfm( new File( affineFOut ), totalXfm );
 
-			System.out.println( totalXfm );
+			FloatImagePlus< FloatType > outputImg = ImagePlusImgs.floats( Intervals.dimensionsAsLongArray( img ) );
+			RenderUtil.copyToImageStack( result, outputImg, 4 );
+
 			System.out.println( "writing img" );
 			if( fout.endsWith( "nii" ))
 			{
 				Nifti_Writer writer = new Nifti_Writer( false );
 				File file_out = new File( fout );
-				ImagePlus ipout = ImageJFunctions.wrap( result, "img flip" );
+
+				ImagePlus ipout = outputImg.getImagePlus();
+				ipout.setDimensions( 1, (int)img.dimension( 2 ), 1 );
 				writer.save( ipout, 
 						file_out.getParent(), file_out.getName() );
 			}
 			else
 			{
-				IJ.save( ImageJFunctions.wrap( result, "img flip" ), fout );
+				IJ.save( outputImg.getImagePlus(), fout );
 			}
 
 			System.out.println( " " );
