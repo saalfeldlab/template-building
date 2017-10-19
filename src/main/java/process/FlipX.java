@@ -3,8 +3,16 @@ package process;
 import java.io.File;
 import java.io.IOException;
 
+import bdv.util.BdvFunctions;
+import bdv.util.BdvOptions;
+import bdv.util.BdvStackSource;
 import ij.IJ;
+import ij.ImagePlus;
+import ij.process.ImageProcessor;
 import io.AffineImglib2IO;
+import io.nii.NiftiIo;
+import io.nii.Nifti_Writer;
+import loci.formats.FormatException;
 import net.imglib2.FinalInterval;
 import net.imglib2.Interval;
 import net.imglib2.img.Img;
@@ -19,7 +27,7 @@ import transforms.AffineHelper;
 
 public class FlipX
 {
-	public static void main( String[] args ) throws IOException
+	public static void main( String[] args ) throws IOException, FormatException
 	{
 		String destdir = args[ 0 ];
 		
@@ -40,32 +48,51 @@ public class FlipX
 
 		String[] subjects = new String[ args.length - 1 ];
 		System.arraycopy( args, offset, subjects, 0, subjects.length );
+		boolean isNii = false;
 
 		//for ( String f : subjects )
 		for( int i = offset; i < args.length; i++ )
 		{
 			String f = args[ i ];
-			String fout = f.replaceAll( ".tif", "-flip.tif" );
-			File fin = new File( f );
+			String fout = "";
+			ImagePlus ip = null;
+			if( f.endsWith( "nii" ))
+			{
+				isNii = true;
+				fout = f.replaceAll( ".nii", "-flip.nii" );
+				ip = NiftiIo.readNifti( new File( f ));
+			}
+			else
+			{
+				fout = f.replaceAll( ".tif", "-flip.tif" );
+				ip =  IJ.openImage( f );
+			}
 
+			File fin = new File( f );
 			String affineFOut = destdir + File.separator + fin.getName() + "-flipXfm.txt";
 			System.out.println( f );
 			System.out.println( fout );
 			System.out.println( affineFOut );
 
-			Img< FloatType > img = ImageJFunctions.wrap( IJ.openImage( f ) );
+			Img< FloatType > img = ImageJFunctions.wrap( ip );
 
+			double[] center = AffineHelper.center( img );
 			if( Double.isNaN( xcenter ))
 			{
-				double[] center = AffineHelper.center( img );
 				xcenter = center[ 0 ];
 			}
 			System.out.println( "xcenter = " + xcenter );
 
-			
 			// This transform has the effect of flipping the x-axis about the center 'xcenter'
 			AffineTransform3D totalXfm = new AffineTransform3D();
 			totalXfm.set( -1.0, 0.0, 0.0, 2*xcenter, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0 );
+
+			if( isNii )
+			{
+				AffineTransform3D flipY = new AffineTransform3D();
+				flipY.set( 1.0, 0.0, 0.0, 0.0, 0.0, -1.0, 0.0, 2*center[1], 0.0, 0.0, 1.0, 0.0 );
+				totalXfm.concatenate( flipY );
+			}
 
 			IntervalView< FloatType > result = Views.interval(
 					Views.raster( RealViews.affine(
@@ -78,9 +105,19 @@ public class FlipX
 			AffineImglib2IO.writeXfm( new File( affineFOut ), totalXfm );
 
 			System.out.println( totalXfm );
-
 			System.out.println( "writing img" );
-			IJ.save( ImageJFunctions.wrap( result, "img flip" ), fout );
+			if( fout.endsWith( "nii" ))
+			{
+				Nifti_Writer writer = new Nifti_Writer( false );
+				File file_out = new File( fout );
+				ImagePlus ipout = ImageJFunctions.wrap( result, "img flip" );
+				writer.save( ipout, 
+						file_out.getParent(), file_out.getName() );
+			}
+			else
+			{
+				IJ.save( ImageJFunctions.wrap( result, "img flip" ), fout );
+			}
 
 			System.out.println( " " );
 		}
