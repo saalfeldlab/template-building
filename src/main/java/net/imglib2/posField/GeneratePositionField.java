@@ -1,15 +1,15 @@
 package net.imglib2.posField;
 
+import java.io.File;
+
 import ij.IJ;
 import ij.ImagePlus;
+import io.nii.Nifti_Writer;
 import net.imglib2.FinalInterval;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.img.display.imagej.ImageJFunctions;
-import net.imglib2.type.numeric.integer.ShortType;
 import net.imglib2.type.numeric.real.FloatType;
-import net.imglib2.util.Intervals;
 import net.imglib2.util.Util;
-import net.imglib2.view.IntervalView;
 import net.imglib2.view.Views;
 import process.RenderTransformed;
 
@@ -56,18 +56,31 @@ public class GeneratePositionField
 		}
 		FinalInterval outputInterval = new FinalInterval( min, max );
 
-//		MixedTransformView< ShortType > raiout = Views.permute( Views.addDimension( Views.interval( pra, outputInterval )), nd, nd + 1 );
-//		IntervalView< ShortType > raiout = Views.interval( pra, outputInterval );
+		// Permute so that slices are correctly interpreted as such 
+		// (instead of channels )
+		RandomAccessibleInterval< FloatType > raiout = 
+				Views.permute( Views.interval( pra, outputInterval ), 3, 2 );
 
-		RandomAccessibleInterval< FloatType > raiout = Views.dropSingletonDimensions( Views.interval( pra, outputInterval ));
-		
-//		IntervalView< FloatType > raiout = Views.permute( Views.interval( pra, outputInterval ), nd, nd-1 );
-
-//		System.out.println( raiout );
-//		System.out.println( Util.printInterval(raiout) );
+		System.out.println( raiout );
+		System.out.println( Util.printInterval(raiout) );
 
 		ImagePlus ip = ImageJFunctions.wrapFloat( raiout, "out");
-		IJ.save( ip, outArg );
+		
+		if( outArg.endsWith( "nii" ))
+		{
+			Nifti_Writer writer = new Nifti_Writer();
+
+			File f = new File( outArg );
+			System.out.println( "writing to: " );
+			System.out.println( f.getParent());
+			System.out.println( f.getName());
+
+			writer.save( ip, f.getParent(), f.getName() );
+		}
+		else
+		{
+			IJ.save( ip, outArg );
+		}
 	}
 
 }
