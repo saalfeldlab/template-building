@@ -1,0 +1,20 @@
+#!/bin/bash
+
+img="$1"
+interval=$(parseNiiSize $img)
+
+dir=$(pwd)
+
+echo $interval
+sz=$(echo $interval | sed -e 's/0,0,0://g' -e 's/,/-/g')
+echo $sz
+
+# generate
+genPosField $dir/pfx_$sz.nii $interval 0  
+genPosField $dir/pfy_$sz.nii $interval 1  
+genPosField $dir/pfz_$sz.nii $interval 2  
+
+# Ensure the headers are correct
+CopyImageHeaderInformation$img $dir/pfx_$sz.nii $dir/pfx_$sz.nii 1 1 1
+CopyImageHeaderInformation $img $dir/pfy_$sz.nii $dir/pfy_$sz.nii 1 1 1
+CopyImageHeaderInformation $img $dir/pfz_$sz.nii $dir/pfz_$sz.nii 1 1 1
