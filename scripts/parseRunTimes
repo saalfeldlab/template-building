@@ -1,0 +1,9 @@
+#!/bin/bash
+
+out="$1"
+shift
+
+for f in $@;
+do
+    grep 'Run time :' $f | sed -e 's/sec.//g' -e 's/Run time ://g' | tr -d ' ' >> $out
+done
