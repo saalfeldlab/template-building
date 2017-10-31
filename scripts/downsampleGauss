@@ -2,7 +2,7 @@
 # Arguments:
 #   -i input
 #   -o output
-#   -f factors
+#   -f factors (should be greater than 1)
 #   -j threads
 #   -p interp
 #   -s sourceSigmas
