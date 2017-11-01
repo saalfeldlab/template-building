@@ -1,0 +1,8 @@
+#!/bin/bash
+# Writes a zero-one mask by applying a threshold based on percentile
+# Usage:
+#   percentileMask <input> <output> <centile> <subsampleFactor=4>
+
+BASEDIR=$(dirname "$0")
+cp=`cat "$BASEDIR/theclasspath.cp"`
+java -cp "$cp" -Xmx64g process.PercentileMask $@
