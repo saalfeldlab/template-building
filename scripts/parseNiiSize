@@ -1,0 +1,13 @@
+#!/bin/bash
+#Extracts
+
+niiFile="$1"
+sizeLine=`PrintHeader $niiFile | grep 'Size : '`
+#echo $sizeLine
+
+sz=$(echo $sizeLine | sed -e 's/Size : //g' -e 's/ /,/g')
+#echo $sz
+
+min='0,0,0'
+max=`echo $sz | awk -F, 'BEGIN {OFS=","}{print $1-1,$2-1,$3-1}'`
+echo ${min}:${max}
