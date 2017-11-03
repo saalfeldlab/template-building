@@ -1,0 +1,9 @@
+#!/bin/bash
+# Extracts voxel spacing from a nii header
+
+niiFile="$1"
+spacingLine=`PrintHeader $niiFile | grep '^ Spacing '`
+#echo $spacingLine
+
+res=$(echo $spacingLine | sed 's/Spacing //g' | tr -d ' []')
+echo $res
