@@ -1,4 +1,11 @@
 #!/bin/bash
+# Usage:
+#
+#  renderTransformed <image-to-transform> <output> <output-interval>
+#   [-i] <transformlist...> [-q nThreads]
+#
+#   Including a -i flag before a transformation indicates that the
+#   transform should be inverted (if possible).
 
 BASEDIR=$(dirname "$0")
 cp=`cat "$BASEDIR/theclasspath.cp"`
@@ -12,8 +19,9 @@ shift
 # Check if interval input is a volume, and parse its size if so
 if [[ "$1" == *nii ]]
 then
-    echo "parsing interval"
-    inputs="$inputs `parseNiiInterval $1`"
+    echo "parsing output interval and resolution"
+    inputs="$inputs `parseNiiSize $1`"
+    inputs="$inputs -r `parseNiiRes $1`"
 else
     inputs="$inputs $1"
 fi
