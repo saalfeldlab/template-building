@@ -1,0 +1,15 @@
+#!/bin/bash
+# Returns a new interval (image size) after change of resolution
+#
+# Usage:
+#   changeIntervalRes <interval> <old-resolution> <new-resolution>
+#
+# Interval can be of the form "minX,minY,minZ:maxX,maxY,maxZ"
+# or "maxX,maxY,maxZ"
+
+interval="$1"
+oldres="$2"
+newres="$3"
+
+sz=$(echo $interval | sed 's/.*://g' )
+echo "$sz,$oldres,$newres" | awk -F, 'BEGIN {OFS=","}{print $1*$4/$7,$2*$5/$8,$3*$6/$9}'
