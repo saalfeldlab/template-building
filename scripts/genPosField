@@ -4,4 +4,4 @@
 
 BASEDIR=$(dirname "$0")
 cp=`cat "$BASEDIR/theclasspath.cp"`
-/misc/local/jdk1.8.0_102/bin/java -cp "$cp" -Xmx64g net.imglib2.posField.GeneratePositionField $@
+/misc/local/jdk1.8.0_102/bin/java -cp "$cp" -Xmx64g net.imglib2.posField.GeneratePositionFieldRes $@
