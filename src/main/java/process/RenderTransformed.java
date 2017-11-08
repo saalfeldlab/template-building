@@ -14,6 +14,7 @@ import ij.IJ;
 import ij.ImagePlus;
 import io.AffineImglib2IO;
 import io.nii.NiftiIo;
+import io.nii.Nifti_Writer;
 import loci.formats.FormatException;
 import net.imglib2.FinalInterval;
 import net.imglib2.exception.ImgLibException;
@@ -71,8 +72,26 @@ public class RenderTransformed
 			ip = IJ.openImage( imF );
 		}
 
-		Img< FloatType > baseImg = ImageJFunctions.convertFloat( IJ.openImage( imF ) );
+		ImagePlus baseIp = null;
+		if( imF.endsWith( "nii" ))
+		{
+			try
+			{
+				baseIp =  NiftiIo.readNifti( new File( imF ) );
+			} catch ( FormatException e )
+			{
+				e.printStackTrace();
+			} catch ( IOException e )
+			{
+				e.printStackTrace();
+			}
+		}
+		else
+		{
+			baseIp = IJ.openImage( imF );
+		}
 
+		Img< FloatType > baseImg = ImageJFunctions.convertFloat( baseIp );
 
 		double rx = ip.getCalibration().pixelWidth;
 		double ry = ip.getCalibration().pixelHeight;
@@ -170,7 +189,6 @@ public class RenderTransformed
 		if( resOutXfm != null )
 			totalXfm.add( resOutXfm.inverse() );
 
-
 		System.out.println("transforming");
 		IntervalView< FloatType > imgHiXfm = Views.interval( 
 				Views.raster( 
@@ -198,16 +216,33 @@ public class RenderTransformed
 		System.out.println("copying with " + nThreads + " threads");
 		RenderUtil.copyToImageStack( imgHiXfm, outTranslated, nThreads );
 
+		ImagePlus ipout = null;
 		try
 		{
-			System.out.println("saving to: " + outF );
-			IJ.save( out.getImagePlus(), outF );
+			ipout = out.getImagePlus();
 		}
 		catch ( ImgLibException e )
 		{
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
+
+		if (resOutXfm != null )
+		{
+			ipout.getCalibration().pixelWidth  = resOutXfm.get( 0, 0 );
+			ipout.getCalibration().pixelHeight = resOutXfm.get( 1, 1 );
+			ipout.getCalibration().pixelDepth  = resOutXfm.get( 2, 2 );
+		}
+
+		System.out.println("saving to: " + outF );
+		if( outF.endsWith( "nii" ))
+		{
+			File f = new File( outF );
+			Nifti_Writer writer = new Nifti_Writer( true );
+			writer.save( ipout, f.getParent(), f.getName() );
+		}
+		else
+			IJ.save( ipout, outF );
 	}
 	
 	public static InvertibleRealTransform loadTransform( String filePath, boolean invert ) throws IOException
