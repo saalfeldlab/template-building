@@ -13,6 +13,13 @@ deletePattern="s/_Scope_.*$//g"
 template="$1"
 compartments="$2"
 
+outputres="0.5,0.5,0.5"
+if [[ $# -ge 3 ]];
+then
+    outputres="$3"
+fi
+echo "outputres: $outputres"
+
 res=$(templateResolution $template)
 echo "RESOLUTION: $res"
 
@@ -40,12 +47,15 @@ function transform {
     imglist=`ls $IMGDIR/*C2*Skeleton.tif`
     #echo " "
 
-    #interval=`parseNiiInterval $template`
-    #echo $interval
-
     echo "template: $template"
-    interval=`parseNiiSize $template`
+    interval=$(parseNiiSize $template)
     echo "interval: $interval"
+
+    templateRes=$(parseNiiRes $template)
+    echo "template resolution: $templateRes"
+
+    realInterval=$(changeIntervalRes $interval $templateRes $outputres) 
+    echo "real output resolution: $templateRes"
 
     for img in $imglist
     do
@@ -77,7 +87,7 @@ function transform {
             echo " "
 
             echo "transforming $img"
-            renderTransformed $img $out $interval $xfmList -q 8
+            renderTransformed $img $out $realInterval $xfmList -q 8 -r $outputres
         else
             xfmList="-i `ls $IMGDIR/${prefix}*down.txt | grep -v Neuron`"
             xfmList="$xfmList -i `matchEvalData $prefix $regdir`"
@@ -87,7 +97,7 @@ function transform {
             echo "$xfmList"
 
             echo "transforming $img"
-            renderTransformed $img $out $interval $xfmList -q 8
+            renderTransformed $img $out $realInterval $xfmList -q 8 -r $outputres
         fi
     done
 }

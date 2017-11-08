@@ -11,6 +11,7 @@ DOREPORT=""
 
 CENTILES='0.01,0.05,0.1,0.25,0.5,0.75,0.9,0.95,0.99'
 INTERVAL="850,650,250" 
+ANALYSISRESOLUTION="0.5,0.5,0.5" # in microns
 
 PREFIX="ALLF"
 
@@ -31,6 +32,10 @@ do
        ;;
     d) # distance transform
        DODISTXFM="1"
+       ;;
+    e) # resolution for analysis
+       ANALYSISRESOLUTION=$OPTARG
+       echo "resolution for analysis: $ANALYSISRESOLUTION"
        ;;
     j) # jacobian 
        DOJACOBIAN="1"
@@ -87,12 +92,18 @@ echo "TEMPLATE: $TEMPLATE"
 
 if [ -z $COMPARTMENTS ] && [ $DODISTXFMLABELS ];
 then
-    echo "Need to specify compartment labels"
 
-    # TODO try autodetecting these
-    #COMPARTMENTS=`findCompartments`
+    # Try autodetecting these
+    echo "Trying to auto-detect labels or mask"
+    templatePath=$(readlink -f $TEMPLATE)
+    COMPARTMENTS=$(echo $templatePath | sed 's/.nii/_mask.nii/g')
 
-    exit 99
+    if [[ ! -f "$COMPARTMENTS" ]];
+    then
+        echo "Did not find $COMPARTMENTS, exiting"
+        exit 99
+    fi
+    echo "Found $COMPARTMENTS"
 fi
 
 # This script detects if its necessary and skips if so
@@ -107,7 +118,8 @@ fi
 # DISTANCE TRANSFORM LABEL-WISE
 if [ $DODISTXFMLABELS ]; then
     echo "Doing distance transform label-wise"
-    runDistXfmEvalComp $TEMPLATE $COMPARTMENTS
+    #runDistXfmHistEvalComp $TEMPLATE $COMPARTMENTS $CENTILES
+    runDistXfmEvalComp $TEMPLATE $COMPARTMENTS $ANALYSISRESOLUTION
 fi
 
 # TRANSFORMING NEURON IMAGES
