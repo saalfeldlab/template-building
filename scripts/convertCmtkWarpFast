@@ -6,6 +6,7 @@ posFieldZ="$3" # must be nii
 ref="$4"
 regIn="$5"
 out="$6"
+clean="$7"
 
 reg=$regIn
 if [[ "$regIn" == *.gz ]]
@@ -25,6 +26,10 @@ unset CMTK_WRITE_UNCOMPRESSED
 position2Displacement ${out} ${out}-x.nii ${out}-y.nii ${out}-z.nii
 
 # cleanup
-rm -v ${out}-x.nii
-rm -v ${out}-y.nii
-rm -v ${out}-z.nii
+if [[ "$clean" ]];
+then
+    echo "cleaning up"
+    rm -v ${out}-x.nii
+    rm -v ${out}-y.nii
+    rm -v ${out}-z.nii
+fi

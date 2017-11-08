@@ -46,8 +46,8 @@ while getopts ":d:r:wi:s" opt; do
             ;;
         i)
             #echo "r triggered $OPTARG" >&2
-            interval=$OPTARG
-            echo "interval: $interval"
+            intervalIn=$OPTARG
+            echo "interval: $intervalIn"
             #POSFIELDX="${POSFIELDDIR}/pfx_$interval.nii"
             #POSFIELDY="${POSFIELDDIR}/pfy_$interval.nii"
             #POSFIELDZ="${POSFIELDDIR}/pfz_$interval.nii"
@@ -62,7 +62,6 @@ while getopts ":d:r:wi:s" opt; do
             ;;
     esac
 done
-
 
 
 # Detect which directory to use
@@ -86,12 +85,11 @@ then
     echo "reference not passed with -r : trying to infer"
 
     ref=`ls *template*nii`
-    #ref=`ls *cow*nii`
 
     lsreturn=`echo $?`
     echo $lsreturn 
 
-    nr=( $ref )
+    nr=( $ref ) # Make an array
     echo "${#nr[@]}"
 
     if [[ "$lsreturn" > 0  ]] || [[ ${#nr[@]} > 1 ]];
@@ -103,14 +101,16 @@ else
     echo "ref here"
 fi
 
+echo "REFERENCE: "
 echo $ref
 ref=`readlink -f $ref`
 echo $ref
+echo " "
 
 if [[ -z $interval ]];
 then
     # Check to make sure that the specified posfield sizes agree with the reference
-    interval=$(parseNiiInterval $ref | sed -e 's/0,0,0://g' -e 's/,/-/g')
+    interval=$(parseNiiSize $ref | sed -e 's/0,0,0://g' -e 's/,/-/g')
     echo $interval
 fi
 
@@ -170,7 +170,7 @@ do
             echo "displacementRemoveAffine $warp $out.nii $affine" >> $job
         fi
 
-        # The old way of doing it
+        ## The old way of doing it
         #echo "affineFromDisplacement $out $xfm 8" >> $job
         #echo "affineImglib2Itk ${out}_affine.txt > ${out}_affine_itk.txt" >> $job 
         chmod +x $job
@@ -182,8 +182,10 @@ done
 ## Submit the jobs and wait
 if [ $doWait ];
 then
+    echo "submit the jobs and wait"
     subJobs -o '-n 4 -R"affinity[core(1)]"' -w cmtk2dfield_*sh
 else
+    echo "submit the jobs and return"
     subJobs -o '-n 4 -R"affinity[core(1)]"' cmtk2dfield_*sh
 fi
 

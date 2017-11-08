@@ -5,6 +5,8 @@ POSFIELDX="/nrs/saalfeld/john/projects/flyChemStainAtlas/posFields/pfx_850-650-2
 POSFIELDY="/nrs/saalfeld/john/projects/flyChemStainAtlas/posFields/pfy_850-650-250.nii"
 POSFIELDZ="/nrs/saalfeld/john/projects/flyChemStainAtlas/posFields/pfz_850-650-250.nii"
 
+TEMPLATE="$1"
+INTERVAL="$2"
 
 if [[ -d Registration ]];
 then
@@ -27,11 +29,13 @@ then
     fi
 
     qq=`which bsub`
-    if [  ${#qq} -lt 1 ] ; then
+    if [ ${#qq} -lt 1 ] ; then
       #executeRemote 'login2.int.janelia.org' 'bsub -n 4 -o cmtkConv.o%J -e cmtkConv.e%J ''runConvertCmtkWarps -w'''
-      executeRemote 'login2.int.janelia.org' 'runConvertCmtkWarps -w'
+      echo "CONVERT CMTK WARPS"
+      executeRemote 'login2.int.janelia.org' "runConvertCmtkWarps -w -r $TEMPLATE"
     else
-      bsub -n 4 -o cmtkConv.o%J -e cmtkConv.e%J 'runConvertCmtkWarps -w'
+      echo "CONVERT CMTK WARPS"
+      bsub -n 4 -o cmtkConv.o%J -e cmtkConv.e%J "runConvertCmtkWarps -w -r $TEMPLATE"
     fi
 else
     # ANTS
