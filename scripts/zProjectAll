@@ -1,0 +1,15 @@
+#!/bin/bash
+
+method="$1"
+shift
+
+dir=$(pwd)
+
+for f in $@;
+do
+    echo $f
+    fnoExt="${f%.*}"
+    echo $fnoExt
+    sleep 5
+    zProject ${dir}/${fnoExt}_${method}proj.tif ${dir}/${f} $method
+done
