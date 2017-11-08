@@ -1,5 +1,5 @@
 #!/bin/bash
-# Returns a new interval (image size) after change of resolution
+# Returns a new interval (image size) of zero min after change of resolution
 # (rounding up)
 #
 # Usage:
@@ -16,4 +16,5 @@ oldres="$2"
 newres="$3"
 
 sz=$(echo $interval | sed 's/.*://g' )
-echo "$sz,$oldres,$newres" | awk -F, 'BEGIN {OFS=","}{print 1+int($1*$4/$7),1+int($2*$5/$8),1+int($3*$6/$9)}'
+max=$(echo "$sz,$oldres,$newres" | awk -F, 'BEGIN {OFS=","}{print 1+int($1*$4/$7),1+int($2*$5/$8),1+int($3*$6/$9)}')
+echo "0,0,0:$max"
