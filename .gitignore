@@ -9,3 +9,8 @@
 .classpath
 /python/.ipynb_checkpoints/
 /tmp_*/
+
+# images / outputs
+*png
+*jpg
+*tif
