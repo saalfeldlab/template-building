@@ -28,10 +28,10 @@ then
     if [ ${#qq} -lt 1 ] ; then
       #executeRemote 'login2.int.janelia.org' 'bsub -n 4 -o cmtkConv.o%J -e cmtkConv.e%J ''runConvertCmtkWarps -w'''
       echo "CONVERT CMTK WARPS"
-      executeRemote 'login2.int.janelia.org' "runConvertCmtkWarps -w -r $TEMPLATE"
+      executeRemote 'login2.int.janelia.org' "runConvertCmtkWarps -w -r $TEMPLATE -i $INTERVAL"
     else
       echo "CONVERT CMTK WARPS"
-      bsub -n 4 -o cmtkConv.o%J -e cmtkConv.e%J "runConvertCmtkWarps -w -r $TEMPLATE"
+      bsub -n 4 -o cmtkConv.o%J -e cmtkConv.e%J "runConvertCmtkWarps -w -r $TEMPLATE -i $INTERVAL"
     fi
 else
     # ANTS

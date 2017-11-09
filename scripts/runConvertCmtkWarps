@@ -7,10 +7,6 @@ startdir=`pwd`
 
 POSFIELDDIR="/nrs/saalfeld/john/projects/flyChemStainAtlas/posFields"
 
-#POSFIELDX="/nrs/saalfeld/john/projects/flyChemStainAtlas/posFields/pfx_850-650-250.nii"
-#POSFIELDY="/nrs/saalfeld/john/projects/flyChemStainAtlas/posFields/pfy_850-650-250.nii"
-#POSFIELDZ="/nrs/saalfeld/john/projects/flyChemStainAtlas/posFields/pfz_850-650-250.nii"
-
 POSFIELDX=""
 POSFIELDY=""
 POSFIELDZ=""
@@ -47,10 +43,8 @@ while getopts ":d:r:wi:s" opt; do
         i)
             #echo "r triggered $OPTARG" >&2
             intervalIn=$OPTARG
-            echo "interval: $intervalIn"
-            #POSFIELDX="${POSFIELDDIR}/pfx_$interval.nii"
-            #POSFIELDY="${POSFIELDDIR}/pfy_$interval.nii"
-            #POSFIELDZ="${POSFIELDDIR}/pfz_$interval.nii"
+            interval=$(echo $intervalIn | sed -e 's/0,0,0://g' -e 's/,/-/g')
+            echo "interval: $interval"
             ;;
         /?)
             echo "Invalid option: -$OPTARG" >&2
@@ -111,7 +105,7 @@ if [[ -z $interval ]];
 then
     # Check to make sure that the specified posfield sizes agree with the reference
     interval=$(parseNiiSize $ref | sed -e 's/0,0,0://g' -e 's/,/-/g')
-    echo $interval
+    echo "interval: $interval"
 fi
 
 center=$(echo $interval | awk -F '-' 'BEGIN {OFS=","} {print $1/2, $2/2, $3/2}')
