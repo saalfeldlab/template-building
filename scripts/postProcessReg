@@ -1,10 +1,6 @@
 #!/bin/bash
 # Do post processing on registration
 
-POSFIELDX="/nrs/saalfeld/john/projects/flyChemStainAtlas/posFields/pfx_850-650-250.nii"
-POSFIELDY="/nrs/saalfeld/john/projects/flyChemStainAtlas/posFields/pfy_850-650-250.nii"
-POSFIELDZ="/nrs/saalfeld/john/projects/flyChemStainAtlas/posFields/pfz_850-650-250.nii"
-
 TEMPLATE="$1"
 INTERVAL="$2"
 

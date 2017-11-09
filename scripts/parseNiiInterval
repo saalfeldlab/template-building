@@ -1,20 +1,18 @@
 #!/bin/bash
-#Extracts
+# Returns the field of view of the input nii in physical units
 
 niiFile="$1"
+
 bboxLine=`PrintHeader $niiFile | grep 'Bounding Box'`
+
 #echo $bboxLine
 bbox=`echo $bboxLine | sed -e 's/.*{//g' -e 's/[{}]//g'`
-
-# To output just the way it looks in ants print header
-#echo $bbox
 
 # To output in a way that my parse likes
 tot=`echo $bbox | sed -e 's/\[//g' -e 's/\]//g' -e 's/, /:/g' -e 's/ /,/g'`
 
 # But we have to subtract 1 from the end interval, since imglib2's
 # intervals are inclusive
-
 # Get the min first
 min=${tot%:*}
 maxbig=${tot#*:}
