@@ -7,8 +7,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import org.janelia.utility.parse.ParseUtils;
-
 import ij.IJ;
 import ij.ImagePlus;
 import io.nii.NiftiIo;
@@ -36,14 +34,6 @@ public class RunDistanceTransform
 		String imgF = args[ idx ];
 		idx++;
 
-		double[] res = new double[]{ 1.0, 1.0, 1.0 };
-		if( args.length > idx )
-		{
-			res = ParseUtils.parseDoubleArray( args[ idx ] );
-			System.out.println( "res: " + Arrays.toString( res ));
-			idx++;
-		}
-
 		System.out.println( idx );
 		System.out.println( args.length );
 		String baseOutputName = imgF;
@@ -54,7 +44,14 @@ public class RunDistanceTransform
 			idx++;
 		}
 
-		Img<FloatType> img = ImageJFunctions.convertFloat( read( imgF ));
+		ImagePlus ip = read( imgF );
+		double[] res = new double[]{ 1.0, 1.0, 1.0 };
+		res[ 0 ] = ip.getCalibration().pixelWidth;
+		res[ 1 ] = ip.getCalibration().pixelHeight;
+		res[ 2 ] = ip.getCalibration().pixelDepth;
+		System.out.println( "res: " + Arrays.toString( res ));
+
+		Img<FloatType> img = ImageJFunctions.convertFloat( ip );
 
 		RandomAccessibleInterval< FloatType > sc = invThreshBig( img, 1.0f, Float.MAX_VALUE );
 
@@ -67,10 +64,12 @@ public class RunDistanceTransform
 		DistanceTransform.transform( sc, tmp, dist, DistanceTransform.DISTANCE_TYPE.EUCLIDIAN, es, nThreads, res );
 		sqrt( dist );
 
-//		Bdv bdv = BdvFunctions.show( scDist, "dist" );
+		ImagePlus ipout = dist.getImagePlus();
+		ipout.getCalibration().pixelWidth  = res[ 0 ];
+		ipout.getCalibration().pixelHeight = res[ 1 ];
+		ipout.getCalibration().pixelDepth  = res[ 2 ];
 
-		// Multiply the distance transform with the ground truth and write the result
-		IJ.save( dist.getImagePlus(), baseOutputName + "_distXfm.tif" );
+		IJ.save( ipout, baseOutputName + "_distXfm.tif" );
 
 		System.out.println( "done");
 		System.exit( 0 );
@@ -91,10 +90,24 @@ public class RunDistanceTransform
 	public static void sqrt( final RandomAccessibleInterval<FloatType> img )
 	{
 		Views.flatIterable( img ).cursor().forEachRemaining( 
-				x -> x.setReal( Math.sqrt(x.get())) );
+				x -> x.setReal( sqrtIfPos( x.get() )));
+	}
+
+	public static double sqrtIfPos( final double x )
+	{
+		if( x > 0 )
+			return Math.sqrt( x );
+		else
+			return x;
 	}
 
 	public static RandomAccessibleInterval< FloatType > invThreshBig( final RandomAccessibleInterval<FloatType> img, final float threshold, final float big )
+	{
+		return invThreshBig( img, threshold, big, 0f );
+	}
+
+	public static RandomAccessibleInterval< FloatType > invThreshBig( final RandomAccessibleInterval<FloatType> img,
+			final float threshold, final float big, final float small )
 	{
 		Converter< FloatType, FloatType > conv = new Converter<FloatType, FloatType>()
 		{
@@ -102,7 +115,7 @@ public class RunDistanceTransform
 			public void convert( FloatType input, FloatType output )
 			{
 				if( input.getRealFloat() >= threshold )
-					output.setZero();
+					output.setReal( small );
 				else
 					output.setReal( big );
 			}

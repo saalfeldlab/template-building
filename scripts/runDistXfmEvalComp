@@ -57,6 +57,7 @@ function transform {
     realInterval=$(changeIntervalRes $interval $templateRes $outputres) 
     echo "real output resolution: $templateRes"
 
+    i=0
     for img in $imglist
     do
         name="${img##*/}"
@@ -87,6 +88,7 @@ function transform {
             echo " "
 
             echo "transforming $img"
+            echo "renderTransformed $img $out $realInterval $xfmList -q 8 -r $outputres" > skel_xfm_$i.sh
             renderTransformed $img $out $realInterval $xfmList -q 8 -r $outputres
         else
             xfmList="-i `ls $IMGDIR/${prefix}*down.txt | grep -v Neuron`"
@@ -99,6 +101,7 @@ function transform {
             echo "transforming $img"
             renderTransformed $img $out $realInterval $xfmList -q 8 -r $outputres
         fi
+        ((i++))
     done
 }
 
@@ -114,8 +117,8 @@ function distanceTransforms {
         then
             echo "distance transform of $im"
             echo $dist_im_path
-            echo "RESOLUTION: $res"
-            runDistanceTransform "$dstdir/$im" "$res" "$dstdir/$dist_im"
+            # Grabs resolution from the input image
+            runDistanceTransform "$dstdir/$im" "$dstdir/$dist_im"
         else
             echo "skipping DT for $im - already exists"
         fi
