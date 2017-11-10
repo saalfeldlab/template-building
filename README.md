@@ -46,10 +46,12 @@ Usage:
   evalAnalysis [OPTIONS]
   -p [PREFIX] Specify the prefix for output of template building (Default='ALLF')
   -t [TEMPLATE] Specifies the template to use for analyis (Default='$PREFIX-template.nii.gz')
+  -e [RESOLUTION] Specifies the resolution at which to perform distance transform analysis
   -c Compartment label file
   -d Do the distance transform analysis
   -l Do the distance transform analysis per label
-  -n Transfomr neuron images
+  -j Compute jacobian determinant maps for transforms
+  -n Transform neuron images
   -r Generate report page
   -s Do neuron similarity
   -v Visualize neuron overlay
