@@ -197,11 +197,6 @@ public class RenderTransformed
 							totalXfm )),
 				renderInterval );
 
-//		Bdv bdv = BdvFunctions.show( imgHiXfm, "img hi xfm" );
-//////	Bdv bdv = BdvFunctions.show( Views.stack( template, imgHiXfm ), "img hi xfm" );
-//		bdv.getBdvHandle().getSetupAssignments().getMinMaxGroups().get( 0 ).setRange( 0, 1200 );
-
-
 		System.out.println("allocating");
 		FloatImagePlus< FloatType > out = ImagePlusImgs.floats( 
 				renderInterval.dimension( 0 ),
@@ -232,6 +227,10 @@ public class RenderTransformed
 			ipout.getCalibration().pixelWidth  = resOutXfm.get( 0, 0 );
 			ipout.getCalibration().pixelHeight = resOutXfm.get( 1, 1 );
 			ipout.getCalibration().pixelDepth  = resOutXfm.get( 2, 2 );
+		}
+		if( ipout.getNSlices() == 1 && ipout.getNChannels() > 1 )
+		{
+			ipout.setDimensions(  ipout.getNSlices(),  ipout.getNChannels(), ipout.getNFrames() );
 		}
 
 		System.out.println("saving to: " + outF );

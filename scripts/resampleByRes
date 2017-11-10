@@ -1,0 +1,17 @@
+#!/bin/bash
+# resample an image to a different resolution
+
+img="$1"
+out="$2"
+resOut="$3"
+
+intervalIn=$(parseNiiSize $img)
+echo "interval: $intervalIn"
+
+resIn=$(parseNiiRes $img)
+echo "original image resolution: $resIn"
+
+intervalOut=$(changeIntervalRes $intervalIn $resIn $resOut) 
+echo "real output resolution: $resOut"
+
+renderTransformed $img $out $intervalOut -q 8 -r $resOut
