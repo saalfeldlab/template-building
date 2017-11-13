@@ -7,6 +7,7 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -190,34 +191,65 @@ public class DumpCompartmentData
 	{
 		T t = img.firstElement().copy();
 		System.out.println( uniques );
-		for( I i : uniques )
+
+		boolean error = false;
+
+		// setup
+		HashMap< I, BufferedWriter > writerMap = new HashMap< I, BufferedWriter >();
+		for ( I i : uniques )
 		{
-			
-			if( i.getRealDouble() <= 0.0 )
+			String labelString = i.toString();
+			String outputPath = outF + "_" + labelString + ".csv";
+
+			try
 			{
-				System.out.println( "skipping label zero" );
-				continue;
+				writerMap.put( i, Files.newBufferedWriter( Paths.get( outputPath ) ) );
+			} catch ( IOException e )
+			{
+				e.printStackTrace();
+				error = true;
+				break;
 			}
 
-			System.out.println( i );
-			String labelString = i.toString();
-			System.out.println( labelString );
-			
-			IterableInterval<BoolType> compartmentAndMask = new And( getLabelMask( labels, i ), mask );
+		}
 
-			MaskedIterableFilter<T,BoolType> mit = 
-					new MaskedIterableFilter<T,BoolType>( compartmentAndMask.iterator(), img );
+		if ( !error )
+		{
+			Cursor< BoolType > c = mask.cursor();
+			RandomAccess< T > rai = img.randomAccess();
+			RandomAccess< I > rac = labels.randomAccess();
+			while ( c.hasNext() )
+			{
+				if ( c.next().get() )
+				{
+					rac.setPosition( c );
 
-			@SuppressWarnings("unchecked")
-			MaskedIterator<FloatType,BoolType> mi = (MaskedIterator<FloatType,BoolType>)mit.iterator();
+					I label = rac.get();
+					if ( label.getRealDouble() > 0 )
+					{
+						rai.setPosition( c );
+						try
+						{
+							writerMap.get( label ).write(
+									Double.toString( rai.get().getRealDouble() ) + "\n" );
+						} catch ( IOException e )
+						{
+							e.printStackTrace();
+						}
+					}
+				}
+			}
+		}
 
-			String outputPath = outF + "_" + labelString + ".csv";
-			System.out.println( "outputPath: " + outputPath );
-
-			writeData( outputPath, mit.iterator() );
-			System.out.println( "MI total   : " + mi.getNumTotal() );
-			System.out.println( "mi valid   : " + mi.getNumValid() );
-			System.out.println( "mi invalid : " + mi.getNumInvalid() );
+		for ( I i : uniques )
+		{
+			try
+			{
+				writerMap.get( i ).close();
+			} catch ( IOException e )
+			{
+				e.printStackTrace();
+			}
 		}
 	}
 
@@ -251,114 +283,5 @@ public class DumpCompartmentData
 		}
         return true;
 	}
-
-	public static class And extends AbstractImg<BoolType>
-	{
-		IterableInterval<BoolType> a;
-		IterableInterval<BoolType> b;
-		public And( IterableInterval<BoolType> a, IterableInterval<BoolType> b )
-		{
-			super( Intervals.dimensionsAsLongArray( a ));
-			this.a = a;
-			this.b = b;
-		}
-		@Override
-		public ImgFactory< BoolType > factory()
-		{
-			return null;
-		}
-		@Override
-		public Img< BoolType > copy()
-		{
-			return this;
-		}
-		@Override
-		public RandomAccess< BoolType > randomAccess()
-		{
-			return null;
-		}
-		@Override
-		public Cursor< BoolType > cursor()
-		{
-			return new AndCursor< BoolType >( a.cursor(), b.cursor(), new BoolType() );
-		}
-		@Override
-		public Cursor< BoolType > localizingCursor()
-		{
-			return null;
-		}
-		@Override
-		public Object iterationOrder()
-		{
-			return null;
-		}
-	};
-
-	public static class AndCursor <T extends BooleanType<T>> extends AbstractCursor<T>
-	{
-		final Cursor<T> a;
-		final Cursor<T> b;
-		T t;
-		public AndCursor( Cursor<T> a, Cursor<T> b, T t  )
-		{
-			super( a.numDimensions() );
-			this.a = a;
-			this.b = b;
-			this.t = t;
-		}
-
-		@Override
-		public T get()
-		{
-			t.set( a.get() );
-			t.and( b.get() );
-			return t;
-		}
-
-		@Override
-		public void fwd()
-		{
-			a.fwd();
-			b.fwd();
-		}
-
-		@Override
-		public void reset()
-		{
-			a.reset();
-			b.reset();
-		}
-
-		@Override
-		public boolean hasNext()
-		{
-			return a.hasNext() && b.hasNext();
-		}
-
-		@Override
-		public void localize( long[] position )
-		{
-			a.localize( position );
-		}
-
-		@Override
-		public long getLongPosition( int d )
-		{
-			return a.getLongPosition( d );
-		}
-
-		@Override
-		public AbstractCursor<T> copy()
-		{
-			// TODO Auto-generated method stub
-			return null;
-		}
-
-		@Override
-		public AbstractCursor<T> copyCursor()
-		{
-			return this;
-		}
-	};
 
 }
