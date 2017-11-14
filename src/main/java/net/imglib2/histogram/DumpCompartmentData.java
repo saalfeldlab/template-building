@@ -18,29 +18,22 @@ import ij.IJ;
 import ij.ImagePlus;
 import io.nii.NiftiIo;
 import loci.formats.FormatException;
-import net.imglib2.AbstractCursor;
 import net.imglib2.Cursor;
 import net.imglib2.IterableInterval;
 import net.imglib2.RandomAccess;
 import net.imglib2.converter.Converter;
 import net.imglib2.converter.Converters;
-import net.imglib2.filter.MaskedIterableFilter;
-import net.imglib2.filter.MaskedIterableFilter.MaskedIterator;
-import net.imglib2.img.AbstractImg;
 import net.imglib2.img.ImagePlusAdapter;
 import net.imglib2.img.Img;
-import net.imglib2.img.ImgFactory;
 import net.imglib2.img.display.imagej.ImageJFunctions;
 import net.imglib2.img.imageplus.ByteImagePlus;
 import net.imglib2.img.imageplus.FloatImagePlus;
 import net.imglib2.img.imageplus.ShortImagePlus;
-import net.imglib2.type.BooleanType;
 import net.imglib2.type.logic.BoolType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.numeric.integer.UnsignedByteType;
 import net.imglib2.type.numeric.integer.UnsignedShortType;
 import net.imglib2.type.numeric.real.FloatType;
-import net.imglib2.util.Intervals;
 
 
 public class DumpCompartmentData
@@ -52,6 +45,13 @@ public class DumpCompartmentData
 		final String imF = args[ 1 ];
 		final String compartmentF = args[ 2 ];
 		final String maskF = args[ 3 ];
+
+		boolean separate = false;
+		if( args.length >= 5 )
+		{
+			String sepArg = args[ 4 ];
+			separate = ( Boolean.parseBoolean( sepArg ) );
+		}
 
 		System.out.println( "imF          : " + imF );
 		System.out.println( "maskF        : " + maskF );
@@ -86,7 +86,7 @@ public class DumpCompartmentData
 			compartmentImg = ( IJ.openImage( compartmentF ) );
 		}
 
-		run( imp, maskImg, compartmentImg, outF, null );
+		run( imp, maskImg, compartmentImg, outF, null, separate );
 
 	}
 
@@ -138,7 +138,7 @@ public class DumpCompartmentData
 	}
 
 	public static void run( ImagePlus imgImp, IterableInterval< BoolType > maskImg, ImagePlus compartmentImp, 
-			String outF, List<Integer> labellist )
+			String outF, List<Integer> labellist, boolean separate )
 	{
 		Img< FloatType > img = ImageJFunctions.convertFloat( imgImp );
 		if( compartmentImp.getType() == ImagePlus.GRAY8 )
@@ -151,7 +151,10 @@ public class DumpCompartmentData
 				uniques = labellist.parallelStream().map( UnsignedByteType::new )
 						.collect( Collectors.toList() );
 
-			findAllHistograms( img, maskImg, labels, uniques, outF );
+			if( separate )
+				writeDataSeparate( img, maskImg, labels, uniques, outF );
+			else
+				writeData( img, maskImg, labels, uniques, outF );
 
 		}
 		else if( compartmentImp.getType() == ImagePlus.GRAY16 )
@@ -164,7 +167,10 @@ public class DumpCompartmentData
 				uniques = labellist.parallelStream().map( UnsignedShortType::new )
 						.collect( Collectors.toList() );
 
-			findAllHistograms( img, maskImg, labels, uniques, outF );
+			if( separate )
+				writeDataSeparate( img, maskImg, labels, uniques, outF );
+			else
+				writeData( img, maskImg, labels, uniques, outF );
 
 		}
 		else if( compartmentImp.getType() == ImagePlus.GRAY32 )
@@ -177,7 +183,10 @@ public class DumpCompartmentData
 				uniques = labellist.parallelStream().map( FloatType::new )
 						.collect( Collectors.toList() );
 
-			findAllHistograms( img, maskImg, labels, uniques, outF );
+			if( separate )
+				writeDataSeparate( img, maskImg, labels, uniques, outF );
+			else
+				writeData( img, maskImg, labels, uniques, outF );
 		}
 		else
 		{
@@ -185,7 +194,7 @@ public class DumpCompartmentData
 		}
 	}
 	
-	public static <I extends RealType<I>, T extends RealType<T>> void findAllHistograms( 
+	public static <I extends RealType<I>, T extends RealType<T>> void writeDataSeparate( 
 			Img<T> img, IterableInterval<BoolType> mask, Img<I> labels, Collection<I> uniques,
 			String outF )
 	{
@@ -198,6 +207,12 @@ public class DumpCompartmentData
 		HashMap< I, BufferedWriter > writerMap = new HashMap< I, BufferedWriter >();
 		for ( I i : uniques )
 		{
+			if( i.getRealDouble() <= 0 )
+			{
+				System.out.println( "skipping: " + i );
+				continue;
+			}
+
 			String labelString = i.toString();
 			String outputPath = outF + "_" + labelString + ".csv";
 
@@ -243,13 +258,73 @@ public class DumpCompartmentData
 
 		for ( I i : uniques )
 		{
+			if( i.getRealDouble() <= 0 )
+				continue;
+
 			try
 			{
+				writerMap.get( i ).flush();
 				writerMap.get( i ).close();
 			} catch ( IOException e )
 			{
 				e.printStackTrace();
 			}
+		}
+	}
+
+	public static <I extends RealType<I>, T extends RealType<T>> void writeData( 
+			Img<T> img, IterableInterval<BoolType> mask, Img<I> labels, Collection<I> uniques,
+			String outF )
+	{
+		System.out.println("writing single");
+		System.out.println( uniques );
+
+		String outPath = outF;
+		if( ! outF.endsWith( "csv" ))
+			outPath = outF + ".csv";
+
+		BufferedWriter writer;
+		try
+		{
+			writer = Files.newBufferedWriter( Paths.get( outPath ));
+		} catch ( IOException e1 )
+		{
+			e1.printStackTrace();
+			return;
+		}
+
+
+		Cursor< BoolType > c = mask.cursor();
+		RandomAccess< T > rai = img.randomAccess();
+		RandomAccess< I > rac = labels.randomAccess();
+		while ( c.hasNext() )
+		{
+			if ( c.next().get() )
+			{
+				rac.setPosition( c );
+				I label = rac.get();
+				if ( label.getRealDouble() > 0 )
+				{
+					rai.setPosition( c );
+					try
+					{
+						writer.write( label.toString() + "," +
+								Double.toString( rai.get().getRealDouble() ) + "\n" );
+					} catch ( IOException e )
+					{
+						e.printStackTrace();
+					}
+				}
+			}
+		}
+
+		try
+		{
+			writer.flush();
+			writer.close();
+		} catch ( IOException e )
+		{
+			e.printStackTrace();
 		}
 	}
 
