@@ -42,5 +42,16 @@ else
     else
         echo "  No compressed warps found."
     fi
-    affineConv *Affine.txt
+    
+    affineTxt=$(ls *Affine.txt)
+    affineMat=$(ls *GenericAffine.mat)
+    if [ ${#affineTxt} -gt 1 ] ; then
+        echo "convert txt affines"
+    elif [ ${#affineMat} -gt 1 ] ; then
+        echo "convert mat affines"
+        affineConvBin *GenericAffine.mat
+    else
+        echo "dont know what to do"
+    fi
+     
 fi

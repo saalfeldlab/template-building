@@ -1,0 +1,18 @@
+#!/bin/bash
+
+#in="$1"
+for f in $@;
+do
+    echo $f
+    out=`echo $f | sed 's/GenericAffine.mat/Affine.mat/g'`
+    echo $out
+    if [ -f $out ];
+    then
+        echo "  Already exists... skipping"
+        echo " "
+    else
+        # Call the ants script 
+        ConvertTransformFile 3 $f $out --hm 
+        echo " "
+    fi
+done
