@@ -96,7 +96,8 @@ then
     # Try autodetecting these
     echo "Trying to auto-detect labels or mask"
     templatePath=$(readlink -f $TEMPLATE)
-    COMPARTMENTS=$(echo $templatePath | sed 's/.nii/_mask.nii/g')
+    MASK=$(echo $templatePath | sed 's/.nii/_mask_0p5iso.nii/g')
+    COMPARTMENTS=$(echo $templatePath | sed 's/.nii/_labels_0p5iso.nii/g')
 
     if [[ ! -f "$COMPARTMENTS" ]];
     then
@@ -106,7 +107,7 @@ then
     echo "Found $COMPARTMENTS"
 fi
 
-# This script detects if its necessary and skips if so
+## THIS SCRIPT DETECTS IF ITS NECESSARY AND SKIPS IF SO
 postProcessReg $TEMPLATE $INTERVAL
 
 # DISTANCE TRANSFORM
@@ -115,38 +116,38 @@ if [ $DODISTXFM ]; then
     runDistXfmEval $TEMPLATE
 fi
 
-# DISTANCE TRANSFORM LABEL-WISE
+## DISTANCE TRANSFORM LABEL-WISE
 if [ $DODISTXFMLABELS ]; then
     echo "Doing distance transform label-wise"
     #runDistXfmHistEvalComp $TEMPLATE $COMPARTMENTS $CENTILES
     runDistXfmEvalComp $TEMPLATE $COMPARTMENTS $ANALYSISRESOLUTION
 fi
 
-# TRANSFORMING NEURON IMAGES
+## TRANSFORMING NEURON IMAGES
 if [ $DOJACOBIAN ]; then
     echo "Computing Jacobian"
     evalJacobian $TEMPLATE
 fi
 
-# TRANSFORMING NEURON IMAGES
+## TRANSFORMING NEURON IMAGES
 if [ $DOXFMNEURON ]; then
     echo "Transforming neurons"
     runTransformNeuronImages $TEMPLATE
 fi
 
-# COMPUTE NEURON SIMILARITY
+## COMPUTE NEURON SIMILARITY
 if [ $DONEURONSIM ]; then
     echo "Compute neuron similarity"
     pairwiseNeuronSimByLine
 fi
 
-# VISUALIZE NEURON OVERLAY
+## VISUALIZE NEURON OVERLAY
 if [ $DOVISNEURONOVERLAY ]; then
     echo "Visualize neuron overlay"
     evalVisOverlays
 fi
 
-# RPORT PAGE
+## REPORT PAGE
 if [ $DOREPORT ]; then
     echo "Report summary"
     genEvalSummaryPage
