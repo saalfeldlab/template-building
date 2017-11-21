@@ -74,11 +74,12 @@ done
 if [ -z $TEMPLATE ];
 then
     echo "Trying to infer template"
-    TEMPLATE=`ls $PREFIX-template.nii*`
+    #TEMPLATE=`ls $PREFIX-template.nii*`
+    TEMPLATE=`find . -maxdepth 1 -name '*nii' -type l`
 
     lsreturn=`echo $?`
 
-    nr=( $ref )
+    nr=( $TEMPLATE )
     #echo "${#nr[@]}"
 
     if [[ "$lsreturn" > 0  ]] || [[ ${#nr[@]} > 1 ]];
