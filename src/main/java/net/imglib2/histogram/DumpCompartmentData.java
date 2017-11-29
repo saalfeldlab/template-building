@@ -19,6 +19,7 @@ import ij.ImagePlus;
 import io.nii.NiftiIo;
 import loci.formats.FormatException;
 import net.imglib2.Cursor;
+import net.imglib2.FinalInterval;
 import net.imglib2.IterableInterval;
 import net.imglib2.RandomAccess;
 import net.imglib2.converter.Converter;
@@ -34,6 +35,8 @@ import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.numeric.integer.UnsignedByteType;
 import net.imglib2.type.numeric.integer.UnsignedShortType;
 import net.imglib2.type.numeric.real.FloatType;
+import net.imglib2.util.Intervals;
+import net.imglib2.view.Views;
 
 
 public class DumpCompartmentData
@@ -231,8 +234,8 @@ public class DumpCompartmentData
 		if ( !error )
 		{
 			Cursor< BoolType > c = mask.cursor();
-			RandomAccess< T > rai = img.randomAccess();
-			RandomAccess< I > rac = labels.randomAccess();
+			RandomAccess< T > rai = Views.extendZero( img ).randomAccess();
+			RandomAccess< I > rac = Views.extendZero( labels ).randomAccess();
 			while ( c.hasNext() )
 			{
 				if ( c.next().get() )
@@ -290,13 +293,12 @@ public class DumpCompartmentData
 		} catch ( IOException e1 )
 		{
 			e1.printStackTrace();
-			return;
+			return;	
 		}
 
-
 		Cursor< BoolType > c = mask.cursor();
-		RandomAccess< T > rai = img.randomAccess();
-		RandomAccess< I > rac = labels.randomAccess();
+		RandomAccess< T > rai = Views.extendZero( img ).randomAccess();
+		RandomAccess< I > rac = Views.extendZero( labels ).randomAccess();
 		while ( c.hasNext() )
 		{
 			if ( c.next().get() )
