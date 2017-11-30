@@ -16,7 +16,7 @@ POSFIELDZ=""
 # transformations
 
 doWait=""
-doAffine="1"
+doAffine="0"
 srcdir=""
 ref=""
 interval=""
@@ -145,10 +145,11 @@ do
     out=`echo $tmp | sed 's/registration.gz/xform/g'`
     affine="${out}_affine_itk.txt"
     warp="${out}_warp.nii"
+    clean="1"
     echo $xfm
-    if [[ -f $warp ]];
+    if [[ -f "${out}.nii" ]];
     then
-        echo "skipping job for $warp"
+        echo "skipping job for $out"
     else
 
         # Make the job scripts
@@ -156,7 +157,7 @@ do
         echo "#!/bin/bash" > $job
         echo "export CMTK_NUM_THREADS=4" >> $job
 
-        echo "convertCmtkWarpFast $POSFIELDX $POSFIELDY $POSFIELDZ $ref $reg $xfm" >> $job
+        echo "convertCmtkWarpFast $POSFIELDX $POSFIELDY $POSFIELDZ $ref $reg $xfm $clean" >> $job
 
         if [[ -n $doAffine ]];
         then
