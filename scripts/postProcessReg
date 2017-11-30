@@ -47,6 +47,7 @@ else
     affineMat=$(ls *GenericAffine.mat)
     if [ ${#affineTxt} -gt 1 ] ; then
         echo "convert txt affines"
+        affineConv *Affine.txt
     elif [ ${#affineMat} -gt 1 ] ; then
         echo "convert mat affines"
         affineConvBin *GenericAffine.mat
