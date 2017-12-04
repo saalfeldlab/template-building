@@ -1,0 +1,28 @@
+#!/bin/bash
+# The prefix that ANTs adds to the results
+
+predir=""
+echo "$#"
+if [ "$#" -ge "1" ]; then
+    predir="$1"
+    echo "prefix: $predir"
+fi
+
+dir=`pwd`
+
+# Unflipped Warps (excluding the template's affine)
+readlink -f ${predir}/Registration/warp/*/xform.nii | grep -v 'Flip' | sort > list_unflipped_warp.txt
+
+# Flipped Warps (excluding the template's affine)
+readlink -f ${predir}/Registration/warp/*/xform.nii | grep 'Flip' | sort > list_flipped_warp.txt
+
+# Don't have any affines - xform contains total tranform
+# Create files with an appropriate number of lines, each containing only 'none'
+sed 's/^.*$/none/g' list_unflipped_warp.txt > list_unflipped_affine.txt
+sed 's/^.*$/none/g' list_flipped_warp.txt > list_flipped_affine.txt
+
+# All Warps (excluding the template's affine)
+cat list_unflipped_warp.txt list_flipped_warp.txt > list_all_warp.txt
+
+# All Affines (excluding the template's affine)
+cat list_unflipped_affine.txt list_flipped_affine.txt > list_all_affine.txt
