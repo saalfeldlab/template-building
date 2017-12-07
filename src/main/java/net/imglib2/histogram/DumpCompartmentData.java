@@ -19,7 +19,6 @@ import ij.ImagePlus;
 import io.nii.NiftiIo;
 import loci.formats.FormatException;
 import net.imglib2.Cursor;
-import net.imglib2.FinalInterval;
 import net.imglib2.IterableInterval;
 import net.imglib2.RandomAccess;
 import net.imglib2.converter.Converter;
@@ -35,10 +34,19 @@ import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.numeric.integer.UnsignedByteType;
 import net.imglib2.type.numeric.integer.UnsignedShortType;
 import net.imglib2.type.numeric.real.FloatType;
-import net.imglib2.util.Intervals;
 import net.imglib2.view.Views;
 
-
+/**
+ * Dumps image data to a csv file.
+ * Arguments:
+ * 	outF 			- output file
+ * 	imF				- input image file (.nii or readable by imagej)
+ * 	compartmentF 	- compartment image file
+ *  maskF			- mask image file
+ * 
+ * @author John Bogovic
+ *
+ */
 public class DumpCompartmentData
 {
 
