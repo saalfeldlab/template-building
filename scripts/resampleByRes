@@ -8,13 +8,23 @@ shift
 resOut="$1"
 shift
 
-intervalIn=$(parseNiiSize $img)
-echo "interval: $intervalIn"
+if [[ $img =~ *nii ]];
+then
+    echo "nii"
 
-resIn=$(parseNiiRes $img)
-echo "original image resolution: $resIn"
+    intervalIn=$(parseNiiSize $img)
+    echo "interval: $intervalIn"
 
-intervalOut=$(changeIntervalRes $intervalIn $resIn $resOut) 
-echo "real output resolution: $resOut"
+    resIn=$(parseNiiRes $img)
+    echo "original image resolution: $resIn"
 
-renderTransformed $img $out $intervalOut -q 8 -r $resOut $@
+    intervalOut=$(changeIntervalRes $intervalIn $resIn $resOut) 
+    echo "real output resolution: $resOut"
+
+    renderTransformed $img $out $intervalOut -q 8 -r $resOut $@
+
+else
+    echo "not nii"
+    renderTransformed $img $out "infer" -q 8 -r $resOut $@
+fi
+

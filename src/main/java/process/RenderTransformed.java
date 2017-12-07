@@ -121,7 +121,17 @@ public class RenderTransformed
 					  		0.0, 0.0, rz, 0.0 );
 		}
 
-		FinalInterval renderInterval = parseInterval( outputIntervalF );
+		FinalInterval renderInterval = null;
+		if( outputIntervalF.equals("infer"))
+		{
+			System.out.println("trying to infer output interval");
+			renderInterval = inferOutputInterval( args, baseIp, new double[]{ rx, ry, rz });
+			System.out.println("Rendering to interval: " + Util.printInterval( renderInterval ));
+		}
+		else
+		{
+			renderInterval = parseInterval( outputIntervalF );
+		}
 
 		System.out.println( "writing to: " + outF );
 
@@ -275,6 +285,36 @@ public class RenderTransformed
 		return null;
 	}
 	
+	public static FinalInterval inferOutputInterval( String[] args, ImagePlus ip, double[] resIn )
+	{
+		int i = 0;
+		AffineTransform3D resOutXfm = null;
+		while( i < args.length )
+		{
+
+			if( args[ i ].equals( "-r" ))
+			{
+				i++;
+				double[] outputResolution = ParseUtils.parseDoubleArray( args[ i ] );
+				i++;
+
+				resOutXfm = new AffineTransform3D();
+				resOutXfm.set( 	outputResolution[ 0 ], 0.0, 0.0, 0.0, 
+								0.0, outputResolution[ 1 ], 0.0, 0.0, 
+								0.0, 0.0, outputResolution[ 2 ], 0.0 );
+
+				System.out.println( "output Resolution " + Arrays.toString( outputResolution ));
+				continue;
+			}
+			i++;
+		}
+
+		return new FinalInterval( 
+				(long)Math.round( ip.getWidth() * resIn[ 0 ] / resOutXfm.get( 0, 0 )),
+				(long)Math.round( ip.getHeight() * resIn[ 1 ] / resOutXfm.get( 1, 1 )),
+				(long)Math.round( ip.getNSlices() * resIn[ 2 ] / resOutXfm.get( 2, 2 )));
+	}
+
 	public static  <T extends NumericType<T> & NativeType<T> > ImagePlus doIt(
 			Img<T> baseImg,
 			ImagePlusImg< T, ? > out,
