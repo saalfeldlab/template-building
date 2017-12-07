@@ -1,0 +1,25 @@
+#!/bin/bash
+
+N=$1
+
+labels="16.0 64.0 8.0 32.0 2.0 4.0 65.0 66.0 33.0 67.0 34.0 17.0 69.0 70.0 35.0 71.0 9.0 18.0 72.0 36.0 73.0 74.0 37.0 75.0 19.0 76.0 38.0 77.0 39.0 78.0 79.0 20.0 5.0 40.0 80.0 10.0 81.0 82.0 83.0 84.0 85.0 86.0 11.0 22.0 23.0 24.0 12.0 3.0 6.0 49.0 50.0 25.0 51.0 13.0 52.0 26.0 53.0 27.0 54.0 55.0 56.0 28.0 7.0 14.0 57.0 58.0 29.0 59.0 30.0 60.0 15.0 61.0 31.0 62.0 63.0"
+
+Nlabels=$(echo $labels | wc -w)
+echo $Nlabels
+
+for f in `ls *distCompData.csv`
+do
+    out=$(echo $f | sed "s/.csv/_sample${N}.csv/g")
+    echo $f
+    echo $out
+
+    i=1
+    for label in $labels
+    do
+        echo -ne "label $i of $Nlabels ($label)\r"
+        grep "^$label," $f | shuf -n $N >> $out
+        ((i++))
+    done
+    echo ' '
+done
+
