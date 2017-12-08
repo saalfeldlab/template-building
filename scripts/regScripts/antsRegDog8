@@ -1,0 +1,25 @@
+#!/bin/bash
+
+#script="/groups/saalfeld/home/bogovicj/libraries/antsbin2/bin/antsIntroductionRegularizedJohn.sh"
+
+script="/groups/saalfeld/home/bogovicj/libraries/antsbin2/bin/antsRegistrationSyN.sh"
+
+moving="$1"
+shift
+target="$1"
+shift
+output="$1"
+shift
+
+dir=`pwd`
+maxiters="15x25x45x10"
+metric="CC"
+transform="b" # rigid + affine + b-spline syn
+regularization="Gauss[1.0,1.5]"
+nThreads="8"
+
+#$script -d 3 -r $target -i $moving -o $output -m $maxiters -n 0 \
+#    -s $metric -t $transform -e $regularization -f 1 
+
+$script -d 3 -f $target -m $moving -o $output -n $nThreads -t 'b' -r '5' $@
+

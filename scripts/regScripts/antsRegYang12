@@ -1,0 +1,12 @@
+#!/bin/bash
+
+script="/groups/saalfeld/home/bogovicj/libraries/antsbin2/bin/ANTS"
+moving="$1"
+target="$2"
+output="$3"
+dir=`pwd`
+maxiters="30x90x20"
+regularization="Gauss[3,0]"
+
+$script 3 -m CC[$target,$moving,0.75,8] -m MI[$target,$moving,0.25,32] \
+    -t SyN[0.25] -r $regularization -o $output -i $maxiters

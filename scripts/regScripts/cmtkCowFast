@@ -1,0 +1,14 @@
+#!/bin/bash
+
+script="/groups/saalfeld/home/bogovicj/dev/jefferislab/AnalysisSuiteBin/munger.pl"
+bindir="/misc/local/cmtk-3.1.0/lib/cmtk/bin"
+
+moving="$1"
+target="$2"
+output="$3"
+
+nThreads="4"
+
+$script -b "$bindir" -e nii -v -aw -X 26 -C 8 -G 80 -E 5e-1 -R 4 -r 01 \
+    -A '--accuracy 3.2' -W '--accuracy 3.2' -T $nThreads -s \
+    $target $moving
