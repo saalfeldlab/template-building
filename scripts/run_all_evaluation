@@ -1,0 +1,72 @@
+#!/bin/bash
+
+template_dir="/groups/saalfeld/public/fly-template/for_evaluation"
+
+script_dir="/groups/saalfeld/home/bogovicj/dev/template/template-building/scripts/regScripts"
+
+#reg_scripts="antsRegOwl antsRegYang cmtkCow cmtkCOG"
+#reg_scripts="cmtkCow"
+
+#reg_scripts="cmtkCow cmtkHideo cmtkCOG"
+#reg_scripts="cmtkHideo cmtkCOG"
+#reg_scripts="cmtkHideo cmtkCow"
+#reg_scripts="cmtkCOG"
+#reg_scripts="cmtkCow"
+
+reg_scripts="antsRegOwl antsRegYang antsRegDog8"
+#reg_scripts="antsRegDog8"
+
+#reg_scripts="antsRegOwl antsRegYang antsRegDog cmtkCow cmtkHideo cmtkCOG"
+
+#templates="F-antsFlip.nii JFRC2013.nii JFRCtemplate2010.nii" 
+#templates="F-antsFlip_lo.nii JFRC2013_lo.nii" 
+#templates="F-antsFlip_lo.nii" 
+#templates="F-antsFlip_lof.nii" 
+templates="F-cmtkFlip_lof.nii" 
+#templates="JFRC2013_lof.nii" 
+
+#templates="TeforBrain_f.nii" 
+
+#templates="F-antsFlip_1p2iso.nii F-antsFlip_2p4iso.nii" 
+
+start_dir=$(pwd)
+
+cd /nrs/saalfeld/john/projects/flyChemStainAtlas/all_evals
+
+for t in $templates
+do
+    template="${template_dir}/$t"
+
+    ####################################################
+    # Get the name and make a directory for the results
+    ####################################################
+    echo $template
+    tname="${template##*/}"
+    template_name=$(echo $tname | sed 's/.nii//g')
+    echo $template_name
+
+    mkdir -p $template_name 
+    cd $template_name
+
+    for regScript in $reg_scripts
+    do
+        mkdir -p $regScript
+        cd $regScript
+
+        job="run.sh"
+        echo "  $regScript"
+        echo "run_evaluation_reg $template $script_dir/$regScript > out 2> err" > $job
+
+        chmod +x $job
+        ./$job & # start a new process
+        sleep 3
+        cd ..
+    done
+    cd ..
+    echo " "
+
+    #break
+done
+
+cd $start_dir
+

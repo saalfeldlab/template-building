@@ -1,0 +1,53 @@
+#!/bin/bash
+
+TEMPLATE="$1"
+REGSCRIPT="$2"
+
+regName="${REGSCRIPT##*/}"
+echo $regName
+
+# create symlinks to the template and evaluation images 
+ln -s -v $TEMPLATE .
+ln -s -v /nrs/saalfeld/john/projects/flyChemStainAtlas/eval/dataNew images
+
+tname="${TEMPLATE##*/}"
+
+# Make scripts to run each job
+i=0
+for f in `ls images/*nii`
+do
+    #echo $f
+    in=`readlink -f $f`
+    echo $in
+    out=`echo $f | sed -e 's:images/::g' -e "s/.nii$/_$regName/g"`
+    echo $out
+    job="${regName}_$i.sh"
+    echo $job
+
+    echo "#!/bin/bash" > $job 
+    echo "$REGSCRIPT $f $tname `pwd`/$out" >> $job
+    chmod +x $job
+    
+    ((i++))
+done
+
+REGEXP8="8$"
+REGEXP12="12$"
+# Submit the jobs, and wait for them all to finish
+if [[ $REGSCRIPT =~ $REGEXP8 ]];
+then
+    echo "submitting with 8 slots on broadwell"
+    subJobs -o '-n 8 -R"select[broadwell]"' "$regName*sh"
+elif [[ $REGSCRIPT =~ $REGEXP12 ]];
+then
+    echo "submitting with 12 slots on broadwell"
+    subJobs -o '-n 12 -R"select[broadwell]"' "$regName*sh"
+else
+    echo "submitting with 4 slots on broadwell"
+    subJobs -o '-n 4 -R"select[broadwell]"' "$regName*sh"
+fi
+
+
+# Once registration is done for all subjects, run evaluation
+#    Actually, I've found that its easier to start this myself later
+#evalAnalysis -d -j -l -n -t $TEMPLATE  

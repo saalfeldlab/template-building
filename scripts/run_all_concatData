@@ -1,0 +1,54 @@
+#!/bin/bash
+
+BASEDIR="/nrs/saalfeld/john/projects/flyChemStainAtlas/all_evals"
+
+startdir=$(pwd)
+
+#templates="JFRC2013_lo JFRCtemplate2010 TeforBrain_f F-antsFlip_lo F-cmtkFlip_lof"
+templates="F-cmtkFlip_lof"
+#templates="JFRC2013_lo JFRCtemplate2010 TeforBrain_f F-antsFlip_lo"
+algs="cmtkCOG cmtkCow cmtkHideo antsRegOwl antsRegDog antsRegYang"
+
+cd $BASEDIR
+
+for t in $templates
+do
+    echo "$t" 
+    cd $t
+    for a in $algs
+    do
+        cd $a
+        echo "  $a"
+
+        if [[ -d "evalComp" ]];
+        then
+            echo "    evalComp here"
+        else
+            echo "    no evalComp dir: skipping"
+            continue
+        fi
+        
+        cd evalComp
+        nstats=$( ls stats[0-3].txt | wc -l)
+        if [[ $nstats == "4" ]];
+        then
+            echo "      stats for all lines here"
+        else
+            echo "      missing some line stats: skipping"
+            cd ..
+            continue
+        fi
+
+        # do the work
+        pwd
+        concatCombinedLineData
+
+        cd ..
+        echo " "
+
+        cd ..
+    done
+    cd ..
+done
+
+cd $startdir
