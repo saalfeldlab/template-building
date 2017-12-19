@@ -3,7 +3,6 @@
 script="/groups/saalfeld/home/bogovicj/dev/template/template-building/python/quikstats_by_label.py"
 
 lines="0 1 2 3"
-
 labels="2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 49 50 51 52 53 54 55 56 57 58 59 60 61 62 63 64 65 66 67 69 70 71 72 73 74 75 76 77 78 79 80 81 82 83 84 85 86"
 
 for line in $lines;
@@ -13,21 +12,32 @@ do
     allFile="all_stats${line}.txt"
     bylabelFile="stats${line}.txt"
 
-    cat ../name > $allFile
-    # Stats for grouped labels
+    #cat ../name > $allFile
+    ## Stats for grouped labels
+    echo " grouped"
     python $script combined_labelData_line${line}.csv all >> $allFile
 
     # Stats for individual labels
+    echo " individual labels"
     python $script combined_labelData_line${line}.csv > $bylabelFile
 
-    # organize individual label stats
-    medFile="medianByLabel_line${line}.csv"
-    echo "medFile: $medFile"
-    cat ../name "" > $medFile
-    for l in $labels;
-    do
-        echo $l
-        grep "^$l MEDIAN" $bylabelFile | sed "s/^$l MEDIAN //g" >> $medFile
-    done
+    ## organize individual label stats
+    #medFile="medianByLabel_line${line}.csv"
+    #echo "medFile: $medFile"
+    #cat ../name "" > $medFile
+    #for l in $labels;
+    #do
+    #    echo $l
+    #    grep "^$l MEDIAN" $bylabelFile | sed "s/^$l MEDIAN //g" >> $medFile
+    #    res=$(grep "^$l MEDIAN" $bylabelFile | sed "s/^$l MEDIAN //g")
+    #    if [ -z "$res" ];
+    #    then
+    #        #echo "empt res: $res"
+    #        echo " " >> $medFile
+    #    else
+    #        #echo "some res: $res"
+    #        echo "$res" >> $medFile
+    #    fi
+    #done
 
 done

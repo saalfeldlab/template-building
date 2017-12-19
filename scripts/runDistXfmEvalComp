@@ -110,14 +110,15 @@ function distanceTransforms {
     for im in `ls *Skeleton.tif_xfm.tif`
     do
         #echo "computing DT for $im"
-        dist_im="${im}_distXfm.tif"
+        dist_im="${im}_distXfm.tif_distXfm.tif" # Ugh, doubled up :(
         dist_im_path="$dstdir/$dist_im"
 
+        echo "dist im: $dist_im"
         if [ ! -f "$dist_im" ];
         then
             echo "distance transform of $im"
             echo $dist_im_path
-            # Grabs resolution from the input image
+            ## Grabs resolution from the input image
             runDistanceTransform "$dstdir/$im" "$dstdir/$dist_im"
         else
             echo "skipping DT for $im - already exists"
@@ -177,23 +178,29 @@ distanceTransforms
 
 pairwiseEval
 
-# Some brief analysis
-labellist=$(uniqueLabels $compartments)
-echo $labellist
-for label in $labellist;
-do
-    echo $label
-    combineDataByLine "_labelData_$label"
-done
+combineDataByLine "labelData"
 
-for hf in `ls combined__labelHist*line*csv`
-do
-    echo $hf
-    out=`echo $hf | sed 's/.csv/_stats.csv/g'`
-    echo $out
+# Organize statistics by label
+distXfmLabelStats
 
-    histStat $hf 0.01 0.05 0.1 0.25 0.5 0.75 0.9 0.95 0.99 > $out
-    plotHistograms $hf
-done
+
+## Some brief analysis
+#labellist=$(uniqueLabels $compartments)
+#echo $labellist
+#for label in $labellist;
+#do
+#    echo $label
+#    combineDataByLine "_labelData_$label"
+#done
+#
+#for hf in `ls combined__labelHist*line*csv`
+#do
+#    echo $hf
+#    out=`echo $hf | sed 's/.csv/_stats.csv/g'`
+#    echo $out
+#
+#    histStat $hf 0.01 0.05 0.1 0.25 0.5 0.75 0.9 0.95 0.99 > $out
+#    plotHistograms $hf
+#done
 
 cd ..

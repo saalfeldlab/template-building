@@ -1,4 +1,11 @@
 #!/bin/bash
+# Computes the pairwise distance between two skeletons
+# Takes as input:
+#   two skeletons 
+#   two distance transform images
+#   one compartment label image
+#
+
 
 PATTERN="^\(2016[0-9]\{4\}\_[0-9][0-9]_[A-Z][0-9]\).*"
 DELETEPATTERN="_Scope_.*"
@@ -23,9 +30,9 @@ echo "prefix2 $prefix2"
 # "Forward" direction
 echo "hist forward"
 h1="${dir}/${prefix1}-${prefix2}_${suffix}_labelData"
-compartmentImageData $h1 $dist_im1 $compartments $im2
+compartmentImageData $h1 $dist_im1 $compartments $im2 "false"
 
 # "Reverse" direction
 echo "hist reverse"
 h2="${dir}/${prefix2}-${prefix1}_${suffix}_labelData"
-compartmentImageData $h2 $dist_im2 $compartments $im1
+compartmentImageData $h2 $dist_im2 $compartments $im1 "false"
