@@ -1,0 +1,26 @@
+#!/bin/bash
+# concatCombinedLineData
+
+
+BASEDIR="/nrs/saalfeld/john/projects/flyChemStainAtlas/all_evals/"
+dir=$(pwd)
+echo $dir
+
+expname=$(echo $dir | sed -e "s:$BASEDIR::g" -e 's:/evalComp::g' -e s':/:,:g')
+echo $expname
+
+
+#awk -v en=$expname '$0="$en,$0"' combined_labelData_line1.csv > combined_labelData_line1_meta.csv
+#awk -v p="$expname" 'BEGIN {OFS = ","} { print p,$0 }' 10.csv > 10meta.csv
+
+for f in `ls combined*line[0-3].csv`
+do
+    echo $f
+    line=$(echo $f | sed 's:.*line\([0-3]\).csv:\1:g')
+    echo $line
+    echo " "
+    out=$(echo $f | sed 's/.csv/_meta.csv/g')
+    awk -v l="$line" -v p="$expname" 'BEGIN {OFS = ","} { print p,l,$0 }' $f > $out
+done
+
+cat *meta.csv > combined_labelData.csv
