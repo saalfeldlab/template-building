@@ -1,0 +1,67 @@
+#!/bin/bash
+
+waitScript="/groups/saalfeld/home/bogovicj/dev/template/template-building/scripts/waitForLSFJobs.pl"
+
+template="$1"
+shift
+doLocal="$1"
+
+#intervalOut=`parseNiiInterval $template`
+intervalOut=`parseNiiSize $template`
+
+isCmtk=""
+if [[ -d Registration ]];
+then
+    echo "is CMTK"
+    isCmtk="1"
+fi
+
+dir=`pwd`
+i=0
+for img in $@
+do
+    echo $img
+    xfmList=""
+     
+    if [[ -n $isCmtk ]];
+    then
+        dir=$(pwd) 
+        regXfms=`matchEvalDataCmtk $img $dir`
+    else
+        regXfms=`matchEvalData $img $dir`
+        regXfms="-i $regXfms"
+    fi
+    xfmList="$xfmList $regXfms"
+
+    # Is there a transform that correst for resolution?
+    # If so, add it
+    resXfm=$(findResolutionXfm $dir)
+    if [[ $resXfm ]]; then
+        xfmList="$xfmList -i $resXfm"
+    fi
+
+    
+    baseName=${img##*/}
+    job="img_xfm_$i.sh"
+    echo "#!/bin/bash" > $job
+    if [[ -n $isCmtk ]];
+    then
+        out=`echo $baseName | sed 's/.nii/_deformed.nii/g'`
+        xfmList=$(echo $xfmList | sed 's/.gz//g')
+        echo "$xfmList"
+        echo $out
+        echo "reformatx -o $out --floating $img $template $xfmList" >> $job
+    else
+        echo "$xfmList"
+        out=`echo $baseName | sed 's/.tif/_xfm.tif/g'`
+        echo $out
+        echo "renderTransformed $img $dir/$out $intervalOut $xfmList -q 4" >> $job
+    fi
+    chmod +x "$job"
+
+    ((i++))
+    #break
+
+done
+
+subJobs -o '-n 4' img_xfm*sh
