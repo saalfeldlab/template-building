@@ -1,0 +1,91 @@
+#!/bin/bash
+
+cmtkMATCH='.*,.*cmtk.*'
+antsRegDogMATCH='.*antsRegDog.+'
+
+
+template_list="F-antsFlip_lo F-cmtkFlip_lof JFRC2013 JFRCtemplate2010 TeforBrain_f"
+alg_list="antsRegDog antsRegOwl antsRegYang cmtkCOG cmtkCow cmtkHideo"
+
+
+function run_one_exp {
+    prefix=$(evalExpName)
+    echo "$prefix"
+
+    outname="timeMemStats.csv"
+
+
+    nThreads=1
+    if [[ $prefix =~ $cmtkMATCH ]]; then
+        echo "is cmtk"
+        nThreads="4"
+    elif [[ $prefix =~ $antsRegDogMATCH ]]; then
+        echo "antsRegDogN"
+        nThreads=$(echo $prefix | sed 's/.*antsRegDog//g')
+    else
+        echo "something else"
+    fi
+
+    echo "nThreads: $nThreads"
+    parseRunTimes tmp *sh.o*
+
+    #add prefix to each line
+    awk -v n="$nThreads" -v p="$prefix" 'BEGIN {OFS = ","} { print p,n,$0 }' tmp > $outname
+
+    rm tmp
+}
+
+dir=$(pwd)
+base_dir="/nrs/saalfeld/john/projects/flyChemStainAtlas/all_evals"
+cd $base_dir
+
+
+for template in $template_list
+do
+    echo "$template"
+    cd $template
+
+    for alg in $alg_list;
+    do
+        echo "  $alg"
+        if [[ -L $alg ]];then
+            l=$(readlink -f $alg)
+            echo "    is link to : $l"
+            cd $l
+        else
+            cd $alg
+        fi
+
+        run_one_exp
+        echo " "
+
+        cd ..
+    done
+
+    cd ..
+    echo " "
+done
+
+#antsList=$(ls */*/ants*_1.sh.o*)
+#cmtkList=$(ls */*/cmtk*_1.sh.o*)
+#
+##for f in $antsList
+#for f in $cmtkList $antsList
+#do
+#    d=${f%/*}
+#    echo $d
+#    if [[ -L $d ]];
+#    then
+#        echo "  is link, skipping" 
+#        continue
+#    fi
+#
+#    cd $d 
+#
+#    run_one_exp
+#
+#    cd $base_dir
+#done
+
+
+cd $dir
