@@ -8,6 +8,7 @@ DOJACOBIAN=""
 DONEURONSIM=""
 DOVISNEURONOVERLAY=""
 DOREPORT=""
+NEEDPREPROC=""
 
 CENTILES='0.01,0.05,0.1,0.25,0.5,0.75,0.9,0.95,0.99'
 INTERVAL="850,650,250" 
@@ -32,6 +33,7 @@ do
        ;;
     d) # distance transform
        DODISTXFM="1"
+       NEEDPREPROC="1"
        ;;
     e) # resolution for analysis
        ANALYSISRESOLUTION=$OPTARG
@@ -42,9 +44,11 @@ do
        ;;
     l) # distance transform labels
        DODISTXFMLABELS="1"
+       NEEDPREPROC="1"
        ;;
     n) # transform neuron 
        DOXFMNEURON="1"
+       NEEDPREPROC="1"
        ;;
     p) # prefix 
        PREFIX=$OPTARG
@@ -59,9 +63,11 @@ do
        ;;
     s) # neuron similarity 
        DONEURONSIM="1"
+       NEEDPREPROC="1"
        ;;
     v) # vis neuron overlay 
        DOVISNEURONOVERLAY="1"
+       NEEDPREPROC="1"
        echo "Found template: $TEMPLATE"
        ;;
     \?) # getopts issues an error message
@@ -91,25 +97,29 @@ then
 fi
 echo "TEMPLATE: $TEMPLATE"
 
-if [ -z $COMPARTMENTS ] && [ $DODISTXFMLABELS ];
+if [ -z $COMPARTMENTS ];
 then
-
-    # Try autodetecting these
-    echo "Trying to auto-detect labels or mask"
-    templatePath=$(readlink -f $TEMPLATE)
-    MASK=$(echo $templatePath | sed 's/.nii/_mask_0p5iso.nii/g')
-    COMPARTMENTS=$(echo $templatePath | sed 's/.nii/_labels_0p5iso.nii/g')
-
-    if [[ ! -f "$COMPARTMENTS" ]];
+    if [ $DODISTXFMLABELS ] || [ $DOJACOBIAN ];
     then
-        echo "Did not find $COMPARTMENTS, exiting"
-        exit 99
+        # Try autodetecting these
+        echo "Trying to auto-detect labels or mask"
+        templatePath=$(readlink -f $TEMPLATE)
+        MASK=$(echo $templatePath | sed 's/.nii/_mask_0p5iso.nii/g')
+        COMPARTMENTS=$(echo $templatePath | sed 's/.nii/_labels_0p5iso.nii/g')
+
+        if [[ ! -f "$COMPARTMENTS" ]];
+        then
+            echo "Did not find $COMPARTMENTS, exiting"
+            exit 99
+        fi
+        echo "Found $COMPARTMENTS"
     fi
-    echo "Found $COMPARTMENTS"
 fi
 
 ## THIS SCRIPT DETECTS IF ITS NECESSARY AND SKIPS IF SO
-postProcessReg $TEMPLATE $INTERVAL
+if [ $NEEDPREPROC ] ; then
+    postProcessReg $TEMPLATE $INTERVAL
+fi
 
 # DISTANCE TRANSFORM
 if [ $DODISTXFM ]; then
@@ -127,7 +137,7 @@ fi
 ## TRANSFORMING NEURON IMAGES
 if [ $DOJACOBIAN ]; then
     echo "Computing Jacobian"
-    evalJacobian $TEMPLATE
+    evalJacobian $TEMPLATE $COMPARTMENTS
 fi
 
 ## TRANSFORMING NEURON IMAGES

@@ -21,6 +21,8 @@ then
     exit 1
 fi
 
+compartments="$2"
+
 isCmtk=""
 if [[ -d Registration ]];
 then
@@ -33,13 +35,15 @@ mkdir -p jacobian
 dir=`pwd`
 i=0
 
+GZPATTERN="*.gz"
+
 while read neurImg
 do
     echo $neurImg
      
     if [[ -n $isCmtk ]];
     then
-        regXfms=`matchEvalDataCmtk --conv $neurImg $dir`
+        regXfms=`matchEvalDataCmtk $neurImg $dir`
         echo "regXfms: $regXfms"
         field=$regXfms
     else
@@ -48,45 +52,107 @@ do
     fi
     echo "field: $field"
 
-    if [[ $isCmtk ]];
-    then
-        echo "editing name for Cmtk"
-        #echo "field: $field"
-
-        tmp=$(dirname $field)
-        #echo "tmp $tmp"
-
-        #parentDir=${tmp##*/}
-        #echo "parentDir: $parentDir"
-
-        prefix=$(echo $tmp | sed "s/$PATTERN/\1/g")
-        #echo "prefix: $prefix"
-
-        out="${prefix}_xform"
-    else
-        baseName=${field##*/}
-        out=`echo $baseName | sed 's/.nii//g'`
-    fi
-    echo "out: $out"
-
-    hout="${out}jacobian_hist.csv"
-    houtlog="${out}logjacobian_hist.csv"
-    echo " "
-
-    # Make job 
-    job="jacobian/jacobian_$i.sh"
     if [[ -f "$dir/jacobian/${out}jacobian.nii" ]];
     then
         echo "skipping $out"
     else
-        echo "#!/bin/bash" > $job
-        echo "ANTSJacobian 3 $field $dir/jacobian/$out 0" >> $job
-        #echo "ANTSJacobian 3 $field $dir/jacobian/$out 1" >> $job
-        echo "gunzip -v $dir/jacobian/${out}jacobian.nii.gz" >> $job
-        #echo "gunzip -v $dir/jacobian/${out}logjacobian.nii.gz" >> $job
-    fi
 
-    echo "maskedImageHist $dir/jacobian/$hout $dir/jacobian/${out}jacobian.nii $HISTMIN $HISTMAX $HISTBINS $ref $HISTTHRESH true" >> $job
+        if [[ $isCmtk ]];
+        then
+            echo "editing name for Cmtk"
+            #echo "field: $field"
+
+            tmp=$(dirname $field)
+
+            prefix=$(echo $tmp | sed "s/$PATTERN/\1/g")
+            #echo "prefix: $prefix"
+
+            out="${prefix}_xform"
+            echo "out: $out"
+
+            echo "field: $field"
+            if [[ $field == *.gz ]];
+            then 
+                #echo "stripping off gz"
+                field=${field%.*}
+            fi
+            echo "field: $field"
+
+
+            jacimg="$dir/jacobian/${out}jacobian.nii"
+            jacimgzip="$dir/jacobian/${out}jacobian.nii.gz"
+            jacimgr="$dir/jacobian/${out}jacobian_resamp.nii"
+
+            job="jacobian/jacobian_$i.sh"
+            echo "#!/bin/bash" > $job
+            echo "reformatx -o $jacimg $ref -j $field" >> $job
+            echo "gunzip -v $jacimgzip" >> $job
+            echo "ResampleImageBySpacing 3 $jacimg $jacimgr 0.5 0.5 0.5 0 0 0" >> $job
+            echo " "
+
+        else
+            baseName=${field##*/}
+            out=`echo $baseName | sed 's/.nii//g'`
+            echo "out: $out"
+            job="jacobian/jacobian_$i.sh"
+
+            jacimg="$dir/jacobian/${out}jacobian.nii"
+            jacimgzip="$dir/jacobian/${out}jacobian.nii.gz"
+            jacimgr="$dir/jacobian/${out}jacobian_resamp.nii"
+
+            echo "#!/bin/bash" > $job
+            #echo "ANTSJacobian 3 $field $dir/jacobian/$out 0" >> $job
+            #echo "ANTSJacobian 3 $field $dir/jacobian/$out 1" >> $job # log jacobian
+            #echo "gunzip -v $dir/jacobian/${out}logjacobian.nii.gz" >> $job
+
+            echo "CreateJacobianDeterminantImage 3 $field $jacimg 0 0" >> $job
+
+            #echo "gunzip -v $jacimgzip" >> $job
+            # Transform to 0.5um isotropic
+            echo "ResampleImageBySpacing 3 $jacimg $jacimgr 0.5 0.5 0.5 0 0 0" >> $job
+        fi
+
+    fi
+    
+    #echo "out: $out"
+    #hout="${out}jacobian_hist.csv"
+    #houtlog="${out}logjacobian_hist.csv"
+    #echo " "
+
+    #jacimg="$dir/jacobian/${out}jacobian.nii"
+    #jacimgzip="$dir/jacobian/${out}jacobian.nii.gz"
+    #jacimgr="$dir/jacobian/${out}jacobian_resamp.nii"
+
+    ## Make job 
+    #job="jacobian/jacobian_$i.sh"
+    #if [[ -f "$dir/jacobian/${out}jacobian.nii" ]];
+    #then
+    #    echo "skipping $out"
+    #else
+    #    echo "#!/bin/bash" > $job
+    #    #echo "ANTSJacobian 3 $field $dir/jacobian/$out 0" >> $job
+    #    #echo "ANTSJacobian 3 $field $dir/jacobian/$out 1" >> $job # log jacobian
+    #    #echo "gunzip -v $dir/jacobian/${out}logjacobian.nii.gz" >> $job
+
+    #    if [ ! -f $jacimgr ];
+    #    then
+    #        echo "CreateJacobianDeterminantImage 3 $field $jacimg 0 0" >> $job
+
+    #        #echo "gunzip -v $jacimgzip" >> $job
+    #        # Transform to 0.5um isotropic
+    #        echo "ResampleImageBySpacing 3 $jacimg $jacimgr 0.5 0.5 0.5 0 0 0" >> $job
+    #    else
+    #        echo "skipping Jacobian for $field - already exists"
+    #    fi
+    #fi
+
+    #echo "maskedImageHist $dir/jacobian/$hout $dir/jacobian/${out}jacobian.nii $HISTMIN $HISTMAX $HISTBINS $ref $HISTTHRESH true" >> $job
+
+    # Dump data
+    data_out="$dir/jacobian/${out}_data.csv"
+    echo "compartmentImageData $data_out $jacimgr $compartments $compartments false" >> $job
+
+    # OLD STUFF
     #echo "maskedImageHist $dir/jacobian/$houtlog $dir/jacobian/${out}logjacobian.nii $LOGHISTMIN $LOGHISTMAX $HISTBINS $ref $HISTTHRESH true" >> $job
 
     #echo "histStat $dir/jacobian/$hout 0.01 0.05 0.1 0.25 0.5 0.75 0.9 0.95 0.99 >> $dir/jacobian/hist_stats.csv" >> $job
@@ -101,20 +167,20 @@ do
 done <$neuronList
 
 # submit the jobs and wait
-subJobs -w -o '-n 2' jacobian/jacobian*sh
+#subJobs -w -o '-n 2' jacobian/jacobian*sh
 
-cd jacobian
+#cd jacobian
 
-combineHistsByLine
-
-for hf in `ls combined_hist_line*csv`
-do
-    echo $hf
-    out=`echo $hf | sed 's/.csv/_stats.csv/g'`
-    echo $out
-
-    histStat $hf 0.01 0.05 0.1 0.25 0.5 0.75 0.9 0.95 0.99 > $out
-    plotHistograms $hf
-done
+#combineHistsByLine
+#
+#for hf in `ls combined_hist_line*csv`
+#do
+#    echo $hf
+#    out=`echo $hf | sed 's/.csv/_stats.csv/g'`
+#    echo $out
+#
+#    histStat $hf 0.01 0.05 0.1 0.25 0.5 0.75 0.9 0.95 0.99 > $out
+#    plotHistograms $hf
+#done
 
 cd ..
