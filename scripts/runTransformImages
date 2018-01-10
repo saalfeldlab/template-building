@@ -4,10 +4,15 @@ waitScript="/groups/saalfeld/home/bogovicj/dev/template/template-building/script
 
 template="$1"
 shift
-doLocal="$1"
+
+#shift
+#doLocal="$1"
 
 #intervalOut=`parseNiiInterval $template`
 intervalOut=`parseNiiSize $template`
+
+templateRes=$(parseNiiRes $template)
+echo "template resolution: $templateRes"
 
 isCmtk=""
 if [[ -d Registration ]];
@@ -40,22 +45,24 @@ do
         xfmList="$xfmList -i $resXfm"
     fi
 
-    
-    baseName=${img##*/}
+    name=${img##*/}
+    baseName=${name%.*}
+
     job="img_xfm_$i.sh"
     echo "#!/bin/bash" > $job
     if [[ -n $isCmtk ]];
     then
-        out=`echo $baseName | sed 's/.nii/_deformed.nii/g'`
+        #out=`echo $baseName | sed 's/.nii/_deformed.nii/g'`
+        out="${baseName}_deformed.nii"
         xfmList=$(echo $xfmList | sed 's/.gz//g')
         echo "$xfmList"
         echo $out
         echo "reformatx -o $out --floating $img $template $xfmList" >> $job
     else
         echo "$xfmList"
-        out=`echo $baseName | sed 's/.tif/_xfm.tif/g'`
-        echo $out
-        echo "renderTransformed $img $dir/$out $intervalOut $xfmList -q 4" >> $job
+        out="${baseName}_deformed.nii"
+        echo "out : $out"
+        echo "renderTransformed $img $dir/$out $intervalOut $xfmList -r $templateRes -q 4" >> $job
     fi
     chmod +x "$job"
 
