@@ -110,18 +110,23 @@ function distanceTransforms {
     for im in `ls *Skeleton.tif_xfm.tif`
     do
         #echo "computing DT for $im"
-        dist_im="${im}_distXfm.tif_distXfm.tif" # Ugh, doubled up :(
+        dist_im="${im}_distXfm.tif"
         dist_im_path="$dstdir/$dist_im"
 
+        # Some experiments of mine double-up the 'distXfm' suffix :(
+        # So detect anything with that suffix here for skipping
+        N=$(ls -U ${im}*distXfm.tif | wc -l)
+
         echo "dist im: $dist_im"
-        if [ ! -f "$dist_im" ];
+
+        if [[ $N > 0 ]];
         then
+            echo "skipping DT for $im - already exists"
+        else
             echo "distance transform of $im"
             echo $dist_im_path
             ## Grabs resolution from the input image
             runDistanceTransform "$dstdir/$im" "$dstdir/$dist_im"
-        else
-            echo "skipping DT for $im - already exists"
         fi
     done
 }
