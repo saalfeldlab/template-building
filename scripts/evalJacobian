@@ -85,7 +85,7 @@ do
 
             job="jacobian/jacobian_$i.sh"
             echo "#!/bin/bash" > $job
-            echo "reformatx -o $jacimg $ref -j $field" >> $job
+            echo "reformatx --jacobian-correct-global -o $jacimg $ref -j $field" >> $job
             echo "gunzip -v $jacimgzip" >> $job
             echo "ResampleImageBySpacing 3 $jacimg $jacimgr 0.5 0.5 0.5 0 0 0" >> $job
             echo " "
@@ -169,7 +169,7 @@ done <$neuronList
 # submit the jobs and wait
 #subJobs -w -o '-n 2' jacobian/jacobian*sh
 
-#cd jacobian
+cd jacobian
 
 #combineHistsByLine
 #
