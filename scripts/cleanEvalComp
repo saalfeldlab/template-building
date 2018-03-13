@@ -1,0 +1,9 @@
+#!/bin/bash
+
+rm -v evalComp/2*labelData.csv*
+rm -v evalComp/combined_labelData_line*csv
+rm -v evalComp/all_stats*txt
+rm -v evalComp/stats*txt
+rm -v evalComp/distDataCompEvalJob*
+rm -v evalComp/*log
+
