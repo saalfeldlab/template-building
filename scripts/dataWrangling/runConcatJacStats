@@ -13,11 +13,11 @@ dir_list="\
 
 
 function run {
-    dest_file="/nrs/saalfeld/john/projects/flyChemStainAtlas/all_evals/jacobianStats/jacobian_${log}stats.csv"
+    dest_file="/nrs/saalfeld/john/projects/flyChemStainAtlas/all_evals/jacobianStats/jacobian_${log}stats_wSubs.csv"
     echo "DEST FILE ${dest_file}"
 
     # Header line
-    echo "TEMPLATE,ALG,LINE,LABEL,STAT,VALUE" > ${dest_file}
+    echo "TEMPLATE,ALG,SUBJECT,LINE,LABEL,STAT,VALUE" > ${dest_file}
 
     for d in $dir_list;
     do
@@ -39,19 +39,21 @@ function run {
         for f in `ls -U ${BASEDIR}/${d}/jacobian/*_${log}stats.txt `
         do
             line=$(neuronIdx $f)
+            sub=$(basename $f | sed 's/\(.*\)_Scope_.*/\1/g')
 
             #echo $f
             #echo $line
+            #echo $sub
 
             ## grep keeps lines starting with 'all' or label number
             ##     (gets rid of first line 'group by labels' present for all_stats)
             # use a label less than zero (-1) to indicate stat is over all labels
-            grep '^[a,0-9]' $f | sed -e 's/ /,/g'  -e 's/all/-1/g' -e "s/^/${prefix},${line},/g" >> ${dest_file}
+            grep '^[a,0-9]' $f | sed -e 's/Dog8/Dog/g' -e 's/ /,/g'  -e 's/all/-1/g' -e "s/^/${prefix},${sub},${line},/g" >> ${dest_file}
+
+            #echo " "
         done
 
-        echo " "
     done
-    echo " "
     echo " "
 }
 
