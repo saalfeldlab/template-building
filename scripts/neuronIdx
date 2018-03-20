@@ -12,5 +12,5 @@ prefix1=`echo "$name1" | sed "s/$PATTERN/\1/g"`
 
 line=`grep -n $prefix1 $PAIRLIST`
 res=${line%:*}
-echo $res
-
+res0=$(($res-1))
+echo $res0
