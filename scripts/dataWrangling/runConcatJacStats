@@ -1,0 +1,73 @@
+#!/bin/bash
+
+BASEDIR="/nrs/saalfeld/john/projects/flyChemStainAtlas/all_evals"
+
+dir_list="\
+    JFRCtemplate2010/antsRegDog JFRCtemplate2010/antsRegOwl JFRCtemplate2010/antsRegYang JFRCtemplate2010/cmtkCOG JFRCtemplate2010/cmtkCow JFRCtemplate2010/cmtkHideo \
+    JFRC2013_lo/antsRegDog JFRC2013_lo/antsRegOwl JFRC2013_lo/antsRegYang JFRC2013_lo/cmtkCOG JFRC2013_lo/cmtkCow JFRC2013_lo/cmtkHideo \
+    TeforBrain_f/antsRegDog TeforBrain_f/antsRegOwl TeforBrain_f/antsRegYang TeforBrain_f/cmtkCOG TeforBrain_f/cmtkCow TeforBrain_f/cmtkHideo \
+    F-antsFlip_lo/antsRegDog F-antsFlip_lo/antsRegOwl F-antsFlip_lo/antsRegYang F-antsFlip_lo/cmtkCOG F-antsFlip_lo/cmtkCow F-antsFlip_lo/cmtkHideo \
+    F-cmtkFlip_lof/antsRegDog F-cmtkFlip_lof/antsRegOwl F-cmtkFlip_lof/antsRegYang F-cmtkFlip_lof/cmtkCOG F-cmtkFlip_lof/cmtkCow F-cmtkFlip_lof/cmtkHideo \
+    indvs/C3_def/antsRegDog8 indvs/C3_def/antsRegOwl indvs/C3_def/antsRegYang indvs/C3_def/cmtkCOG indvs/C3_def/cmtkCow indvs/C3_def/cmtkHideo \
+    indvs/D1_def/antsRegDog8 indvs/D1_def/antsRegOwl indvs/D1_def/antsRegYang indvs/D1_def/cmtkCOG indvs/D1_def/cmtkCow indvs/D1_def/cmtkHideo"
+
+
+function run {
+    dest_file="/nrs/saalfeld/john/projects/flyChemStainAtlas/all_evals/jacobianStats/jacobian_${log}stats.csv"
+    echo "DEST FILE ${dest_file}"
+
+    # Header line
+    echo "TEMPLATE,ALG,LINE,LABEL,STAT,VALUE" > ${dest_file}
+
+    for d in $dir_list;
+    do
+        echo $d
+        prefix=$(echo $d | sed -e 's:indvs/::g' -e 's:/:,:g')
+        echo "${prefix}"
+
+        N=$(ls -U ${BASEDIR}/${d}/jacobian/*_${log}stats.txt | wc -l)
+        echo "N: $N"
+
+        # expect 40 files:
+        #   two per subject ( one for all labels, one with stats split by label
+        if [[ $N != 40 ]]; 
+        then
+            echo "Expect exactly 20 outputs, but found $N, skipping"
+            continue
+        fi
+
+        for f in `ls -U ${BASEDIR}/${d}/jacobian/*_${log}stats.txt `
+        do
+            line=$(neuronIdx $f)
+
+            #echo $f
+            #echo $line
+
+            ## grep keeps lines starting with 'all' or label number
+            ##     (gets rid of first line 'group by labels' present for all_stats)
+            # use a label less than zero (-1) to indicate stat is over all labels
+            grep '^[a,0-9]' $f | sed -e 's/ /,/g'  -e 's/all/-1/g' -e "s/^/${prefix},${line},/g" >> ${dest_file}
+        done
+
+        echo " "
+    done
+    echo " "
+    echo " "
+}
+
+# the log variable should contain "log" if we want log stats
+# or empty if we want raw stats
+#
+# Run once with log
+
+log="log"
+echo "RUN LOG"
+run
+
+
+# Run again with raw
+
+log=""
+echo "RUN RAW"
+run
+

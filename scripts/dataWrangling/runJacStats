@@ -1,0 +1,66 @@
+#!/bin/bash
+
+BASEDIR="/nrs/saalfeld/john/projects/flyChemStainAtlas/all_evals"
+
+dir_list="\
+    JFRCtemplate2010/antsRegDog JFRCtemplate2010/antsRegOwl JFRCtemplate2010/antsRegYang JFRCtemplate2010/cmtkCOG JFRCtemplate2010/cmtkCow JFRCtemplate2010/cmtkHideo \
+    JFRC2013_lo/antsRegDog JFRC2013_lo/antsRegOwl JFRC2013_lo/antsRegYang JFRC2013_lo/cmtkCOG JFRC2013_lo/cmtkCow JFRC2013_lo/cmtkHideo \
+    TeforBrain_f/antsRegDog TeforBrain_f/antsRegOwl TeforBrain_f/antsRegYang TeforBrain_f/cmtkCOG TeforBrain_f/cmtkCow TeforBrain_f/cmtkHideo \
+    F-antsFlip_lo/antsRegDog F-antsFlip_lo/antsRegOwl F-antsFlip_lo/antsRegYang F-antsFlip_lo/cmtkCOG F-antsFlip_lo/cmtkCow F-antsFlip_lo/cmtkHideo \
+    F-cmtkFlip_lof/antsRegDog F-cmtkFlip_lof/antsRegOwl F-cmtkFlip_lof/antsRegYang F-cmtkFlip_lof/cmtkCOG F-cmtkFlip_lof/cmtkCow F-cmtkFlip_lof/cmtkHideo \
+    indvs/C3_def/antsRegDog8 indvs/C3_def/antsRegOwl indvs/C3_def/antsRegYang indvs/C3_def/cmtkCOG indvs/C3_def/cmtkCow indvs/C3_def/cmtkHideo \
+    indvs/D1_def/antsRegDog8 indvs/D1_def/antsRegOwl indvs/D1_def/antsRegYang indvs/D1_def/cmtkCOG indvs/D1_def/cmtkCow indvs/D1_def/cmtkHideo"
+
+dir=$(pwd)
+
+theScript="/groups/saalfeld/home/bogovicj/dev/template/template-building/scripts/jacLabelStats"
+
+
+dest_file="/nrs/saalfeld/john/projects/flyChemStainAtlas/all_evals/jacobianStats/all_jacdata.csv"
+echo "DEST FILE $dest_file"
+
+for d in $dir_list;
+do
+    cd $dir
+
+    echo $d
+    prefix=$(echo $d | sed -e 's:indvs/::g' -e 's:/:,:g')
+    echo "${prefix}"
+
+    pre=$(echo $d | sed -e 's:indvs/::g' -e 's:/:-:g')
+    echo "${pre}"
+
+
+    N=$(ls -U ${BASEDIR}/${d}/jacobian/*data.csv | wc -l)
+    echo "N: $N"
+
+    if [[ $N != 20 ]];
+    then
+        echo "Expect exactly 20 outputs, but found $N, skipping"
+        continue
+    fi
+    
+    cd ${BASEDIR}/${d}/jacobian
+
+    #statJob="statJob_${pre}.sh"
+    #echo "#!/bin/bash" > $statJob 
+    #echo "jacLabelStats" >> $statJob 
+    #chmod +x $statJob
+
+    # NOTE, IDENTICAL TO THE ABOVE
+    # IN GENERAL 'jacLabelStats' should produce 
+    # both log and "raw" stats
+    logstatJob="logstatJob_${pre}.sh"
+    echo "#!/bin/bash" > $logstatJob 
+    echo "jacLabelStats" >> $logstatJob 
+    chmod +x $logstatJob
+
+    #subJobs -o '-n 2' $statJob    
+    subJobs -o '-n 2' $logstatJob
+
+    #break
+    sleep 1
+
+    echo " "
+done
+

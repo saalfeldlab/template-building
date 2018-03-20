@@ -1,0 +1,52 @@
+#!/bin/bash
+
+BASEDIR="/nrs/saalfeld/john/projects/flyChemStainAtlas/all_evals"
+
+dir_list="\
+    JFRCtemplate2010/antsRegDog JFRCtemplate2010/antsRegOwl JFRCtemplate2010/antsRegYang JFRCtemplate2010/cmtkCOG JFRCtemplate2010/cmtkCow JFRCtemplate2010/cmtkHideo \
+    JFRC2013_lo/antsRegDog JFRC2013_lo/antsRegOwl JFRC2013_lo/antsRegYang JFRC2013_lo/cmtkCOG JFRC2013_lo/cmtkCow JFRC2013_lo/cmtkHideo \
+    TeforBrain_f/antsRegDog TeforBrain_f/antsRegOwl TeforBrain_f/antsRegYang TeforBrain_f/cmtkCOG TeforBrain_f/cmtkCow TeforBrain_f/cmtkHideo \
+    F-antsFlip_lo/antsRegDog F-antsFlip_lo/antsRegOwl F-antsFlip_lo/antsRegYang F-antsFlip_lo/cmtkCOG F-antsFlip_lo/cmtkCow F-antsFlip_lo/cmtkHideo \
+    F-cmtkFlip_lof/antsRegDog F-cmtkFlip_lof/antsRegOwl F-cmtkFlip_lof/antsRegYang F-cmtkFlip_lof/cmtkCOG F-cmtkFlip_lof/cmtkCow F-cmtkFlip_lof/cmtkHideo \
+    indvs/C3_def/antsRegDog8 indvs/C3_def/antsRegOwl indvs/C3_def/antsRegYang indvs/C3_def/cmtkCOG indvs/C3_def/cmtkCow indvs/C3_def/cmtkHideo \
+    indvs/D1_def/antsRegDog8 indvs/D1_def/antsRegOwl indvs/D1_def/antsRegYang indvs/D1_def/cmtkCOG indvs/D1_def/cmtkCow indvs/D1_def/cmtkHideo"
+
+
+#line=3
+
+line_list="0 1 2 3"
+
+for line in $line_list
+do
+    dest_file="/nrs/saalfeld/john/projects/flyChemStainAtlas/all_evals/distanceData/line${line}_data.csv"
+    echo "DEST FILE $dest_file"
+
+    for d in $dir_list;
+    do
+        echo $d
+        prefix=$(echo $d | sed -e 's:indvs/::g' -e 's:/:,:g')
+        echo "${line},${prefix}"
+
+        f="${BASEDIR}/${d}/evalComp/combined_labelData_line${line}.csv"
+        if [[ ! -f $f ]];
+        then
+            echo "FILE does not exist:"
+            echo "  $f"
+            continue
+        fi
+        
+        # For testing
+        #head $f | sed "s/^/${line},${prefix},/g" >> $dest_file
+
+        sed "s/^/${line},${prefix},/g" $f >> $dest_file
+
+        echo " "
+    done
+
+    echo " "
+    echo " "
+    echo " "
+    echo " "
+    echo " "
+
+done
