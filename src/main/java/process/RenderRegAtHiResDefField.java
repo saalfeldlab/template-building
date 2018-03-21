@@ -24,16 +24,11 @@ import net.imglib2.RandomAccessible;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.converter.Converter;
 import net.imglib2.converter.Converters;
-import net.imglib2.exception.ImgLibException;
 import net.imglib2.img.Img;
 import net.imglib2.img.display.imagej.ImageJFunctions;
-import net.imglib2.img.imageplus.ImagePlusImgs;
-import net.imglib2.img.imageplus.ShortImagePlus;
-import net.imglib2.interpolation.randomaccess.NLinearInterpolatorFactory;
 import net.imglib2.realtransform.AffineTransform;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.realtransform.InvertibleRealTransformSequence;
-import net.imglib2.realtransform.RealViews;
 import net.imglib2.realtransform.ants.ANTSDeformationField;
 import net.imglib2.realtransform.ants.ANTSLoadAffine;
 import net.imglib2.type.numeric.NumericType;
@@ -41,8 +36,8 @@ import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.numeric.integer.ShortType;
 import net.imglib2.type.numeric.real.FloatType;
 import net.imglib2.view.IntervalView;
-import net.imglib2.view.RandomAccessibleOnRealRandomAccessible;
 import net.imglib2.view.Views;
+import transforms.AffineHelper;
 
 public class RenderRegAtHiResDefField
 {
@@ -59,8 +54,19 @@ public class RenderRegAtHiResDefField
 
 		// TODO expose this as a parameter
 		double[] factors = new double[]{ 8, 8, 4 };
+		double[] translation = new double[]{ -50, -50, -50 };
 
-		
+		// upsample factors that make the final volume isotropic:
+		// original data are at [ 0.1882689 x 0.1882689 x 0.38 ]um
+		double[] factors2Iso = new double[]{ 1.0, 1.0, 2.018389654 };
+
+		// TODO expose as parameter
+		// This is necessary for now until I can reliably 
+		// determine the interval after transformation to canonical orientation
+		long[] renderMin = new long[]{ -700,  700,  250 };
+		long[] renderMax = new long[]{ 3200, 2600, 1500 };
+		FinalInterval renderInterval = new FinalInterval( renderMin, renderMax );
+
 		FinalInterval destInterval =  null;
 		if( outSz.contains( ":" ))
 		{
@@ -78,6 +84,25 @@ public class RenderRegAtHiResDefField
 			destInterval = new FinalInterval( outputSize );	
 		}
 		
+		String toNormalF = "";
+		AffineTransform3D toNormal = null;
+		if( args.length >= 7 )
+		{
+			toNormalF = args[6];
+			System.out.println("tonormal: " + toNormalF );
+			AffineTransform3D tmp = AffineHelper.to3D( AffineImglib2IO.readXfm( 3, new File( toNormalF )));
+			toNormal = AffineHelper.centeredRotation( tmp , destInterval );
+		}
+
+		AffineTransform toIso = new AffineTransform( 3 );
+		toIso.set( factors2Iso[ 0 ], 0, 0 );
+		toIso.set( factors2Iso[ 1 ], 1, 1 );
+		toIso.set( factors2Iso[ 2 ], 2, 2 );
+
+		AffineTransform up3dNoShift = new AffineTransform( 3 );
+		up3dNoShift.set( factors[ 0 ], 0, 0 );
+		up3dNoShift.set( factors[ 1 ], 1, 1 );
+		up3dNoShift.set( factors[ 2 ], 2, 2 );
 
 		AffineTransform up3d = new AffineTransform( 3 );
 		up3d.set( factors[ 0 ], 0, 0 );
@@ -86,6 +111,11 @@ public class RenderRegAtHiResDefField
 		up3d.set( 4, 0, 3 );
 		up3d.set( 4, 1, 3 );
 		up3d.set( 2, 2, 3 );
+
+		AffineTransform translate = new AffineTransform( 3 );
+		translate.set( translation[ 0 ], 0, 3 );
+		translate.set( translation[ 1 ], 1, 3 );
+		translate.set( translation[ 2 ], 2, 3 );
 
 		AffineTransform down3d = up3d.inverse();
 
@@ -97,10 +127,10 @@ public class RenderRegAtHiResDefField
 		{
 			System.out.println( "flip affine" );
 			AffineTransform flipAffine = AffineImglib2IO.readXfm( 3, new File( flipF ) );
-			totalAffine = flipAffine.inverse();
-		} else
+			totalAffine = flipAffine.inverse().copy();
+		}
+		else
 		{
-			System.out.println( "raw down" );
 			totalAffine = down3d.copy();
 		}
 
@@ -109,6 +139,7 @@ public class RenderRegAtHiResDefField
 		if ( affineF != null )
 		{
 			affine = ANTSLoadAffine.loadAffine( affineF );
+			affine.concatenate( translate );
 		}
 		totalAffine.preConcatenate( affine.inverse() );
 
@@ -133,16 +164,21 @@ public class RenderRegAtHiResDefField
 		if ( df != null )
 			totalXfm.add( df );
 
-		totalXfm.add( up3d );
+		totalXfm.add( up3dNoShift );
+		if( toNormal != null )
+		{
+			totalXfm.add( toNormal );
+		}
+		totalXfm.add( toIso );
 
 		// LOAD THE IMAGE
 		ImagePlus bip = IJ.openImage( imF );
 		Img< ShortType > baseImg = ImageJFunctions.wrap( bip );
 
-//		IntervalView< FloatType > imgHiXfm =
+//		IntervalView< ShortType > imgHiXfm =
 //			Views.interval( Views.raster( 
 //					RealViews.transform(
-//							Views.interpolate( Views.extendZero( baseImg ), new NLinearInterpolatorFactory<FloatType>() ),
+//							Views.interpolate( Views.extendZero( baseImg ), new NLinearInterpolatorFactory<ShortType>() ),
 //							totalXfm )),
 //					destInterval );
 		
@@ -152,35 +188,37 @@ public class RenderRegAtHiResDefField
 //		System.out.println("saving to: " + outF );
 //		IJ.save( ImageJFunctions.wrap( imgHiXfm, "imgLoXfm" ), outF );
 		
-		System.out.println("transforming");
-		RandomAccessibleOnRealRandomAccessible< ShortType > imgHiXfm = Views.raster( 
-				RealViews.transform(
-						Views.interpolate( Views.extendZero( baseImg ), new NLinearInterpolatorFactory<ShortType>() ),
-						totalXfm ));
 		
-		System.out.println("allocating");
-		ShortImagePlus< ShortType > out = ImagePlusImgs.shorts( destInterval.dimension( 0 ),
-				destInterval.dimension( 1 ),
-				destInterval.dimension( 2 ));
-		
-		IntervalView< ShortType > outTranslated = Views.translate( out,
-				destInterval.min( 0 ),
-				destInterval.min( 1 ),
-				destInterval.min( 2 ));
-		
-		System.out.println("copying with 8 threads");
-		render( imgHiXfm, outTranslated, 8 );
 
-		try
-		{
-			System.out.println("saving to: " + outF );
-			IJ.save( out.getImagePlus(), outF );
-		}
-		catch ( ImgLibException e )
-		{
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
+//		System.out.println("transforming");
+//		RandomAccessibleOnRealRandomAccessible< ShortType > imgHiXfm = Views.raster( 
+//				RealViews.transform(
+//						Views.interpolate( Views.extendZero( baseImg ), new NLinearInterpolatorFactory<ShortType>() ),
+//						totalXfm ));
+//		
+//		System.out.println("allocating");
+//		ShortImagePlus< ShortType > out = ImagePlusImgs.shorts( destInterval.dimension( 0 ),
+//				destInterval.dimension( 1 ),
+//				destInterval.dimension( 2 ));
+//		
+//		IntervalView< ShortType > outTranslated = Views.translate( out,
+//				destInterval.min( 0 ),
+//				destInterval.min( 1 ),
+//				destInterval.min( 2 ));
+//		
+//		System.out.println("copying with 8 threads");
+//		render( imgHiXfm, outTranslated, 8 );
+//
+//		try
+//		{
+//			System.out.println("saving to: " + outF );
+//			IJ.save( out.getImagePlus(), outF );
+//		}
+//		catch ( ImgLibException e )
+//		{
+//			// TODO Auto-generated catch block
+//			e.printStackTrace();
+//		}
 	}
 	
 	public static < T extends NumericType<T> > RandomAccessibleInterval<T> copyToImageStack( 
@@ -208,11 +246,12 @@ public class RenderRegAtHiResDefField
 		final long[] splitPoints = new long[ nThreads + 1 ];
 		long N = target.dimension( dim2split );
 		long del = ( long )( N / nThreads ); 
-		splitPoints[ 0 ] = 0;
-		splitPoints[ nThreads ] = target.dimension( dim2split );
+		splitPoints[ 0 ] = target.min( dim2split );
+		splitPoints[ nThreads ] = target.max( dim2split ) + 1;
 		for( int i = 1; i < nThreads; i++ )
 		{
 			splitPoints[ i ] = splitPoints[ i - 1 ] + del;
+			System.out.println( "splitPoints[i]: " + splitPoints[ i ] ); 
 		}
 //		System.out.println( "dim2split: " + dim2split );
 //		System.out.println( "split points: " + XfmUtils.printArray( splitPoints ));
@@ -295,53 +334,5 @@ public class RenderRegAtHiResDefField
 		copyToImageStack( src, tgt, tgt, nThreads );
 	}
 
-	@SuppressWarnings("unchecked")
-	public static <T extends RealType<T>> RandomAccessibleInterval<T> defField3dUp( 
-			RandomAccessibleInterval<T> defField, 
-			double[] factors )
-	{
-		T t = Views.flatIterable( defField ).firstElement().copy();
-
-		Converter< T, T > convX = new Converter< T, T >()
-		{
-			@Override
-			public void convert( T input, T output )
-			{
-				output.set( input );
-				output.mul( factors[ 0 ] );
-			}
-		};
-
-		Converter< T, T > convY = new Converter< T, T >()
-		{
-			@Override
-			public void convert( T input, T output )
-			{
-				output.set( input );
-				output.mul( factors[ 1 ] );
-			}
-		};
-
-		Converter< T, T > convZ = new Converter< T, T >()
-		{
-			@Override
-			public void convert( T input, T output )
-			{
-				output.set( input );
-				output.mul( factors[ 2 ] );
-			}
-		};
-
-		RandomAccessibleInterval< T > xpos = Converters.convert( 
-					Views.hyperSlice( defField, 3, 0 ), convX, t.copy());
-
-		RandomAccessibleInterval< T > ypos = Converters.convert( 
-				Views.hyperSlice( defField, 3, 1 ), convY, t.copy());
-
-		RandomAccessibleInterval< T > zpos = Converters.convert( 
-				Views.hyperSlice( defField, 3, 2 ), convZ, t.copy());
-
-		return Views.stack( xpos, ypos, zpos );
-	}
 
 }
