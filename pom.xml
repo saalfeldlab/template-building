@@ -77,11 +77,6 @@
 		<version>5.2.4</version>
 	</dependency>
 	<dependency>
-		<groupId>saalfeldlab</groupId>
-		<artifactId>intensity-transform</artifactId>
-		<version>0.0.1-SNAPSHOT</version>
-	</dependency>
-	<dependency>
 		<groupId>org.jfree</groupId>
 		<artifactId>jfreechart</artifactId>
 	</dependency>
@@ -92,11 +87,6 @@
 	<dependency>
 		<groupId>sc.fiji</groupId>
 		<artifactId>IO_</artifactId>
-	</dependency>
-	<dependency>
-		<groupId>net.imglib2</groupId>
-		<artifactId>imglib2-realtransform</artifactId>
-		<version>2.0.0-beta-38-SNAPSHOT</version>
 	</dependency>
 	<dependency>
 		<groupId>sc.fiji</groupId>
@@ -112,6 +102,16 @@
 		<groupId>org.json</groupId>
 		<artifactId>json</artifactId>
 		<version>20151123</version>
+	</dependency>
+	<dependency>
+		<groupId>net.imglib2</groupId>
+		<artifactId>imglib2-realtransform</artifactId>
+		<version>2.0.0-gamma-1-SNAPSHOT</version>
+	</dependency>
+	<dependency>
+		<groupId>sc.fiji</groupId>
+		<artifactId>Simple_Neurite_Tracer</artifactId>
+		<version>3.1.0</version>
 	</dependency>
   </dependencies>
 </project>
