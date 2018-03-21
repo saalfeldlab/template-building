@@ -1,5 +1,7 @@
 package transforms;
 
+import java.io.IOException;
+
 import ij.IJ;
 import net.imglib2.Cursor;
 import net.imglib2.RealPoint;
@@ -57,7 +59,14 @@ public class EstimateBoundingBoxMask
 			else
 				System.out.println( "loading transform from " + args[ i ]);
 
-			InvertibleRealTransform xfm = RenderTransformed.loadTransform( args[ i ], invert );
+			InvertibleRealTransform xfm = null;
+			try 
+			{
+				xfm = RenderTransformed.loadTransform( args[ i ], invert );
+			} 
+			catch (IOException e) {
+				e.printStackTrace();
+			}
 
 			if( xfm == null )
 			{
