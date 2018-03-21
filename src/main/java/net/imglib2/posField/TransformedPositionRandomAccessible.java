@@ -7,8 +7,8 @@ import net.imglib2.Sampler;
 import net.imglib2.realtransform.RealTransform;
 import net.imglib2.type.numeric.RealType;
 
-public class TransformedPositionRandomAccessible<T extends RealType< T >>
-	extends PositionRandomAccessible< T >
+public class TransformedPositionRandomAccessible<T extends RealType< T >, X extends RealTransform >
+	extends PositionRandomAccessible< T, X >
 {
 	private final RealTransform xfm;
 
@@ -26,7 +26,7 @@ public class TransformedPositionRandomAccessible<T extends RealType< T >>
 		RealPoint ptxfm;
 		public TransformedPositionRandomAccess( int nd, RealTransform xfm )
 		{
-			super( nd );
+			super( nd, xfm, -1 ); // -1 defaults to using the last dimension
 			this.xfm = xfm;
 			pt = new RealPoint( xfm.numTargetDimensions() );
 			ptxfm = new RealPoint( xfm.numTargetDimensions() );

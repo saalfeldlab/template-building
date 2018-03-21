@@ -106,7 +106,7 @@
 	<dependency>
 		<groupId>net.imglib2</groupId>
 		<artifactId>imglib2-realtransform</artifactId>
-		<version>2.0.0-gamma-1-SNAPSHOT</version>
+		<version>2.0.0-beta-39-DF-SNAPSHOT</version>
 	</dependency>
 	<dependency>
 		<groupId>sc.fiji</groupId>

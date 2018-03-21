@@ -26,7 +26,7 @@ public class GeneratePositionField
 			dim = Integer.parseInt( args[ 2 ]);
 
 		FinalInterval interval = RenderTransformed.parseInterval( intervalArg );
-		PositionRandomAccessible< FloatType > pra = new PositionRandomAccessible< FloatType >( 
+		PositionRandomAccessible< FloatType, ? > pra = new PositionRandomAccessible<>( 
 				interval.numDimensions(), new FloatType() );
 
 //		PositionRandomAccessible< ShortType > pra = new PositionRandomAccessible< ShortType >( 
