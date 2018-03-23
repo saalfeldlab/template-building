@@ -10,15 +10,14 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
 import net.imglib2.realtransform.InvertibleRealTransform;
 import net.imglib2.realtransform.InvertibleRealTransformSequence;
-import net.imglib2.realtransform.RealTransform;
 import process.RenderTransformed;
 import sc.fiji.analyzeSkeleton.SwcIO;
 import sc.fiji.analyzeSkeleton.io.SWCPoint;
 import tracing.SNT;
-import util.RenderUtil;
 
 
 public class TransformSwc
@@ -33,6 +32,17 @@ public class TransformSwc
 	{
 		String ptFlist = args[ 0 ];
 		String out = args[ 1 ];
+		
+		String[] list = null;
+		if( ptFlist.indexOf( ',' ) < 0 )
+		{
+			list = new String[]{ ptFlist };
+		}
+		else
+		{
+			list = ptFlist.split( "," );
+		}
+		System.out.println( Arrays.toString( list ));
 
 		File testOutDir = new File( out );
 		boolean isOutDir = testOutDir.isDirectory();
@@ -86,18 +96,6 @@ public class TransformSwc
 			totalXfm.add( xfm );
 			i++;
 		}
-
-		
-		String[] list = null;
-		if( ptFlist.indexOf( ',' ) < 0 )
-		{
-			list = new String[]{ ptFlist };
-		}
-		else
-		{
-			list = ptFlist.split( "," );
-		}
-		System.out.println( Arrays.toString( list ));
 		
 		for ( String ptF : list )
 		{
@@ -128,7 +126,7 @@ public class TransformSwc
 		}
 	}
 
-	public static void flushSWCPoints(final ArrayList<SWCPoint> swcPoints, final PrintWriter pw) {
+	public static void flushSWCPoints(final List<SWCPoint> swcPoints, final PrintWriter pw) {
 		pw.println("# Exported from \"Simple Neurite Tracer\" version " + SNT.VERSION + " on "
 				+ LocalDateTime.of(LocalDate.now(), LocalTime.now()));
 		pw.println("# https://imagej.net/Simple_Neurite_Tracer");
