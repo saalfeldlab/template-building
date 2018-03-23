@@ -3,25 +3,22 @@ package evaluation;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 
-import org.apache.commons.io.output.ByteArrayOutputStream;
-
 import net.imglib2.realtransform.InvertibleRealTransform;
 import net.imglib2.realtransform.InvertibleRealTransformSequence;
+import net.imglib2.realtransform.RealTransform;
 import process.RenderTransformed;
+import sc.fiji.analyzeSkeleton.SwcIO;
+import sc.fiji.analyzeSkeleton.io.SWCPoint;
 import tracing.SNT;
-import tracing.SWCPoint;
-
+import util.RenderUtil;
 
 
 public class TransformSwc
@@ -44,6 +41,8 @@ public class TransformSwc
 		
 		// Concatenate all the transforms
 		InvertibleRealTransformSequence totalXfm = new InvertibleRealTransformSequence();
+
+		int nThreads = 1;
 		
 		int i = 2;
 		while( i < args.length )
@@ -53,6 +52,15 @@ public class TransformSwc
 			{
 				invert = true;
 				i++;
+			}
+
+			if( args[ i ].equals( "-q" ))
+			{
+				i++;
+				nThreads = Integer.parseInt( args[ i ] );
+				i++;
+				System.out.println( "argument specifies " + nThreads + " threads" );
+				continue;
 			}
 			
 			if( invert )
@@ -64,7 +72,7 @@ public class TransformSwc
 			try
 			{
 				xfm = RenderTransformed.loadTransform( args[ i ], invert );
-			} catch (IOException e)
+			} catch ( IOException e )
 			{
 				e.printStackTrace();
 			}
@@ -74,10 +82,11 @@ public class TransformSwc
 				System.err.println("  failed to load transform ");
 				System.exit( 1 );
 			}
-			
+
 			totalXfm.add( xfm );
 			i++;
 		}
+
 		
 		String[] list = null;
 		if( ptFlist.indexOf( ',' ) < 0 )
@@ -104,8 +113,7 @@ public class TransformSwc
 				fileOut = new File( out );
 			}
 		
-			ArrayList< SWCPoint > res = transformSWC( totalXfm, loadSWC( fileIn ));
-			
+			ArrayList< SWCPoint > res = transformSWC( totalXfm, SwcIO.loadSWC( fileIn ) );
 			System.out.println( "Exporting to " + fileOut );
 			try
 			{
@@ -134,6 +142,7 @@ public class TransformSwc
 		
 		for (final SWCPoint p : swcPoints)
 			p.println(pw);
+
 		pw.close();
 	}
 
@@ -146,7 +155,7 @@ public class TransformSwc
 	
 	public static SWCPoint transform( InvertibleRealTransform xfm, SWCPoint pt )
 	{
-		StringPrintWriter spw = new StringPrintWriter();
+		SwcIO.StringPrintWriter spw = new SwcIO.StringPrintWriter();
 		//System.out.println( pt.toString() );
 		pt.println( spw );
 		
@@ -159,79 +168,17 @@ public class TransformSwc
 		
 		double[] p = new double[] { 
 				pt.getPointInImage().x,
-				pt.getPointInImage().x,
+				pt.getPointInImage().y,
 				pt.getPointInImage().z };
-		
+
 		double[] pxfm = new double[ 3 ];
 		xfm.apply( p, pxfm );
-		
+
 		return new SWCPoint( 
 				id, type, 
 				pxfm[ 0 ], pxfm[ 1 ], pxfm[ 2 ], 
 				radius, previous );
 	}
 	
-	public static ArrayList<SWCPoint> loadSWC( File f )
-	{
-		ArrayList<SWCPoint> out = new ArrayList<SWCPoint>();
-		
-		try
-		{
-			Files.lines( Paths.get( f.getCanonicalPath() )).forEach( 
-					l -> line2point( out, l ));
-		} 
-		catch ( IOException e )
-		{
-			e.printStackTrace();
-		}
-		return out;
-	}
-	
-	public static void line2point( ArrayList<SWCPoint> out, String line )
-	{
-		if( line.startsWith( "#" ))
-			return;
 
-		String[] s = line.split( " " );
-		int id = Integer.parseInt( s[ 0 ] );
-		int type = Integer.parseInt( s[ 1 ] );
-		
-		double x = Double.parseDouble( s[ 2 ] );
-		double y = Double.parseDouble( s[ 3 ] );
-		double z = Double.parseDouble( s[ 4 ] );
-		
-		double radius = Double.parseDouble( s[ 5 ] );
-		int previous = Integer.parseInt( s[ 6 ] );
-		
-		out.add( new SWCPoint( id, type, x, y, z, radius, previous ));
-	}
-	
-	private static class StringPrintWriter extends PrintWriter {
-
-		StringBuffer theString;
-
-		public StringPrintWriter()
-		{
-			this( new ByteArrayOutputStream());
-		}
-
-		public StringPrintWriter( OutputStream stream ) 
-		{
-			super( stream );
-			theString = new StringBuffer();
-		}
-
-		@Override
-		public void println( String s )
-		{
-			theString.append( s );
-		}
-
-		@Override
-		public String toString()
-		{
-			return theString.toString();
-		}
-		
-	}
 }
