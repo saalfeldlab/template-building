@@ -1,0 +1,2 @@
+#!/bin/bash
+awk '{OFS=","} {print $3,$4,$5}' $1
