@@ -1,0 +1,5 @@
+#!/bin/bash
+
+swcToPointCsv $1 \
+    | sed -e 's/^/"/g' -e 's/,/","/g' -e 's/$/"/g' \
+    | awk -F, '{OFS =","}{printf "\"Pt%d\",\"true\",%s,%s\n", NR, $0,$0}' # add prefix and double the line 

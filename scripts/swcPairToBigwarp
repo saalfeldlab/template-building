@@ -1,0 +1,13 @@
+#!/bin/bash
+#
+# Combines two swc's whose lines are in correspondence
+
+paste -d ' ' $1 $2 | \
+    # Ignore comments
+    grep '^[^#]' | \
+    # Pull out xyz
+    awk '{OFS=","}{print $3,$4,$5,$10,$11,$12}' | \
+    # Format so bigwarp likes it ( with parens)
+    sed -e 's/^/"/g' -e 's/,/","/g' -e 's/$/"/g' | \
+    # add prefix 
+    awk -F, '{OFS =","}{printf "\"Pt%d\",\"true\",%s\n", NR, $0}' 
