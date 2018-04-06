@@ -11,6 +11,7 @@ import net.imglib2.Cursor;
 import net.imglib2.FinalInterval;
 import net.imglib2.Interval;
 import net.imglib2.Localizable;
+import net.imglib2.Point;
 import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessible;
 import net.imglib2.RandomAccessibleInterval;
@@ -88,20 +89,20 @@ public class EstimateImageSymmetry
 //				new long[]{ 600, 360, 130 } );
 		
 		Interval samplingInterval = new FinalInterval( 
-				new long[]{ 500, 40, 30 },
-				new long[]{ 505, 400, 130 } );
+				new long[]{ 545, 350, 120 },
+				new long[]{ 579, 430, 132 } );
 
 //		Interval samplingInterval = new FinalInterval( 
 //				new long[]{ 500, 340, 110 },
 //				new long[]{ 505, 342, 112 } );
 		
-		Interval testInterval = new FinalInterval( 
-				new long[]{ 450, 340, 110 },
-				new long[]{ 550, 360, 130 } );
-		
-		Interval lineInterval = new FinalInterval( 
-				new long[]{ samplingInterval.min( dim ) },
-				new long[]{ samplingInterval.max( dim ) } );
+//		Interval testInterval = new FinalInterval( 
+//				new long[]{ 450, 340, 110 },
+//				new long[]{ 550, 360, 130 } );
+//		
+//		Interval lineInterval = new FinalInterval( 
+//				new long[]{ samplingInterval.min( dim ) },
+//				new long[]{ samplingInterval.max( dim ) } );
 		
 		Img<FloatType> rai = ImageJFunctions.wrapFloat( ip );
 		System.out.println( Util.printInterval( rai ));
@@ -165,7 +166,6 @@ public class EstimateImageSymmetry
 			max[ dimension ] = pt.getLongPosition( dimension ) - 1;
 		}
 		FinalInterval itvl = new FinalInterval( min, max );
-		System.out.println( "itvl: " + Util.printInterval(itvl));
 		if( side == Side.HIGH )
 			return Views.zeroMin( Views.interval( img, itvl ));
 		else
@@ -212,6 +212,11 @@ public class EstimateImageSymmetry
 		
 		ExtendedRandomAccessibleInterval<T, RandomAccessibleInterval<T>> ra = Views.extendZero( img );
 		
+		Point bestPt = new Point( 1 ); 
+		double bestVal = Double.MAX_VALUE;
+		Parity bestParity = Parity.EVEN;
+		
+
 		// even
 		// iterate over the lower-index
 		while( it.hasNext() )
@@ -221,18 +226,33 @@ public class EstimateImageSymmetry
 			RandomAccessibleInterval<T> rev = getEvenInterval( ra, dimension, samplingInterval, width, it, Side.LOW, Parity.EVEN );
 			double ssd = ssd( fwd, rev );
 
-
-			System.out.println( "fwd itvl : " + Util.printInterval( fwd ));
-			System.out.println( "rev itvl : " + Util.printInterval( rev ));
-			System.out.println( "ssd      : " + ssd );
+			if( ssd < bestVal )
+			{
+				bestVal = ssd;
+				bestPt.setPosition( it );
+				bestParity = Parity.EVEN;
+			}
 			
-			break;
+			// odd
+			// iterate over the "center"-index
+			fwd = getEvenInterval( ra, dimension, samplingInterval, width, it, Side.HIGH, Parity.ODD );
+			rev = getEvenInterval( ra, dimension, samplingInterval, width, it, Side.LOW, Parity.ODD );
+			ssd = ssd( fwd, rev );
+
+			if( ssd < bestVal )
+			{
+				bestVal = ssd;
+				bestPt.setPosition( it );
+				bestParity = Parity.ODD;
+			}
+			
 		}
 		
-		// odd
-		// iterate over the "center"-index
-//		RandomAccessibleInterval<T> fwd = getEvenInterval( ra, dimension, samplingInterval, width, it, Side.HIGH, Parity.ODD );
-//		RandomAccessibleInterval<T> rev = getEvenInterval( ra, dimension, samplingInterval, width, it, Side.LOW, Parity.ODD );
+		System.out.println( "bestval     : " + bestVal );
+		System.out.println( "best pt     : " + bestPt );
+		System.out.println( "best parity : " + bestParity );
+		
+		
 		
 		return 0;
 	}
