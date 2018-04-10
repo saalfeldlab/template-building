@@ -2,6 +2,9 @@ package vis;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.stream.Stream;
+import java.util.stream.Stream.Builder;
 
 import ij.IJ;
 import ij.ImagePlus;
@@ -9,7 +12,7 @@ import io.nii.NiftiIo;
 import loci.formats.FormatException;
 import mpicbg.ij.clahe.Flat;
 import net.imglib2.Cursor;
-import net.imglib2.IterableInterval;
+import net.imglib2.Interval;
 import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.exception.ImgLibException;
@@ -17,13 +20,11 @@ import net.imglib2.img.Img;
 import net.imglib2.img.display.imagej.ImageJFunctions;
 import net.imglib2.img.imageplus.ImagePlusImg;
 import net.imglib2.img.imageplus.ImagePlusImgFactory;
-import net.imglib2.img.imageplus.ImagePlusImgs;
 import net.imglib2.type.NativeType;
-import net.imglib2.type.Type;
 import net.imglib2.type.numeric.NumericType;
+import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.numeric.integer.UnsignedByteType;
-import net.imglib2.type.numeric.integer.UnsignedShortType;
-import net.imglib2.type.numeric.real.FloatType;
+import net.imglib2.util.Intervals;
 import net.imglib2.util.Util;
 import net.imglib2.view.IntervalView;
 import net.imglib2.view.Views;
@@ -38,7 +39,10 @@ public class WriteClaheSlices
 		System.out.println( foutBase );
 
 		double min = Double.parseDouble( args[ 2 ] );
-		double max = Double.parseDouble( args[ 3] );
+		double max = Double.parseDouble( args[ 3 ] );
+		
+		// the remaining args are slice codes
+		Stream<String> codeArgs = Arrays.stream( args ).skip( 4 );
 
 		System.out.println( "min max " + min + " " + max );
 		
@@ -52,61 +56,90 @@ public class WriteClaheSlices
 			ip = IJ.openImage( fin );
 		}
 		
-		NumericType<?> t;
-		
 		if( ip.getBitDepth() == 8 )
 		{
-			run( args, ImageJFunctions.wrapByte( ip ), min, max, foutBase );
+			run( codeArgs, ImageJFunctions.wrapByte( ip ), min, max, foutBase );
 		}
 		else if( ip.getBitDepth() == 16 )
 		{
-			run( args, ImageJFunctions.wrapShort( ip ), min, max, foutBase );
+			run( codeArgs, ImageJFunctions.wrapShort( ip ), min, max, foutBase );
 		}
 		else if( ip.getBitDepth() == 32 )
 		{
-			run( args, ImageJFunctions.wrapFloat( ip ), min, max, foutBase );
+			run( codeArgs, ImageJFunctions.wrapFloat( ip ), min, max, foutBase );
 		}
-		
-//		ip.show();
-//		ip.setSlice( idx );
-//		String suffix = String.format("-z%d", idx );
-//
-//		ImagePlus ipOut = new ImagePlus( "", ip.getProcessor() );
-//		Flat.getFastInstance().run( ipOut, 72, 128, 2.5f, null, false );
-//		
-//		
-//		System.out.println( "min: " + min );
-//		System.out.println( "max: " + max );
-//		ipOut.setDisplayRange(min, max);
 	}
 	
-	public static < T extends NumericType< T > & NativeType< T >>  void run( String[] args, Img<T> img ,
-			double min, double max,
-			String foutBase ) throws ImgLibException
+	public static < T extends RealType< T > & NativeType< T >>  void run( 
+			final Stream<String> args, final Img<T> img ,
+			final double min, final double max,
+			final String foutBase )
 	{
-		ImagePlusImgFactory<T> factory = new ImagePlusImgFactory<T>();
-		T t = img.firstElement().copy();
+		ImagePlusImgFactory<UnsignedByteType> factory = new ImagePlusImgFactory<UnsignedByteType>();
 		
-		int i = 4;
-		while( i < args.length )
-		{
-			IntervalView<T> slcView = hyperslice( args[ i ], img );
+		Stream<String> sliceCodes =  args.flatMap( x -> expand( x, img ));
+		
+		sliceCodes.forEach( x -> {
+			System.out.println( x );
+			IntervalView<T> slcView = hyperslice(x, img );
 			System.out.println( Util.printInterval( slcView ));
 			
 			// make a copy so we can process the output
-			ImagePlusImg<T, ?> res = factory.create(slcView, t);
-			copyInto( slcView, res );
-			ImagePlus ipOut = res.getImagePlus();
+			ImagePlusImg<UnsignedByteType, ?> res = factory.create( slcView, new UnsignedByteType() );
+
+			copyIntoByte( slcView, res, min, max );
+			ImagePlus ipOut = null;
+			try {
+				ipOut = res.getImagePlus();
+				
+				// process the output
+				Flat.getFastInstance().run( ipOut, 72, 128, 2.5f, null, false );
+
+				String suffix = x.substring( 0, 1 ) + String.format( "%04d", Integer.parseInt( x.substring( 1 )));
+
+				IJ.save( ipOut, foutBase + "_" + suffix + ".png" );
+				
+			} catch (ImgLibException e) {
+				e.printStackTrace();
+			}
+		});
+	}
+
+	public static Stream<String> expand( String arg, Interval img )
+	{
+		if( arg.startsWith("e"))
+		{
+			Builder<String> out = Stream.builder();
 			
-			// process the output
-			Flat.getFastInstance().run( ipOut, 72, 128, 2.5f, null, false );
-
-			System.out.println( "min: " + min );
-			System.out.println( "max: " + max );
-			ipOut.setDisplayRange(min, max);
-
-			IJ.save( ipOut, foutBase + "_" + args[ i ] + ".png" );
-			i++;
+			int d = 2;
+			String pre = "z";
+			if( arg.substring(1).startsWith("x"))
+			{
+				d = 0;
+				pre="x";
+			}
+			else if( arg.substring(1).startsWith("y"))
+			{
+				d = 1;
+				pre="y";
+			}
+			int N = Integer.parseInt( arg.substring(2));
+			
+			//int center = (int) Math.round( img.dimension( d ));
+			int w = (int)Math.round( img.dimension( d ) / ( N + 1 ));
+			
+			int x = w;
+			for( int i = 0; i < N; i++ )
+			{
+				out.add( String.format("%s%d", pre, x ));
+				x += w;
+			}
+			
+			return out.build();
+		}
+		else
+		{
+			return Stream.of( arg );
 		}
 	}
 
@@ -120,6 +153,27 @@ public class WriteClaheSlices
 
 		int slc = Integer.parseInt( code.substring( 1 ));
 		return Views.hyperSlice( img, d, slc );
+	}
+	
+	public static < T extends RealType< T > > 
+		void copyIntoByte( RandomAccessibleInterval<T> src, RandomAccessibleInterval<UnsignedByteType> dst, double min, double max )
+	{
+		double w = ( max - min );
+
+		Cursor<T> c = Views.flatIterable( src ).cursor();
+		RandomAccess<UnsignedByteType> ra = dst.randomAccess();
+		while( c.hasNext() )
+		{
+			c.fwd();
+			ra.setPosition( c );
+			double val = c.get().getRealDouble();
+			if( val <= min )
+				ra.get().setZero();
+			else if( val >= max )
+				ra.get().setInteger( 255 );
+			else
+				ra.get().setReal( (( val - min ) / w ) * 255.0  );
+		}
 	}
 	
 	public static < T extends NumericType< T > & NativeType< T > > void copyInto( RandomAccessibleInterval<T> src, RandomAccessibleInterval<T> dst )
