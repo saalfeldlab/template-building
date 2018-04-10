@@ -3,6 +3,7 @@
 #   -i input
 #   -o output
 #   -f factors (should be greater than 1)
+#   -r result resolution (only one of -f or -r should be given)
 #   -j threads
 #   -p interp
 #   -s sourceSigmas
@@ -17,5 +18,5 @@ then
 fi
 
 BASEDIR=$(dirname "$0")
-cp=`cat "$BASEDIR/theclasspath.cp"`
+cp=`cat "$BASEDIR/gaussDs.cp"`
 java -cp "$cp" $javaOpts process.DownsampleGaussian "$@"

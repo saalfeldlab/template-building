@@ -11,11 +11,13 @@ import com.beust.jcommander.Parameter;
 
 import ij.IJ;
 import ij.ImagePlus;
+import io.WritingHelper;
 import io.nii.NiftiIo;
 import io.nii.Nifti_Writer;
 import jitk.spline.XfmUtils;
 import loci.formats.FormatException;
 import net.imglib2.Cursor;
+import net.imglib2.FinalInterval;
 import net.imglib2.Interval;
 import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessible;
@@ -39,6 +41,7 @@ import net.imglib2.realtransform.AffineRandomAccessible;
 import net.imglib2.realtransform.RealViews;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.RealType;
+import net.imglib2.util.Util;
 import net.imglib2.view.RandomAccessibleOnRealRandomAccessible;
 import net.imglib2.view.Views;
 import util.RenderUtil;
@@ -60,6 +63,10 @@ public class DownsampleGaussian
 			converter = ParseUtils.DoubleArrayConverter.class )
 	private double[] downsampleFactorsIn;
 
+	@Parameter(names = {"--resolutions", "-r"}, description = "Resolution of output", 
+			converter = ParseUtils.DoubleArrayConverter.class )
+	private double[] resultResolutionsIn;
+	
 	@Parameter(names = {"--threads", "-j"}, description = "Number of threads" )
 	private int nThreads = -1;
 
@@ -74,6 +81,10 @@ public class DownsampleGaussian
 			converter = ParseUtils.DoubleArrayConverter.class )
 	private double[] targetSigmasIn = new double[]{ 0.5 };
 
+	@Parameter(names = {"--interval", "-n"}, description = "Output interval at the output resolution" )
+	private String intervalString;
+	
+	private double[] resultResolutions;
 	private double[] downsampleFactors;
 	private double[] sourceSigmas;
 	private double[] targetSigmas;
@@ -117,24 +128,97 @@ public class DownsampleGaussian
 		int nd = ipi.numDimensions();
 		// make sure the input factors and sigmas are the correct sizes
 
-		downsampleFactors = checkAndFillArrays( downsampleFactorsIn, nd, "factors");
+		if( downsampleFactorsIn != null )
+			downsampleFactors = checkAndFillArrays( downsampleFactorsIn, nd, "factors");
+		
+		if( resultResolutionsIn != null )
+			resultResolutions = checkAndFillArrays( resultResolutionsIn, nd, "resolutions" );
+		
+		/*
+		 * Require either downsampleFactors or resultResolutions
+		 * return early if they're both present to be safe 
+		 */
+		if( resultResolutions != null && downsampleFactors != null)
+		{
+			System.err.println( "AMBIGUOUS INPUT : only ONE of -r or -f inputs allowed" );
+			return;
+		}
+		else if( resultResolutions != null )
+		{
+			System.out.println( "Inferring downsample factors from resolution inputs" );
+			double[] resIn = new double[]{ 
+					ipin.getCalibration().pixelWidth,
+					ipin.getCalibration().pixelHeight,
+					ipin.getCalibration().pixelDepth };
+
+			downsampleFactors = new double[ nd ];
+			for( int d = 0; d < nd; d++ )
+			{
+				downsampleFactors[ d ] = resultResolutions[ d ] / resIn[ d ];
+			}
+
+			System.out.println( "resultResolutions: " + XfmUtils.printArray( resultResolutions ));
+			System.out.println( "downsampleFactors: " + XfmUtils.printArray( downsampleFactors ));
+		}
+		else if( downsampleFactors != null  )
+		{
+			System.out.println( "Inferring resolution outputs from downsample factors input" );
+			double[] resIn = new double[]{ 
+					ipin.getCalibration().pixelWidth,
+					ipin.getCalibration().pixelHeight,
+					ipin.getCalibration().pixelDepth };
+
+			resultResolutions = new double[ nd ];
+			for( int d = 0; d < nd; d++ )
+			{
+				resultResolutions[ d ] = downsampleFactors[ d ] * resIn[ d ];
+			}
+			
+			System.out.println( "resultResolutions: " + XfmUtils.printArray( resultResolutions ));
+			System.out.println( "downsampleFactors: " + XfmUtils.printArray( downsampleFactors ));
+		}
+		else
+		{
+			System.err.println( "Must give input for either -r (--resolutions) or -f (--factors)" );
+			return;
+		}
+		
 		sourceSigmas = checkAndFillArrays( sourceSigmasIn, nd, "source sigmas");
 		targetSigmas = checkAndFillArrays( targetSigmasIn, nd, "target sigmas");
 
 		System.out.println("nthreads: " + nThreads );
-
-		System.out.println( XfmUtils.printArray( downsampleFactors ));
 		System.out.println( XfmUtils.printArray( sourceSigmas ));
 		System.out.println( XfmUtils.printArray( targetSigmas ));
+		
+		Interval outputInterval = ipi;
+		long[] offset = new long[ nd ];
+		if( intervalString != null && !intervalString.isEmpty() )
+		{
+			System.out.println( "itvl string: " + intervalString );
+			outputInterval = RenderTransformed.parseInterval( intervalString );
+		}
+		else
+		{
+			long[] newSz  = new long[ nd ];
+			for( int d = 0; d < nd; d++)
+			{
+				newSz[d] = (long)Math.ceil( ipi.dimension( d ) / downsampleFactors[d] );
+				offset[ d ] = outputInterval.min( d );
+			}
+			outputInterval = new FinalInterval( newSz );
+			
+		}
+		System.out.println("Output Interval: " + Util.printInterval(outputInterval) );
 
 		InterpolatorFactory< T, RandomAccessible< T > > interpfactory = 
 				getInterp( interpType, Views.flatIterable( ipi ).firstElement() );
 
 		ImagePlusImgFactory< T > factory = new ImagePlusImgFactory< T >();
-		ImagePlusImg< T, ? > out = factory.create( ipi, Views.flatIterable( ipi ).firstElement());
+		ImagePlusImg< T, ? > out = factory.create( outputInterval, Views.flatIterable( ipi ).firstElement());
+
 
 		resampleGaussianInplace( 
-				ipi, out,
+				ipi, out, offset,
 				interpfactory, 
 				downsampleFactors, sourceSigmas, targetSigmas,
 				nThreads );
@@ -142,6 +226,10 @@ public class DownsampleGaussian
 
 		System.out.print( "Saving to\n" + outputFilePath + "\n...");
 		ImagePlus ipout = out.getImagePlus();
+		ipout.getCalibration().setUnit( ipin.getCalibration().getUnit() );
+		ipout.getCalibration().pixelWidth  = resultResolutions[ 0 ];
+		ipout.getCalibration().pixelHeight = resultResolutions[ 1 ];
+		ipout.getCalibration().pixelDepth  = resultResolutions[ 2 ];
 
 		WritingHelper.write( ipout, outputFilePath);
 		System.out.println( "finished");
@@ -197,6 +285,7 @@ public class DownsampleGaussian
 			final RandomAccessibleInterval< T > img, 
 //			final ImgFactory< T > factory,
 			final InterpolatorFactory< T, RandomAccessible< T > > interpFactory,
+			final long[] newSz,
 			final double[] downsampleFactors, 
 			final double[] sourceSigmas,
 			final double[] targetSigmas,
@@ -209,13 +298,13 @@ public class DownsampleGaussian
 		img.dimensions(sz);
 
 		double[] sigs = new double[ ndims ];
-		long[] newSz  = new long[ ndims ];
+//		long[] newSz  = new long[ ndims ];
 
 		for( int d = 0; d<ndims; d++)
 		{
 			double s = targetSigmas[d] * downsampleFactors[d]; 
 			sigs[d] = Math.sqrt( s * s  - sourceSigmas[d] * sourceSigmas[d] );
-			newSz[d] = (long)Math.ceil( sz[d] / downsampleFactors[d] );
+//			newSz[d] = (long)Math.ceil( sz[d] / downsampleFactors[d] );
 		}
 
 		int[] pos = new int[ ndims ];
@@ -397,6 +486,7 @@ public class DownsampleGaussian
 	public static <T extends RealType<T> & NativeType<T>> void resampleGaussianInplace( 
 			final RandomAccessibleInterval< T > img,
 			final RandomAccessibleInterval< T > out,
+			final long[] offset,
 			final InterpolatorFactory< T, RandomAccessible< T > > interpFactory,
 			final double[] downsampleFactors, 
 			final double[] sourceSigmas,
@@ -405,17 +495,12 @@ public class DownsampleGaussian
 	{
 	
 		int ndims = img.numDimensions();
-		long[] sz = new long[ ndims ];
 
-		img.dimensions(sz);
 		double[] sigs = new double[ ndims ];
-		long[] newSz  = new long[ ndims ];
-
 		for( int d = 0; d<ndims; d++)
 		{
 			double s = targetSigmas[d] * downsampleFactors[d];
 			sigs[d] = Math.sqrt( s * s  - sourceSigmas[d] * sourceSigmas[d] );
-			newSz[d] = (long)Math.ceil( sz[d] / downsampleFactors[d] );
 		}
 		
 		System.out.println( "using sigs: " + Arrays.toString( sigs ));
@@ -439,16 +524,41 @@ public class DownsampleGaussian
 			e.printStackTrace();
 		}
 
-		RealRandomAccessible< T > rra = Views.interpolate( Views.extendZero( img ), interpFactory );
-		RealRandomAccess< T > rrab = rra.realRandomAccess();
+
+		double[] min = new double[ out.numDimensions() ];
+		for( int d = 0; d<ndims; d++)
+			min[ d ] = offset[ d ] * downsampleFactors[ d ];
+
+		System.out.println( "min : " + Arrays.toString( min ));
+
+		// use LUT to trade memory for speed 
+		System.out.print( "Build LUT.."); 
+		double[][] coordLUT = new double[ndims][];
+		for( int d = 0; d<ndims; d++)
+		{
+			int nd = (int)out.dimension(d);
+			coordLUT[d] = new double[nd];
+			for( int i = 0; i<nd; i++)
+			{
+				coordLUT[d][i] =  ( min[ d ] +  i * downsampleFactors[d] ) + downsampleFactors[d] / 2;
+			}
+		}
+		
+//		RealRandomAccessible< T > rra = Views.interpolate( Views.extendZero( img ), interpFactory );
+//		RealRandomAccess< T > rrab = rra.realRandomAccess();
+
+		RealRandomAccess< T > rra = Views.interpolate( Views.extendZero( img ), interpFactory ).realRandomAccess();
+
 
 		System.out.print( "Resampling..");
+		int[] pos = new int[ out.numDimensions() ];
 		Cursor<T> outc = Views.iterable( out ).cursor();
 		while( outc.hasNext() )
 		{
 			outc.fwd();
-			rrab.setPosition( outc );
-			outc.get().set( rrab.get() );
+			outc.localize( pos );
+			setPositionFromLut( pos, coordLUT, rra );
+			outc.get().set( rra.get() );
 		}
 		System.out.println( "finished");
 
