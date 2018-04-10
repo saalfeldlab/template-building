@@ -5,8 +5,24 @@
 
 #REGDIR="/nrs/saalfeld/john/projects/flyChemStainAtlas/eval/data"
 
+
+FORANTS="--ants"
+
+isForAnts="0"
+if [ $1 == "$FORANTS" ]
+then
+    isForAnts="1"
+    shift
+fi
+
 in="$1"
 REGDIR="$2"
+
+affineSuffix=".mat"
+if [[ $# -ge 3 ]];
+then
+    affineSuffix="$3"
+fi
 
 if [[ -f $in ]];
 then
@@ -22,7 +38,13 @@ pattern="^\(201[6-7][0-9]\{4\}\_[0-9][0-9]_[A-Z][0-9]\).*"
 prefix=`echo "$input" | sed "s/$pattern/\1/g"`
 #echo $prefix
 
-affine=`ls ${REGDIR}/$prefix*Affine.mat | grep -v Generic`
+affine=`ls ${REGDIR}/$prefix*Affine"$affineSuffix" | grep -v Generic`
 deformation=`ls ${REGDIR}/$prefix*Warp.nii | grep -v 'InverseWarp'`
 
-echo "$affine $deformation"
+
+if [[ $isForAnts == "1" ]];
+then
+    echo "$deformation $affine"
+else
+    echo "$affine $deformation"
+fi
