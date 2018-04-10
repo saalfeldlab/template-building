@@ -1,0 +1,90 @@
+#!/bin/bash
+# Must be run inside a directory used for evaluation of a template.
+# There must exist an 'images' subdirectory where images matching  *down.nii
+# are the reference images.
+#
+# The directory itself must contain either:
+#   1) ANTS transformations
+#   2) cmtk transformations in a 'Registration' directory
+#      as produced by 'munger.pl'
+#
+
+waitScript="/groups/saalfeld/home/bogovicj/dev/template/template-building/scripts/waitForLSFJobs.pl"
+
+neuronList="/nrs/saalfeld/john/projects/flyChemStainAtlas/eval/dataNew/neuron_list.txt"
+
+doRun="0"
+if [[ "$1" == "run" ]];
+then
+    doRun="1"
+    shift
+fi
+
+template="$1"
+#intervalOut=`parseNiiInterval $template`
+intervalOut=`parseNiiSize $template`
+
+isCmtk=""
+if [[ -d Registration ]];
+then
+    echo "is CMTK"
+    isCmtk="1"
+fi
+
+dir=`pwd`
+i=0
+for f in `ls images/*down.nii`
+do
+    echo $f
+
+    resXfm=$(findResolutionXfm $dir)
+    if [[ -n $isCmtk ]];
+    then
+        echo "CMTK"
+        regXfms=`matchEvalDataCmtk $f $dir`
+    else
+        regXfms=`matchEvalData --ants $f $dir ".txt"`
+        regXfms="$regXfms"
+    fi
+    xfmList="$regXfms"
+
+    #if [[ $resXfm ]]; then
+    #    xfmList="$xfmList -i $resXfm"
+    #fi
+    #echo $xfmList
+    
+    baseName=${f##*/}
+    echo $baseName
+    out=`echo $baseName | sed 's/.nii/_xfm.nii/g'`
+    echo $out
+
+    job="img_xfm_$i.sh"
+    echo "#!/bin/bash" > $job
+    if [[ -n $isCmtk ]];
+    then
+        #out=`echo $baseName | sed 's/.nii/_deformed.nii/g'`
+        out="${baseName}_deformed.nii"
+        xfmList=$(echo $xfmList | sed 's/.gz//g')
+        echo "$xfmList"
+        echo $out
+        echo "reformatx -o $out --floating $f $template $xfmList" >> $job
+    else
+        echo "$xfmList"
+        out="${baseName}_deformed.nii"
+        echo "out : $out"
+        #echo "renderTransformed $f $dir/$out $intervalOut $xfmList -r $templateRes -q 4" >> $job
+        echo "WarpImageMultiTransform 3 $f $out -R $template $xfmList" >> $job
+    fi
+    chmod +x "$job"
+
+    ((i++))
+    echo " "
+    echo " "
+    ##break
+
+done
+
+if [[ $doRun == "1" ]];
+then
+    subJobs -o '-n 4' img_xfm_*sh
+fi
