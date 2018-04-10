@@ -178,14 +178,7 @@ public class RenderTransformed
 		}
 
 		System.out.println("saving to: " + outF );
-		if( outF.endsWith( "nii" ))
-		{
-			File f = new File( outF );
-			Nifti_Writer writer = new Nifti_Writer( true );
-			writer.save( ipout, f.getParent(), f.getName() );
-		}
-		else
-			IJ.save( ipout, outF );
+		WritingHelper.write( ipout, outF );
 	}
 	
 	public static InvertibleRealTransform loadTransform( String filePath, boolean invert ) throws IOException

@@ -143,14 +143,7 @@ public class DownsampleGaussian
 		System.out.print( "Saving to\n" + outputFilePath + "\n...");
 		ImagePlus ipout = out.getImagePlus();
 
-		if( outputFilePath.endsWith( "nii" ))
-		{
-			File f = new File( outputFilePath );
-			Nifti_Writer writer = new Nifti_Writer( true );
-			writer.save( ipout, f.getParent(), f.getName() );
-		}
-		else
-			IJ.save( ipout, outputFilePath );
+		WritingHelper.write( ipout, outputFilePath);
 		System.out.println( "finished");
 	}
 
