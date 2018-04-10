@@ -104,15 +104,20 @@ then
         # Try autodetecting these
         echo "Trying to auto-detect labels or mask"
         templatePath=$(readlink -f $TEMPLATE)
-        MASK=$(echo $templatePath | sed 's/.nii/_mask_0p5iso.nii/g')
-        COMPARTMENTS=$(echo $templatePath | sed 's/.nii/_labels_0p5iso.nii/g')
+
+        #MASK=$(echo $templatePath | sed 's/.nii/_mask_0p5iso.nii/g')
+        #COMPARTMENTS=$(echo $templatePath | sed 's/.nii/_labels_0p5iso.nii/g')
+
+        templateBase=${templatePath%.*}
+        MASK="${templateBase}_mask_0p5iso.nii"
+        COMPARTMENTS="${templateBase}_labels_0p5iso.nii"
 
         if [[ ! -f "$COMPARTMENTS" ]];
         then
             echo "Did not find $COMPARTMENTS, exiting"
             exit 99
         fi
-        echo "Found $COMPARTMENTS"
+        echo "Found compartments: $COMPARTMENTS"
     fi
 fi
 
