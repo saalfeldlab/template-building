@@ -2,16 +2,24 @@
 # Returns the affine and deformable ants transforms for the input
 # subject.  Finds the correct files by matching the file prefix
 
-
 #REGDIR="/nrs/saalfeld/john/projects/flyChemStainAtlas/eval/data"
 
 
 FORANTS="--ants"
+FORRAW="--raw"
 
 isForAnts="0"
+isRaw="0"
+
 if [ $1 == "$FORANTS" ]
 then
     isForAnts="1"
+    shift
+fi
+
+if [ $1 == "$FORRAW" ]
+then
+    isRaw="1"
     shift
 fi
 
@@ -38,7 +46,14 @@ pattern="^\(201[6-7][0-9]\{4\}\_[0-9][0-9]_[A-Z][0-9]\).*"
 prefix=`echo "$input" | sed "s/$pattern/\1/g"`
 #echo $prefix
 
-affine=`ls ${REGDIR}/$prefix*Affine"$affineSuffix" | grep -v Generic`
+
+if [[ $isRaw == "1" ]];
+then
+    affine=`ls ${REGDIR}/$prefix*GenericAffine"$affineSuffix"`
+else
+    affine=`ls ${REGDIR}/$prefix*Affine"$affineSuffix" | grep -v Generic`
+fi
+
 deformation=`ls ${REGDIR}/$prefix*Warp.nii | grep -v 'InverseWarp'`
 
 
