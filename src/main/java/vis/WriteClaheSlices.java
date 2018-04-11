@@ -24,7 +24,6 @@ import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.NumericType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.numeric.integer.UnsignedByteType;
-import net.imglib2.util.Intervals;
 import net.imglib2.util.Util;
 import net.imglib2.view.IntervalView;
 import net.imglib2.view.Views;
@@ -58,14 +57,17 @@ public class WriteClaheSlices
 		
 		if( ip.getBitDepth() == 8 )
 		{
+			System.out.println("byte");
 			run( codeArgs, ImageJFunctions.wrapByte( ip ), min, max, foutBase );
 		}
 		else if( ip.getBitDepth() == 16 )
 		{
+			System.out.println("short");
 			run( codeArgs, ImageJFunctions.wrapShort( ip ), min, max, foutBase );
 		}
 		else if( ip.getBitDepth() == 32 )
 		{
+			System.out.println("float");
 			run( codeArgs, ImageJFunctions.wrapFloat( ip ), min, max, foutBase );
 		}
 	}
@@ -79,10 +81,14 @@ public class WriteClaheSlices
 		
 		Stream<String> sliceCodes =  args.flatMap( x -> expand( x, img ));
 		
+//		System.out.println("TOTAL RANGE: ");
+//		printMinMax( img );
+		
 		sliceCodes.forEach( x -> {
 			System.out.println( x );
 			IntervalView<T> slcView = hyperslice(x, img );
 			System.out.println( Util.printInterval( slcView ));
+			printMinMax( slcView );
 			
 			// make a copy so we can process the output
 			ImagePlusImg<UnsignedByteType, ?> res = factory.create( slcView, new UnsignedByteType() );
@@ -95,9 +101,10 @@ public class WriteClaheSlices
 				// process the output
 				Flat.getFastInstance().run( ipOut, 72, 128, 2.5f, null, false );
 
+				String base = foutBase.replaceAll( "#", "" );
 				String suffix = x.substring( 0, 1 ) + String.format( "%04d", Integer.parseInt( x.substring( 1 )));
 
-				IJ.save( ipOut, foutBase + "_" + suffix + ".png" );
+				IJ.save( ipOut, base + "_" + suffix + ".png" );
 				
 			} catch (ImgLibException e) {
 				e.printStackTrace();
@@ -153,6 +160,25 @@ public class WriteClaheSlices
 
 		int slc = Integer.parseInt( code.substring( 1 ));
 		return Views.hyperSlice( img, d, slc );
+	}
+	
+	public static  < T extends RealType< T > > void printMinMax( RandomAccessibleInterval<T> src )
+	{
+		double min = Double.MAX_VALUE;
+		double max = Double.MIN_VALUE;
+		
+		Cursor<T> c = Views.flatIterable( src ).cursor();
+		while( c.hasNext() )
+		{
+			double v = c.next().getRealDouble();
+			if( v < min )
+				min = v;
+			
+			if( v > max )
+				max = v;
+		}
+		
+		System.out.println( "min/max : " + min + " " + max );
 	}
 	
 	public static < T extends RealType< T > > 
