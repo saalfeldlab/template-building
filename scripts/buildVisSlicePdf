@@ -1,0 +1,76 @@
+#!/bin/bash
+
+prefixes=$(ls *png | sed 's/\(.*\)_down.*/\1/g' | sort | uniq)
+#echo $prefixes
+
+ncol=3
+colIdx=1
+skip=2
+
+XINDS='{print $4,$6,$8,$9,$10,$11}'
+YINDS='{print $4,$5,$7,$8,$10,$12}'
+ZINDS='{print $4,$6,$8,$10,$12,$13}'
+
+colString=""
+for i in seq 1 $ncol
+do
+    colString="${colString}c"
+done
+
+
+function list2table {
+  
+    caption="$1"
+    shift
+
+    i=1
+    echo '\begin{figure}'
+    echo "\\begin{tabular}{$colString}"
+    # Make a table with ncol columns
+    # So every ncol^th item should start a new line in the table
+    for item in $@
+    do
+       if [[ $i == $ncol ]]; then
+           echo "\\includegraphics[width=0.32\\textwidth]{${item}} \\\\"
+           i=1 
+       else
+           echo "\\includegraphics[width=0.32\\textwidth]{${item}} &"
+           ((i++))
+       fi
+    done
+    echo '\end{tabular}'
+    echo "\\caption{$caption}"
+    echo '\end{figure}'
+}
+
+echo '\documentclass{article}'
+echo ' '
+echo '\usepackage{graphicx}'
+echo '\usepackage[margin=0.5in]{geometry}'
+echo ' '
+echo '\begin{document}'
+echo '\listoffigures'
+echo '\clearpage'
+echo ' '
+for pre in $prefixes
+do
+    #echo "$pre"
+    preclean=$(echo $pre | sed 's/_/\\_/g')
+    #echo "$preclean"
+    xlist=$(ls ${pre}*_x*png | sort | tr '\n' ' ' | awk "$XINDS" )
+    ylist=$(ls ${pre}*_y*png | sort | tr '\n' ' ' | awk "$YINDS" )
+    zlist=$(ls ${pre}*_z*png | sort | tr '\n' ' ' | awk "$ZINDS" )
+    #ylist=$(ls ${pre}*_y*png | sort)
+    #zlist=$(ls ${pre}*_z*png | sort)
+
+    #echo $xlist
+
+    list2table "$preclean X" $xlist
+    echo " "
+    list2table "$preclean Y" $ylist
+    echo " "
+    list2table "$preclean Z" $zlist
+    echo '\clearpage'
+
+done
+echo '\end{document}'
