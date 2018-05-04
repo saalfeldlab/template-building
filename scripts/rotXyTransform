@@ -1,0 +1,25 @@
+#!/bin/bash
+
+#PIover4="0.7853981633974483"
+
+pyscript='../python/centered_rot.py'
+
+
+in="$1"
+dir="$2" # must be CW "clockwise" or CCW "counter clock wise"
+
+
+interval="0.0,0.0,0.0:100.0,120.4,130.5"
+
+center=$(echo $interval | awk -F'[,:]' '{print ($4-$1)/2,($5-$2)/2,($6-$3)/2}')
+
+
+
+#if [[ $dir == "CW" ]];
+#then
+#    echo "clockwise"
+#else
+#    echo "counter clockwise"
+#fi
+
+
