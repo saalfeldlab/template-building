@@ -17,11 +17,12 @@ POSFIELDZ=""
 
 doWait=""
 doAffine="0"
+isNrrd="0"
 srcdir=""
 ref=""
 interval=""
 
-while getopts ":d:r:wi:s" opt; do
+while getopts ":d:r:wi:sn" opt; do
     case $opt in
         d)
             #echo "d triggered $OPTARG" >&2
@@ -34,6 +35,10 @@ while getopts ":d:r:wi:s" opt; do
         w)
             #echo "r triggered $OPTARG" >&2
             doWait="1"
+            ;;
+        n)
+            #echo "r triggered $OPTARG" >&2
+            isNrrd="1"
             ;;
         s)
             #echo "s triggered $OPTARG" >&2
@@ -111,9 +116,16 @@ fi
 center=$(echo $interval | awk -F '-' 'BEGIN {OFS=","} {print $1/2, $2/2, $3/2}')
 echo "center: $center"
 
-POSFIELDX="${POSFIELDDIR}/pfx_$interval.nii"
-POSFIELDY="${POSFIELDDIR}/pfy_$interval.nii"
-POSFIELDZ="${POSFIELDDIR}/pfz_$interval.nii"
+if [[ $isNrrd == "0" ]];
+then
+    POSFIELDX="${POSFIELDDIR}/pfx_$interval.nii"
+    POSFIELDY="${POSFIELDDIR}/pfy_$interval.nii"
+    POSFIELDZ="${POSFIELDDIR}/pfz_$interval.nii"
+else
+    POSFIELDX="${POSFIELDDIR}/pfx_$interval.nrrd"
+    POSFIELDY="${POSFIELDDIR}/pfy_$interval.nrrd"
+    POSFIELDZ="${POSFIELDDIR}/pfz_$interval.nrrd"
+fi
 
 echo "pfx: $POSFIELDX"
 echo "pfy: $POSFIELDY"
@@ -174,7 +186,7 @@ do
     ((i++))
 done
 
-## Submit the jobs and wait
+# Submit the jobs and wait
 if [ $doWait ];
 then
     echo "submit the jobs and wait"

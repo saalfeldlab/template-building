@@ -41,6 +41,7 @@ do
        ;;
     j) # jacobian 
        DOJACOBIAN="1"
+       NEEDPREPROC="1"
        ;;
     l) # distance transform labels
        DODISTXFMLABELS="1"
