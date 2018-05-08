@@ -6,6 +6,7 @@ import org.janelia.utility.parse.ParseUtils;
 
 import ij.IJ;
 import ij.ImagePlus;
+import io.WritingHelper;
 import io.nii.Nifti_Writer;
 import net.imglib2.FinalInterval;
 import net.imglib2.RandomAccessibleInterval;
@@ -84,22 +85,7 @@ public class GeneratePositionFieldRes
 		System.out.println( "nFrames " + imp.getNFrames() );
 		System.out.println( "nSlices " + imp.getNSlices() );
 
-		if( outArg.endsWith( "nii" ))
-		{
-			Nifti_Writer writer = new Nifti_Writer();
-
-			File f = new File( outArg );
-			System.out.println( "writing to: " );
-			System.out.println( f.getParent());
-			System.out.println( f.getName());
-
-			writer.save( imp, f.getParent(), f.getName() );
-
-		}
-		else
-		{
-			IJ.save( imp, outArg );
-		}
+		WritingHelper.write( imp, outArg );
 	}
 
 }
