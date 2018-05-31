@@ -21,10 +21,12 @@ import pandas as pd
 ## Parse inputs
 
 dest_file = sys.argv[ 1 ]
-template = sys.argv[ 2 ]
+eval_arg = sys.argv[ 2 ]
+
+template = sys.argv[ 3 ]
 
 #alg = sys.argv[ 3 ]
-alg_list=sys.argv[3:]
+alg_list=sys.argv[4:]
 
 print( 'template ', template )
 print( 'alg list ', alg_list )
@@ -44,7 +46,7 @@ df_tot = pd.DataFrame( columns=['TEMPLATE','ALG','LINE','LABEL','DISTANCE'])
 for alg in alg_list:
     exp_dir = join( base_dir, template, alg )
     print( exp_dir )
-    eval_dir = join( exp_dir, 'evalComp' )
+    eval_dir = join( exp_dir, eval_arg )
     for line in [0,1,2,3]:
         # Read label stats
         datFile = '{}/combined_labelData_line{}.csv'.format( eval_dir, line )
