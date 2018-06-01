@@ -32,6 +32,9 @@ def alg_name( name ):
     else:
         return name
 
+def clean_cols( df ):
+    ## clean up the weird columns
+    df.columns = [ c[0] if c[1].startswith('Unnamed') else c[1] for c in df.columns.values ]
 
 # Label stuff
 labels = [16,64,8,32,2,4,65,66,33,67,34,17,69,70,35,71,9,18,72,36,73,74,37,75,19,76,38,77,39,78,79,20,5,40,80,10,81,82,83,84,85,86,11,22,23,24,12,3,6,49,50,25,51,13,52,26,53,27,54,55,56,28,7,14,57,58,29,59,30,60,15,61,31,62,63]
@@ -41,4 +44,7 @@ label_names = pd.read_csv( label_names_file, delimiter='\t', header=0 )
 def get_label_name( label_id ):
     return label_names[ label_names['Stack id'] == label_id ]['JFRCtempate2010.mask130819' ].iloc[0]
 
-
+def get_label_string( label_id ):
+    row = label_names[label_names['Stack id'] == label_id ].reset_index()
+    print( row )
+    return '{} : {}'.format( row.loc[0,'JFRCtempate2010.mask130819'], row.loc[0,'Name'])
