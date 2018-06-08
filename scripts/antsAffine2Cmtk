@@ -1,0 +1,28 @@
+#!/bin/bash
+
+in="$1"
+center="$2"
+
+outtmp="tmpAntsAffine"
+ConvertTransformFile 3 $in $outtmp --hm 
+
+dof=$(mat2dof -t -c "$center" $outtmp | awk '{print $2}' | tr '\n' ' ')
+IFS=' \n' read -a array <<< "$dof"
+
+#echo $dof
+#echo " array: ${array[@]}"
+
+centerSpaces=$(echo $center | sed 's/,/ /g')
+
+echo '! TYPEDSTREAM 2.4'
+echo 'registration {'
+echo -e "\taffine_xform {"
+echo -e "\t\txlate ${array[0]} ${array[1]} ${array[2]}"
+echo -e "\t\trotate ${array[3]} ${array[4]} ${array[5]}"
+echo -e "\t\tscale ${array[6]} ${array[7]} ${array[8]}"
+echo -e "\t\tshear ${array[9]} ${array[10]} ${array[11]}"
+echo -e "\t\tcenter $centerSpaces"
+echo -e "\t}"
+echo '}'
+
+
