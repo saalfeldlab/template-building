@@ -1,0 +1,11 @@
+#!/bin/bash
+# Usage:
+#
+#   dfield2Nrrd <displacement-field> <output> <encoding (optional)>
+#  
+#   encoding should be "raw" or "gzip" 
+
+BASEDIR=$(dirname "$0")
+cp=`cat "$BASEDIR/theclasspath.cp"`
+
+java -cp "$cp" -Xmx64g io.WriteNrrdDisplacementField $@
