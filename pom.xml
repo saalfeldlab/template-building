@@ -25,7 +25,7 @@
   	<dependency>
   		<groupId>sc.fiji</groupId>
   		<artifactId>imglib2-transform-import</artifactId>
-  		<version>0.0.2-SNAPSHOT</version>
+  		<version>0.0.1-SNAPSHOT</version>
   	</dependency>
   	<dependency>
   		<groupId>sc.fiji</groupId>
@@ -54,12 +54,12 @@
  	<dependency>
 		<groupId>ome</groupId>
 		<artifactId>bio-formats_plugins</artifactId>
-		<version>5.2.4</version><!--$NO-MVN-MAN-VER$-->
+		<version>5.4.1-SNAPSHOT</version><!--$NO-MVN-MAN-VER$-->
 	</dependency>
 	<dependency>
 		<groupId>ome</groupId>
 		<artifactId>formats-gpl</artifactId>
-		<version>5.4.1-SNAPSHOT</version>
+		<version>5.4.1</version>
 	</dependency>
 	<dependency>
 		<groupId>ome</groupId>
@@ -87,6 +87,7 @@
 	<dependency>
 		<groupId>sc.fiji</groupId>
 		<artifactId>IO_</artifactId>
+		<version>3.0.5-SNAPSHOT</version>
 	</dependency>
 	<dependency>
 		<groupId>sc.fiji</groupId>
@@ -111,7 +112,26 @@
 	<dependency>
 		<groupId>org.scijava</groupId>
 		<artifactId>skeleton2swc</artifactId>
-		<version>0.0.2-SNAPSHOT</version>
+		<version>0.0.2</version>
 	</dependency>
+	<dependency>
+		<groupId>sc.fiji</groupId>
+		<artifactId>LSM_Reader</artifactId>
+	</dependency>
+		<dependency>
+		<groupId>args4j</groupId>
+		<artifactId>args4j</artifactId>
+		<version>2.0.29</version>
+	</dependency>
+		<dependency>
+			<groupId>org.janelia.saalfeldlab</groupId>
+			<artifactId>n5-imglib2</artifactId>
+			<version>2.0.1-SNAPSHOT</version>
+		</dependency>
+		<dependency>
+			<groupId>org.janelia.saalfeldlab</groupId>
+			<artifactId>n5-hdf5</artifactId>
+			<version>1.0.3-SNAPSHOT</version>
+		</dependency>
   </dependencies>
 </project>
