@@ -1,0 +1,15 @@
+#!/bin/bash
+
+script="antsIntroductionRegularizedJohn.sh"
+
+moving="$1"
+target="$2"
+output="$3"
+dir=`pwd`
+maxiters="15x25x45x10"
+metric="CC"
+transform="EL"
+regularization="Gauss[1.0,1.5]"
+
+$script -d 3 -r $target -i $moving -o $output -m $maxiters -n 0 \
+    -s $metric -t $transform -e $regularization -f 1 

@@ -1,0 +1,24 @@
+#!/bin/bash
+# Cmtk parameters from Hideo
+
+# Needs environment variables: 
+#   CMTKBINDIR: directory with cmtk executables 
+#   MUNGERDIR: directory with munger.pl
+# 
+# where munger.pl is from this github 
+#   github.com/jefferis/AnalysisSuiteBin 
+
+
+script="${MUNGERDIR}/munger.pl"
+
+moving="$1"
+target="$2"
+output="$3"
+
+nThreads="4"
+
+$script -b "$CMTKBINDIR" -e nii -v -a -w \
+    -X 26 -C 8 -G 80 -R 4 \
+    -A '--accuracy 0.8' -W '--accuracy 2' \
+    -T $nThreads \
+    -s $target $moving

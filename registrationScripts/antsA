@@ -1,0 +1,19 @@
+#!/bin/bash
+
+# This script needs to on your PATH
+script="antsRegistrationSyN.sh"
+
+moving="$1"
+shift
+target="$1"
+shift
+output="$1"
+shift
+
+dir=`pwd`
+transform="b" # rigid + affine + b-spline syn
+r="5"
+nThreads="4"
+
+$script -d 3 -f $target -m $moving -o $output -n $nThreads -t $transform -r $r $@
+
