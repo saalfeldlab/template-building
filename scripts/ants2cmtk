@@ -1,0 +1,32 @@
+#!/bin/bash
+# Converts and ants affine + displacement field transform to a cmtk
+
+affine="$1"
+shift
+
+#if [ $dfield == *.gz ];
+#then
+#    echo "dfield zipped"
+#fi
+
+affineBase=${affine%.*}
+
+cmtkAffine="${affineBase}_cmtk"
+
+echo $cmtkAffine
+
+antsAffine2Cmtk $affine '0 0 0' > $cmtkAffine
+
+for dfield in $@
+do
+    echo "##############"
+    echo "##############"
+    echo $dfield
+
+    warpBase=${dfield%.*}
+    cmtkDfield="${warpBase}_cmtk.nrrd"
+    echo $cmtkDfield
+
+    antsDfield2Cmtk $dfield $cmtkDfield
+
+done
