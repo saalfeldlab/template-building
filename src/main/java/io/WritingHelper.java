@@ -14,7 +14,12 @@ public class WritingHelper {
 		if( outputFilePath.endsWith( "nii" ))
 		{
 			File f = new File( outputFilePath );
-			Nifti_Writer writer = new Nifti_Writer( true );
+
+			boolean is_displacement = false;
+			if( ip.getDimensions()[ 2 ] == 3 )
+				is_displacement = true;
+
+			Nifti_Writer writer = new Nifti_Writer( is_displacement );
 			writer.save( ip, f.getParent(), f.getName() );
 		}
 		else if( outputFilePath.endsWith( "nrrd" ))
