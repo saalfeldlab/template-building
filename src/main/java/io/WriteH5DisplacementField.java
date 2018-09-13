@@ -29,7 +29,9 @@ import net.imglib2.interpolation.randomaccess.NLinearInterpolatorFactory;
 import net.imglib2.realtransform.AffineTransform;
 import net.imglib2.realtransform.RealViews;
 import net.imglib2.type.NativeType;
+import net.imglib2.type.numeric.NumericType;
 import net.imglib2.type.numeric.RealType;
+import net.imglib2.type.numeric.integer.ByteType;
 import net.imglib2.type.numeric.integer.ShortType;
 import net.imglib2.type.numeric.real.FloatType;
 import net.imglib2.util.Util;
@@ -40,6 +42,9 @@ import util.RenderUtil;
 
 public class WriteH5DisplacementField {
 	
+	public static final String SHORTTYPE = "SHORT";
+	public static final String BYTETYPE = "BYTE";
+	
 	public static class Options implements Serializable
 	{
 
@@ -47,6 +52,9 @@ public class WriteH5DisplacementField {
 
 		@Option( name = "-d", aliases = {"--dfield"}, required = true, usage = "" )
 		private String field;
+		
+		@Option( name = "-a", aliases = {"--affine"}, required = false, usage = "" )
+		private String affine;
 		
 		@Option( name = "-o", aliases = {"--output"}, required = true, usage = "" )
 		private String output;
@@ -57,8 +65,8 @@ public class WriteH5DisplacementField {
 		@Option( name = "-f", aliases = {"--factors"}, required = false, usage = "" )
 		private String subsampleFactorsArg;
 		
-		@Option( name = "--short", required = false, usage = "" )
-		private boolean toShort;
+		@Option( name = "-t", aliases = {"--type"}, required = false, usage = "" )
+		private String toShort;
 		
 		@Option( name = "-b", aliases = {"--blockSize"}, required = false, usage = "" )
 		private String blockSizeArg;
@@ -66,16 +74,15 @@ public class WriteH5DisplacementField {
 		@Option( name = "-m", aliases = {"--maxValue"}, required = false, usage = "" )
 		private double maxValue = Double.NaN;
 		
-		private int[] blockSizeDefault = new int[]{ 3, 32, 32, 32 };
 		
-		private boolean parsedSuccessfully;
+		private int[] blockSizeDefault = new int[]{ 3, 32, 32, 32 };
 
-		public Options(final String[] args) {
+		public Options(final String[] args)
+		{
 
 			final CmdLineParser parser = new CmdLineParser(this);
 			try {
 				parser.parseArgument(args);
-				parsedSuccessfully = true;
 			} catch (final CmdLineException e) {
 				System.err.println(e.getMessage());
 				parser.printUsage(System.err);
@@ -93,7 +100,7 @@ public class WriteH5DisplacementField {
 		/**
 		 * @return is this an inverse transform
 		 */
-		public boolean convertToShort()
+		public String convertType()
 		{
 			return toShort;
 		}
@@ -135,7 +142,6 @@ public class WriteH5DisplacementField {
 			else
 				return ParseUtils.parseDoubleArray( subsampleFactorsArg );
 		}
-		
 
 		/**
 		 * @return maximum value
@@ -155,29 +161,22 @@ public class WriteH5DisplacementField {
 
 		int[] blockSize = options.getBlockSize();
 		double[] subsample_factors = options.getSubsampleFactors();
-		boolean toShort = options.convertToShort();
+		String convertType = options.convertType();
 		double maxValue = options.getMaxValue();
-		
-
-		
+				
 		System.out.println( "block size: " + Arrays.toString( blockSize ));
 //		System.out.println( "subsample_factors: " + Arrays.toString( subsample_factors ));
 
-//		FloatType f = new FloatType( -4f );
-		
-
-		
-		
 //		System.out.println( "m: " + s  );
-//		
 //		convertLinear( f, s, m );
-//		
 //		System.out.println( "s: " + s );
 		
 		
+		int[][] permutation = null;
 		ImagePlus baseIp = null;
 		if( imF.endsWith( "nii" ))
 		{
+			permutation = new int[][]{{0,3},{1,3},{2,3}};
 			try
 			{
 				baseIp =  NiftiIo.readNifti( new File( imF ) );
@@ -243,52 +242,71 @@ public class WriteH5DisplacementField {
 			imgToPermute = img;
 		}
 		
-		spacing = new double[]{
-				subsample_factors[0] * baseIp.getCalibration().pixelWidth,
-				subsample_factors[1] * baseIp.getCalibration().pixelHeight,
-				subsample_factors[2] * baseIp.getCalibration().pixelDepth
-		};
+		if( subsample_factors == null )
+		{
+			spacing = new double[]{
+					baseIp.getCalibration().pixelWidth,
+					baseIp.getCalibration().pixelHeight,
+					baseIp.getCalibration().pixelDepth
+			};
+		}
+		else
+		{
+			spacing = new double[]{
+					subsample_factors[0] * baseIp.getCalibration().pixelWidth,
+					subsample_factors[1] * baseIp.getCalibration().pixelHeight,
+					subsample_factors[2] * baseIp.getCalibration().pixelDepth
+			};	
+		}
 
 		System.out.println("img_2_perm: " + Util.printInterval(imgToPermute));
 		
 		RandomAccessibleInterval<FloatType> img_perm = Views.permute( Views.permute( Views.permute(imgToPermute, 0, 3 ), 1, 3 ), 2, 3 );
 		System.out.println("img_perm: " + Util.printInterval(img_perm));
 		
-		if( toShort )
+		if( convertType != null && !convertType.isEmpty() )
 		{
-			System.out.println("short");
-			
-			ShortType s = new ShortType();
 			if( Double.isNaN( maxValue ))
 			{
 				maxValue = getMaxAbs( Views.iterable( img_perm ));
 			}
-			final double m = getMultiplier( s, maxValue );
-
-			RandomAccessibleInterval<ShortType> write_me = Converters.convert(
-					img_perm, 
-					new Converter<FloatType, ShortType>()
-					{
-						@Override
-						public void convert(FloatType input, ShortType output) {
-							output.setReal( input.getRealDouble() * m );
-						}
-					}, 
-					new ShortType());
-
-			write( write_me, fout, blockSize, spacing, m );
+			
+			
+			if ( convertType.toUpperCase().equals( SHORTTYPE ) ){
+				ShortType t = new ShortType();
+				final double m = getMultiplier( t, maxValue );
+				write( convert(img_perm, m, t ), fout, blockSize, spacing, m );
+				
+			}
+			else if ( convertType.toUpperCase().equals( BYTETYPE ) )
+			{
+				ByteType t = new ByteType();
+				final double m = getMultiplier( t, maxValue );
+				write( convert(img_perm, m, t ), fout, blockSize, spacing, m );
+			}
 		}
 		else
 		{
 			write( img_perm, fout, blockSize, spacing, 1 );
 		}
-		
-//		N5Writer n5writer = new N5HDF5Writer( fout, blockSize );
-//		N5Utils.save( write_me, n5writer, "dfield", blockSize, new GzipCompression(5));
-//
-//		n5writer.setAttribute("dfield", "spacing", spacing );
-//		n5writer.setAttribute("dfield", "multiplier", 1/m );
+	}
+	
+	public static <T extends RealType<T> & NativeType<T>> RandomAccessibleInterval<T> convert( 
+			RandomAccessibleInterval<FloatType> img_perm, double m, T t )
+	{
 
+		RandomAccessibleInterval<T> write_me = Converters.convert(
+				img_perm, 
+				new Converter<FloatType, T>()
+				{
+					@Override
+					public void convert(FloatType input, T output) {
+						output.setReal( input.getRealDouble() * m );
+					}
+				}, 
+				t.copy());
+		
+		return write_me;
 	}
 	
 	public static <T extends NativeType<T>> void write( 
@@ -298,14 +316,17 @@ public class WriteH5DisplacementField {
 			double[] spacing,
 			double m ) throws IOException
 	{
+		System.out.println("write dfield size: " + Util.printInterval( write_me ));
+		
 		N5Writer n5writer = new N5HDF5Writer( fout, blockSize );
 		N5Utils.save( write_me, n5writer, "dfield", blockSize, new GzipCompression(5));
 
 		n5writer.setAttribute("dfield", "spacing", spacing );
 		n5writer.setAttribute("dfield", "multiplier", 1/m );
+
 	}
 
-	public static double getMultiplier( final RealType<?> t,  final double valueAtMax )
+	public static double getMultiplier( final RealType<?> t, final double valueAtMax )
 	{
 		return t.getMaxValue() / valueAtMax;
 	}
