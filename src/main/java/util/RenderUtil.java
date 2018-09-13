@@ -14,12 +14,91 @@ import net.imglib2.Interval;
 import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessible;
 import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.RealInterval;
+import net.imglib2.realtransform.RealTransform;
 import net.imglib2.type.numeric.NumericType;
 import net.imglib2.view.IntervalView;
 import net.imglib2.view.Views;
 
 public class RenderUtil
 {
+	
+	public static void main( String[] args )
+	{
+		System.out.println( " " + Integer.parseInt("0014"));
+	}
+
+	public static FinalInterval transformRealInterval( RealTransform xfm, RealInterval interval )
+	{
+		int nd = interval.numDimensions();
+		double[] pt = new double[ nd ];
+		double[] ptxfm = new double[ nd ];
+
+		long[] min = new long[ nd ];
+		long[] max = new long[ nd ];
+
+		// transform min		
+		for( int d = 0; d < nd; d++ )
+			pt[ d ] = interval.realMin( d );
+		
+		xfm.apply( pt, ptxfm );
+		copyToLongFloor( ptxfm, min );
+
+
+		// transform max
+		
+		for( int d = 0; d < nd; d++ )
+		{
+			pt[ d ] = interval.realMax( d );
+		}
+		
+		xfm.apply( pt, ptxfm );
+		copyToLongCeil( ptxfm, max );
+		
+		return new FinalInterval( min, max );
+	}
+	
+	public static FinalInterval transformInterval( RealTransform xfm, Interval interval )
+	{
+		int nd = interval.numDimensions();
+		double[] pt = new double[ nd ];
+		double[] ptxfm = new double[ nd ];
+
+		long[] min = new long[ nd ];
+		long[] max = new long[ nd ];
+
+		// transform min		
+		for( int d = 0; d < nd; d++ )
+			pt[ d ] = interval.min( d );
+		
+		xfm.apply( pt, ptxfm );
+		copyToLongFloor( ptxfm, min );
+
+
+		// transform max
+		
+		for( int d = 0; d < nd; d++ )
+		{
+			pt[ d ] = interval.max( d );
+		}
+		
+		xfm.apply( pt, ptxfm );
+		copyToLongCeil( ptxfm, max );
+		
+		return new FinalInterval( min, max );
+	}
+
+	public static void copyToLongFloor( final double[] src, final long[] dst )
+	{
+		for( int d = 0; d < src.length; d++ )
+			dst[ d ] = (long)Math.floor( src[d] );
+	}
+
+	public static void copyToLongCeil( final double[] src, final long[] dst )
+	{
+		for( int d = 0; d < src.length; d++ )
+			dst[ d ] = (long)Math.floor( src[d] );
+	}
 
 	public static long[] splitPoints( int nThreads, int dim2split, Interval target )
 	{
