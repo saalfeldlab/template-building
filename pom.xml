@@ -7,7 +7,7 @@
 	<repositories>
 		<repository>
 			<id>imagej.public</id>
-			<url>http://maven.imagej.net/content/groups/public</url>
+			<url>https://maven.imagej.net/content/groups/public</url>
 		</repository>
 	</repositories>
 	
@@ -20,12 +20,7 @@
   	<dependency>
   		<groupId>sc.fiji</groupId>
   		<artifactId>bigwarp_fiji</artifactId>
-  		<version>2.1.6-SNAPSHOT</version>
-  	</dependency>
-  	<dependency>
-  		<groupId>sc.fiji</groupId>
-  		<artifactId>imglib2-transform-import</artifactId>
-  		<version>0.0.1-SNAPSHOT</version>
+  		<version>3.1.2-SNAPSHOT</version>
   	</dependency>
   	<dependency>
   		<groupId>sc.fiji</groupId>
@@ -59,7 +54,7 @@
 	<dependency>
 		<groupId>ome</groupId>
 		<artifactId>formats-gpl</artifactId>
-		<version>5.4.1</version>
+		<version>5.4.1-SNAPSHOT</version>
 	</dependency>
 	<dependency>
 		<groupId>ome</groupId>
@@ -69,12 +64,12 @@
 	<dependency>
 		<groupId>ome</groupId>
 		<artifactId>formats-api</artifactId>
-		<version>5.2.4</version>
+		<version>5.4.1-SNAPSHOT</version>
 	</dependency>
 	<dependency>
 		<groupId>ome</groupId>
 		<artifactId>formats-bsd</artifactId>
-		<version>5.2.4</version>
+		<version>5.4.1-SNAPSHOT</version>
 	</dependency>
 	<dependency>
 		<groupId>org.jfree</groupId>
@@ -105,16 +100,6 @@
 		<version>20151123</version>
 	</dependency>
 	<dependency>
-		<groupId>net.imglib2</groupId>
-		<artifactId>imglib2-realtransform</artifactId>
-		<version>2.0.0-beta-39-DF-SNAPSHOT</version>
-	</dependency>
-	<dependency>
-		<groupId>org.scijava</groupId>
-		<artifactId>skeleton2swc</artifactId>
-		<version>0.0.2</version>
-	</dependency>
-	<dependency>
 		<groupId>sc.fiji</groupId>
 		<artifactId>LSM_Reader</artifactId>
 	</dependency>
@@ -124,14 +109,54 @@
 		<version>2.0.29</version>
 	</dependency>
 		<dependency>
-			<groupId>org.janelia.saalfeldlab</groupId>
-			<artifactId>n5-imglib2</artifactId>
-			<version>2.0.1-SNAPSHOT</version>
+			<groupId>org.saalfeldlab</groupId>
+			<artifactId>n5-utils</artifactId>
+			<version>0.0.2-SNAPSHOT</version>
+		</dependency>
+		<dependency>
+			<groupId>net.imglib2</groupId>
+			<artifactId>imglib2-cache</artifactId>
+			<version>1.0.0-beta-10-SNAPSHOT</version>
 		</dependency>
 		<dependency>
 			<groupId>org.janelia.saalfeldlab</groupId>
-			<artifactId>n5-hdf5</artifactId>
+			<artifactId>n5-hdf5-face</artifactId>
 			<version>1.0.3-SNAPSHOT</version>
+		</dependency>
+		<dependency>
+			<groupId>org.janelia.saalfeldlab</groupId>
+			<artifactId>n5</artifactId>
+			<version>2.0.3-SNAPSHOT</version>
+		</dependency>
+		<dependency>
+			<groupId>org.janelia.saalfeldlab</groupId>
+			<artifactId>n5-imglib2</artifactId>
+			<version>3.0.1-SNAPSHOT</version>
+		</dependency>
+		<dependency>
+			<groupId>org.scijava</groupId>
+			<artifactId>skeleton2swc</artifactId>
+			<version>0.0.3-SNAPSHOT</version>
+		</dependency>
+		<dependency>
+			<groupId>org.scijava</groupId>
+			<artifactId>imglib2-transform-import</artifactId>
+			<version>0.0.2-SNAPSHOT</version>
+		</dependency>
+		<dependency>
+			<groupId>net.imglib2</groupId>
+			<artifactId>imglib2-realtransform</artifactId>
+			<version>2.0.0-beta-40-SNAPSHOT</version>
+		</dependency>
+		<dependency>
+			<groupId>net.imglib2</groupId>
+			<artifactId>imglib2</artifactId>
+			<version>5.3.0</version>
+		</dependency>
+		<dependency>
+			<groupId>net.imglib2</groupId>
+			<artifactId>imglib2-ij</artifactId>
+			<version>2.0.0-beta-44-SNAPSHOT</version>
 		</dependency>
   </dependencies>
 </project>

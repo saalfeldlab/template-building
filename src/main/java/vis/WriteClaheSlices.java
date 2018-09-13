@@ -77,7 +77,7 @@ public class WriteClaheSlices
 			final double min, final double max,
 			final String foutBase )
 	{
-		ImagePlusImgFactory<UnsignedByteType> factory = new ImagePlusImgFactory<UnsignedByteType>();
+		ImagePlusImgFactory<UnsignedByteType> factory = new ImagePlusImgFactory<UnsignedByteType>( new UnsignedByteType() );
 		
 		Stream<String> sliceCodes =  args.flatMap( x -> expand( x, img ));
 		
@@ -88,10 +88,10 @@ public class WriteClaheSlices
 			System.out.println( x );
 			IntervalView<T> slcView = hyperslice(x, img );
 			System.out.println( Util.printInterval( slcView ));
-			printMinMax( slcView );
+//			printMinMax( slcView );
 			
 			// make a copy so we can process the output
-			ImagePlusImg<UnsignedByteType, ?> res = factory.create( slcView, new UnsignedByteType() );
+			ImagePlusImg<UnsignedByteType, ?> res = factory.create( slcView );
 
 			copyIntoByte( slcView, res, min, max );
 			ImagePlus ipOut = null;

@@ -180,8 +180,8 @@ public class MosaicVolumesXY
 
 	public static <T extends NativeType<T>> ImagePlusImg<T,?> allocate( Dimensions dim, T t )
 	{
-		 ImagePlusImgFactory< T > factory = new ImagePlusImgFactory< T >(); 
-		 return factory.create( dim, t );
+		 ImagePlusImgFactory< T > factory = new ImagePlusImgFactory< T >( t ); 
+		 return factory.create( dim );
 	}
 
 	public static < T extends NumericType<T> >void copyToImageStack( 

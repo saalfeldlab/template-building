@@ -11,12 +11,25 @@ public class MakeMontage2D
 
 	public static void main( String[] args )
 	{
-		String outpath = args[ 0 ];
+		int j = 0;
+		
+		boolean addLabel = false;
+		while( args[ j ].startsWith("-"))
+		{
+			if( args[ j ].equals( "-label" ))
+				addLabel = true;
+			else if( args[ j ].equals( "-label" ))
+			
+			j++;
+		}
+		
+		String outpath = args[ j ];
+		j++;
 
 		ImagePlus[] ipList = new ImagePlus[ args.length - 1 ];
 		int maxHeight = 0;
 		int maxWidth = 0;
-		for( int i = 1; i < args.length; i++ )
+		for( int i = j; i < args.length; i++ )
 		{
 			ImagePlus ip = IJ.openImage( args[ i ] );
 			ipList[ i - 1 ] = ip;
@@ -35,7 +48,7 @@ public class MakeMontage2D
 		IJ.save(
 			makeMontage( 
 				makeAllTheSameSize( 
-						ipList, maxWidth, maxHeight ) ),
+						ipList, maxWidth, maxHeight, addLabel ) ),
 			outpath );
 	}
 	
@@ -45,16 +58,19 @@ public class MakeMontage2D
 		int first = 1;
 		int last = ip.getStackSize();
 		
-		int columns = (int)Math.ceil( Math.sqrt(last));
-		int rows = columns;
+		int rows= (int)Math.ceil( Math.sqrt(last));
+		int  columns = (int)Math.ceil( (float)last / (float)rows );
+		
+		System.out.println( rows + " x " + columns );
 		
 		MontageMaker mm = new MontageMaker();
 		
-		ImagePlus montage = mm.makeMontage2( ip, columns, rows, scale, first, last, 1, 5, true );
+		ImagePlus montage = mm.makeMontage2( ip, rows, columns, scale, first, last, 1, 5, true );
 		return montage;
 	}
 	
-	public static ImagePlus makeAllTheSameSize( ImagePlus[] ipList, int maxWidth, int maxHeight )
+	public static ImagePlus makeAllTheSameSize( ImagePlus[] ipList, int maxWidth, int maxHeight,
+			boolean addLabel )
 	{
 
 		int wNew = maxWidth;
@@ -75,7 +91,9 @@ public class MakeMontage2D
 //			imp.setProcessor(null, newIP);
 
 			stack.addSlice( newIP );
-			stack.setSliceLabel( imp.getTitle(), n++ );
+			
+			if( addLabel )
+				stack.setSliceLabel( imp.getTitle(), n++ );
 		}
 		ImagePlus ipout = new ImagePlus( "stack", stack );
 		return ipout;
