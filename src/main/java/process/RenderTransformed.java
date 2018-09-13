@@ -11,6 +11,7 @@ import org.janelia.utility.parse.ParseUtils;
 import ij.IJ;
 import ij.ImagePlus;
 import io.AffineImglib2IO;
+import io.WritingHelper;
 import io.nii.NiftiIo;
 import io.nii.Nifti_Writer;
 import loci.formats.FormatException;
@@ -26,8 +27,9 @@ import net.imglib2.interpolation.randomaccess.NLinearInterpolatorFactory;
 import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
 import net.imglib2.realtransform.AffineTransform;
 import net.imglib2.realtransform.AffineTransform3D;
+import net.imglib2.realtransform.DeformationFieldTransform;
 import net.imglib2.realtransform.InverseRealTransform;
-import net.imglib2.realtransform.InvertibleDeformationFieldTransform;
+
 import net.imglib2.realtransform.InvertibleRealTransform;
 import net.imglib2.realtransform.InvertibleRealTransformSequence;
 import net.imglib2.realtransform.RealViews;
@@ -35,12 +37,14 @@ import net.imglib2.realtransform.ants.ANTSDeformationField;
 import net.imglib2.realtransform.ants.ANTSLoadAffine;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.NumericType;
+import net.imglib2.type.numeric.integer.ShortType;
 import net.imglib2.type.numeric.integer.UnsignedByteType;
 import net.imglib2.type.numeric.integer.UnsignedShortType;
 import net.imglib2.type.numeric.real.FloatType;
 import net.imglib2.util.Util;
 import net.imglib2.view.IntervalView;
 import net.imglib2.view.Views;
+import sc.fiji.io.Nrrd_Reader;
 import util.RenderUtil;
 
 /**
@@ -90,6 +94,14 @@ public class RenderTransformed
 				e.printStackTrace();
 			}
 		}
+		else if( imF.endsWith( "nrrd" ))
+		{
+			Nrrd_Reader nr = new Nrrd_Reader();
+			File imFile = new File( imF );
+
+			baseIp = nr.load( imFile.getParent(), imFile.getName());
+			System.out.println( "baseIp");
+		}
 		else
 		{
 			baseIp = IJ.openImage( imF );
@@ -119,6 +131,7 @@ public class RenderTransformed
 			resInXfm.set( 	rx, 0.0, 0.0, 0.0, 
 					  		0.0, ry, 0.0, 0.0, 
 					  		0.0, 0.0, rz, 0.0 );
+			System.out.println( "transform for input resolutions : " + resInXfm );
 		}
 
 		FinalInterval renderInterval = null;
@@ -139,9 +152,6 @@ public class RenderTransformed
 		ImagePlus ipout = null;
 		if( baseIp.getBitDepth() == 8 )
 		{
-			System.out.println("bytes");
-			System.out.println("bytes");
-			System.out.println("bytes");
 			ImagePlusImg< UnsignedByteType, ? > out = ImagePlusImgs.unsignedBytes(  
 					renderInterval.dimension( 0 ),
 					renderInterval.dimension( 1 ),
@@ -151,21 +161,16 @@ public class RenderTransformed
 		}
 		else if( baseIp.getBitDepth() == 16 )
 		{
-			System.out.println("shorts");
-			System.out.println("shorts");
-			System.out.println("shorts");
 			ImagePlusImg< UnsignedShortType, ? > out = ImagePlusImgs.unsignedShorts( 
 					renderInterval.dimension( 0 ),
 					renderInterval.dimension( 1 ),
 					renderInterval.dimension( 2 ));
 
+			
 			ipout = doIt( ImageJFunctions.wrapShort( baseIp ), out, resInXfm, args, renderInterval );
 		}
 		else if( baseIp.getBitDepth() == 32 )
 		{
-			System.out.println("floats");
-			System.out.println("floats");
-			System.out.println("floats");
 			ImagePlusImg< FloatType, ? > out = ImagePlusImgs.floats( 
 					renderInterval.dimension( 0 ),
 					renderInterval.dimension( 1 ),
@@ -226,6 +231,7 @@ public class RenderTransformed
 				try
 				{
 					AffineTransform xfm = AffineImglib2IO.readXfm( 3, new File( filePath ) );
+					System.out.println( Arrays.toString(xfm.getRowPackedCopy() ));
 					if( invert )
 					{
 						System.out.println("inverting");
@@ -267,11 +273,13 @@ public class RenderTransformed
 
 			if( invert )
 			{
-				//System.out.println( "cant invert displacement field here");
-				InvertibleDeformationFieldTransform<FloatType> invxfm = new InvertibleDeformationFieldTransform<FloatType>(
-						dfield.getDefField());
-
-				return new InverseRealTransform( invxfm );
+//				System.out.println( "WARNING: ITERATIVE INVERSE OF DISPLACEMENT FIELD IS UNTESTED ");
+//				InvertibleDeformationFieldTransform<FloatType> invxfm = new InvertibleDeformationFieldTransform<FloatType>(
+//						new DeformationFieldTransform<FloatType>( dfield.getDefField() ));
+//
+//				return new InverseRealTransform( invxfm );
+				System.err.println("Inverse deformation fields are not yet supported.");
+				return null;
 			}
 			return dfield;
 		}
