@@ -213,8 +213,8 @@ public class DownsampleGaussian
 		InterpolatorFactory< T, RandomAccessible< T > > interpfactory = 
 				getInterp( interpType, Views.flatIterable( ipi ).firstElement() );
 
-		ImagePlusImgFactory< T > factory = new ImagePlusImgFactory< T >();
-		ImagePlusImg< T, ? > out = factory.create( outputInterval, Views.flatIterable( ipi ).firstElement());
+		ImagePlusImgFactory< T > factory = new ImagePlusImgFactory< T >( Views.flatIterable( ipi ).firstElement() );
+		ImagePlusImg< T, ? > out = factory.create( outputInterval );
 
 
 		resampleGaussianInplace( 
