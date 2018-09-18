@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Arrays;
+import java.util.Map;
 
 import org.janelia.saalfeldlab.n5.GzipCompression;
 import org.janelia.saalfeldlab.n5.N5Writer;
@@ -26,6 +27,9 @@ import net.imglib2.converter.Converters;
 import net.imglib2.img.Img;
 import net.imglib2.img.display.imagej.ImageJFunctions;
 import net.imglib2.interpolation.randomaccess.NLinearInterpolatorFactory;
+import net.imglib2.quantization.AbstractQuantizer;
+import net.imglib2.quantization.GammaQuantizer;
+import net.imglib2.quantization.LinearQuantizer;
 import net.imglib2.realtransform.AffineTransform;
 import net.imglib2.realtransform.RealViews;
 import net.imglib2.type.NativeType;
@@ -74,6 +78,8 @@ public class WriteH5DisplacementField {
 		@Option( name = "-m", aliases = {"--maxValue"}, required = false, usage = "" )
 		private double maxValue = Double.NaN;
 		
+		@Option( name = "-g", aliases = {"--gamma"}, required = false, usage = "" )
+		private double gamma = Double.NaN;
 		
 		private int[] blockSizeDefault = new int[]{ 3, 32, 32, 32 };
 
@@ -150,6 +156,11 @@ public class WriteH5DisplacementField {
 		{
 			return maxValue;
 		}
+		
+		public double getGamma()
+		{
+			return gamma;
+		}
 	}
 
 	public static void main(String[] args) throws FormatException, IOException
@@ -163,6 +174,7 @@ public class WriteH5DisplacementField {
 		double[] subsample_factors = options.getSubsampleFactors();
 		String convertType = options.convertType();
 		double maxValue = options.getMaxValue();
+		double gamma = options.getGamma();
 				
 		System.out.println( "block size: " + Arrays.toString( blockSize ));
 //		System.out.println( "subsample_factors: " + Arrays.toString( subsample_factors ));
@@ -270,43 +282,58 @@ public class WriteH5DisplacementField {
 			{
 				maxValue = getMaxAbs( Views.iterable( img_perm ));
 			}
-			
-			
-			if ( convertType.toUpperCase().equals( SHORTTYPE ) ){
+
+			if ( convertType.toUpperCase().equals( SHORTTYPE ))
+			{
 				ShortType t = new ShortType();
-				final double m = getMultiplier( t, maxValue );
-				write( convert(img_perm, m, t ), fout, blockSize, spacing, m );
-				
+				AbstractQuantizer<FloatType, ShortType> quantizer =  getQuantizer( new FloatType(),t, maxValue, gamma );
+				write( Converters.convert( img_perm, quantizer, t ), 
+						fout, blockSize, spacing, quantizer );
 			}
 			else if ( convertType.toUpperCase().equals( BYTETYPE ) )
 			{
 				ByteType t = new ByteType();
-				final double m = getMultiplier( t, maxValue );
-				write( convert(img_perm, m, t ), fout, blockSize, spacing, m );
+				AbstractQuantizer<FloatType, ByteType> quantizer =  getQuantizer( new FloatType(), t, maxValue, gamma );
+				write( Converters.convert( img_perm, quantizer, t ), 
+						fout, blockSize, spacing, quantizer );
+				
 			}
 		}
 		else
 		{
-			write( img_perm, fout, blockSize, spacing, 1 );
+			write( img_perm, fout, blockSize, spacing, 1, 1 );
 		}
 	}
 	
-	public static <T extends RealType<T> & NativeType<T>> RandomAccessibleInterval<T> convert( 
-			RandomAccessibleInterval<FloatType> img_perm, double m, T t )
+	public static <T extends RealType<T> & NativeType<T>> RandomAccessibleInterval<T> convertGamma( 
+			RandomAccessibleInterval<FloatType> img_perm, double max, double gamma, T t )
 	{
-
-		RandomAccessibleInterval<T> write_me = Converters.convert(
+		return Converters.convert(
 				img_perm, 
 				new Converter<FloatType, T>()
 				{
 					@Override
-					public void convert(FloatType input, T output) {
-						output.setReal( input.getRealDouble() * m );
+					public void convert(FloatType input, T output)
+					{
+						output.setReal( Math.pow((input.getRealDouble() / max), gamma ) * t.getMaxValue() );
 					}
 				}, 
 				t.copy());
-		
-		return write_me;
+	}
+
+	public static <T extends RealType<T> & NativeType<T>> RandomAccessibleInterval<T> convert( 
+			RandomAccessibleInterval<FloatType> img_perm, double m, T t )
+	{
+		return Converters.convert(
+			img_perm, 
+			new Converter<FloatType, T>()
+			{
+				@Override
+				public void convert(FloatType input, T output) {
+					output.setReal( input.getRealDouble() * m );
+				}
+			}, 
+			t.copy());
 	}
 	
 	public static <T extends NativeType<T>> void write( 
@@ -314,7 +341,32 @@ public class WriteH5DisplacementField {
 			String fout,
 			int[] blockSize,
 			double[] spacing,
-			double m ) throws IOException
+			AbstractQuantizer<?,?> quantizer ) throws IOException
+	{
+		System.out.println("write dfield size: " + Util.printInterval( write_me ));
+		
+		N5Writer n5writer = new N5HDF5Writer( fout, blockSize );
+		N5Utils.save( write_me, n5writer, "dfield", blockSize, new GzipCompression(5));
+
+		n5writer.setAttribute("dfield", "spacing", spacing );
+		
+		Map< String, Double > qParams = quantizer.parameters();
+		for( String k : qParams.keySet() )
+			n5writer.setAttribute("dfield", k, qParams.get( k ));
+		
+//		n5writer.setAttribute("dfield", "maxIn", quantizer.maxIn );
+//		n5writer.setAttribute("dfield", "maxOut", quantizer.maxOut );
+//		n5writer.setAttribute("dfield", "multiplier", quantizer.m );
+//		n5writer.setAttribute("dfield", "gamma", quantizer.gamma );
+	}
+	
+	public static <T extends NativeType<T>> void write( 
+			RandomAccessibleInterval<T> write_me,
+			String fout,
+			int[] blockSize,
+			double[] spacing,
+			double m,
+			double gamma ) throws IOException
 	{
 		System.out.println("write dfield size: " + Util.printInterval( write_me ));
 		
@@ -323,6 +375,7 @@ public class WriteH5DisplacementField {
 
 		n5writer.setAttribute("dfield", "spacing", spacing );
 		n5writer.setAttribute("dfield", "multiplier", 1/m );
+		n5writer.setAttribute("dfield", "gamma", gamma );
 
 	}
 
@@ -349,4 +402,17 @@ public class WriteH5DisplacementField {
 		return max;
 	}
 	
+	public static <S extends RealType<S>, T extends RealType<T>> AbstractQuantizer<S,T> getQuantizer( 
+			S s, T t, double maxValue, double gamma )
+	{
+		if( Double.isNaN( gamma ) || gamma == 1  )
+		{
+			return new LinearQuantizer< S, T >( s, t, ( t.getMaxValue() / maxValue ) , 0 );
+		}
+		else
+		{
+			return new GammaQuantizer< S, T >( s, t, t.getMaxValue(), maxValue, gamma );
+		}
+	}
+
 }
