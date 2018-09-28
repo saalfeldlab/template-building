@@ -5,6 +5,7 @@ import java.io.IOException;
 
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Reader;
+import org.janelia.saalfeldlab.n5.imglib2.N5DisplacementField;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
 
 import ij.IJ;
@@ -61,7 +62,9 @@ public class DfieldIoHelper
 			// This will never work since the Nrrd_Reader can't handle 4d volumes, actually
 			Nrrd_Reader nr = new Nrrd_Reader();
 			File imFile = new File( fieldPath );
+
 			dfieldIp = nr.load( imFile.getParent(), imFile.getName());
+			System.out.println( "baseIp");
 			
 			spacing = new double[]{ 
 					dfieldIp.getCalibration().pixelWidth,
@@ -73,35 +76,10 @@ public class DfieldIoHelper
 		{
 			try
 			{
-				N5HDF5Reader reader = new N5HDF5Reader( fieldPath, 32, 32, 32, 3 );
-				RandomAccessibleInterval<FloatType> dfield_h5;
-				
-				Double mult = reader.getAttribute("dfield","multiplier", Double.TYPE);
-				System.out.println( "mult "  + mult );
-				
-				spacing = reader.getAttribute( "dfield","spacing", double[].class );
-				
-				DatasetAttributes datasetAttributes = reader.getDatasetAttributes( "dfield" );
-
-				
-				switch (datasetAttributes.getDataType()) {
-				case INT8:
-					RandomAccessibleInterval<ByteType> dfield_b = N5Utils.open( reader, "dfield" );
-				    dfield_h5 = Converters.convert( dfield_b, getQuantizer( reader, new ByteType() ).inverse(), new FloatType());
-					break;
-				case INT16:
-					RandomAccessibleInterval<ShortType> dfield_s = N5Utils.open( reader, "dfield" );
-					dfield_h5 = Converters.convert( dfield_s, getQuantizer( reader, new ShortType() ).inverse(), new FloatType());
-					break;
-				default:
-					dfield_h5 = N5Utils.open( reader, "dfield" );
-					break;	
-				}
-
-//				return dfield_h5;
-				return Views.permute( Views.permute( Views.permute(dfield_h5, 0, 1 ), 1, 2 ), 2, 3 );
+				N5HDF5Reader n5 = new N5HDF5Reader( fieldPath, 32, 32, 32, 3 );
+				return N5DisplacementField.openField( n5, "dfield", new FloatType() );
 			}
-			catch ( IOException e )
+			catch ( Exception e )
 			{
 				e.printStackTrace();
 			}
@@ -114,28 +92,57 @@ public class DfieldIoHelper
 		return ImageJFunctions.wrapFloat( dfieldIp );
 	}
 
-	public static <S extends RealType<S>> AbstractQuantizer<FloatType,S> getQuantizer( 
-			N5HDF5Reader reader, S s ) throws IOException
-	{
-		
-		Double gamma = reader.getAttribute( "dfield","gamma", Double.TYPE );
-
-		
-		if( gamma != null )
-		{
-			Double maxIn = reader.getAttribute( "dfield","b", Double.TYPE );
-			Double maxOut = reader.getAttribute( "dfield","a", Double.TYPE );
-			return new GammaQuantizer<FloatType,S>( new FloatType(), s, maxOut, maxIn, gamma );
-		}
-		else
-		{
-			Double mult = reader.getAttribute( "dfield","multiplier", Double.TYPE );
-			if ( mult == null )
-				mult = 1/reader.getAttribute( "dfield","m", Double.TYPE );
-
-			return new LinearQuantizer<FloatType,S>( new FloatType(), s, mult, 0 );
-		}
-	}
+//	public static <S extends RealType<S>> AbstractQuantizer<FloatType,S> getQuantizer( 
+//			N5HDF5Reader reader, S s ) throws IOException
+//	{
+//		
+//		Double gamma = reader.getAttribute( "dfield","gamma", Double.TYPE );
+//
+//		
+//		if( gamma != null )
+//		{
+//			Double maxIn = reader.getAttribute( "dfield","b", Double.TYPE );
+//			Double maxOut = reader.getAttribute( "dfield","a", Double.TYPE );
+//			return new GammaQuantizer<FloatType,S>( new FloatType(), s, maxOut, maxIn, gamma );
+//		}
+//		else
+//		{
+//			Double mult = reader.getAttribute( "dfield","multiplier", Double.TYPE );
+//			if ( mult == null )
+//				mult = 1/reader.getAttribute( "dfield","m", Double.TYPE );
+//
+//			return new LinearQuantizer<FloatType,S>( new FloatType(), s, mult, 0 );
+//		}
+//	}
+	
+	
+//	N5HDF5Reader reader = new N5HDF5Reader( fieldPath, 32, 32, 32, 3 );
+//	RandomAccessibleInterval<FloatType> dfield_h5;
+//	
+//	Double mult = reader.getAttribute("dfield","multiplier", Double.TYPE);
+//	System.out.println( "mult "  + mult );
+//	
+//	spacing = reader.getAttribute( "dfield","spacing", double[].class );
+//	
+//	DatasetAttributes datasetAttributes = reader.getDatasetAttributes( "dfield" );
+//
+//	
+//	switch (datasetAttributes.getDataType()) {
+//	case INT8:
+//		RandomAccessibleInterval<ByteType> dfield_b = N5Utils.open( reader, "dfield" );
+//	    dfield_h5 = Converters.convert( dfield_b, getQuantizer( reader, new ByteType() ).inverse(), new FloatType());
+//		break;
+//	case INT16:
+//		RandomAccessibleInterval<ShortType> dfield_s = N5Utils.open( reader, "dfield" );
+//		dfield_h5 = Converters.convert( dfield_s, getQuantizer( reader, new ShortType() ).inverse(), new FloatType());
+//		break;
+//	default:
+//		dfield_h5 = N5Utils.open( reader, "dfield" );
+//		break;	
+//	}
+//
+////	return dfield_h5;
+//	return Views.permute( Views.permute( Views.permute(dfield_h5, 0, 1 ), 1, 2 ), 2, 3 );
 	
 
 }
