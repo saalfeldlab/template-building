@@ -1,78 +1,160 @@
 package io;
 
+import java.io.BufferedOutputStream;
+import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStreamWriter;
+import java.io.Writer;
+import java.util.zip.GZIPOutputStream;
 
-import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Reader;
 import org.janelia.saalfeldlab.n5.imglib2.N5DisplacementField;
-import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
 
+import bdv.util.BdvFunctions;
 import ij.IJ;
 import ij.ImagePlus;
 import io.nii.NiftiIo;
+import io.nii.Nifti_Writer;
 import loci.formats.FormatException;
+import loci.plugins.BF;
 import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.converter.Converter;
 import net.imglib2.converter.Converters;
+import net.imglib2.img.Img;
 import net.imglib2.img.display.imagej.ImageJFunctions;
-import net.imglib2.quantization.AbstractQuantizer;
-import net.imglib2.quantization.GammaQuantizer;
-import net.imglib2.quantization.LinearQuantizer;
-
+import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.RealType;
-import net.imglib2.type.numeric.integer.ByteType;
-import net.imglib2.type.numeric.integer.ShortType;
 import net.imglib2.type.numeric.real.FloatType;
+import net.imglib2.util.Util;
 import net.imglib2.view.Views;
-import sc.fiji.io.Nrrd_Reader;
 
 public class DfieldIoHelper
 {
-	
+
 	public static final String MULT_KEY = "multiplier";
-	
+
 	public double[] spacing;
 
-	public < T extends RealType<T>> RandomAccessibleInterval< FloatType > read( final String fieldPath )
+	public < T extends RealType< T > & NativeType< T > > void write( final RandomAccessibleInterval< T > dfield, final String outputPath ) throws IOException
+	{
+
+		System.out.println( "dfield out sz: " + Util.printInterval( dfield ) );
+
+		if ( outputPath.endsWith( "h5" ) )
+		{
+			System.out.println( "saving displacement field hdf5" );
+			try
+			{
+				WriteH5DisplacementField.write( dfield, outputPath, new int[] { 3, 32, 32, 32 }, spacing, null );
+			}
+			catch ( IOException e )
+			{
+				e.printStackTrace();
+			}
+		}
+		else if ( outputPath.endsWith( "nii" ) )
+		{
+			System.out.println( "saving displacement field nifti" );
+			File outFile = new File( outputPath );
+			Nifti_Writer writer = new Nifti_Writer( true );
+			writer.save( ImageJFunctions.wrapFloat( dfield, "dfield" ), outFile.getParent(), outFile.getName() );
+		}
+		else if ( outputPath.endsWith( "nrrd" ) )
+		{
+			System.out.println( "saving displacement field nrrd" );
+
+			File outFile = new File( outputPath );
+			long[] subFactors = new long[] { 1, 1, 1, 1 };
+
+			RandomAccessibleInterval< FloatType > raiF = Converters.convert( dfield, new Converter< T, FloatType >()
+			{
+				@Override
+				public void convert( T input, FloatType output )
+				{
+					output.set( input.getRealFloat() );
+				}
+			}, new FloatType() );
+
+			ImagePlus ip = ImageJFunctions.wrapFloat( raiF, "wrapped" );
+
+			String nrrdHeader = WriteNrrdDisplacementField.makeDisplacementFieldHeader( ip, subFactors, "gzip" );
+			if ( nrrdHeader == null )
+			{
+				System.err.println( "Failed" );
+				return;
+			}
+
+			FileOutputStream out = new FileOutputStream( outFile );
+			// First write out the full header
+			Writer bw = new BufferedWriter( new OutputStreamWriter( out ) );
+
+			// Blank line terminates header
+			bw.write( nrrdHeader + "\n" );
+			// Flush rather than close
+			bw.flush();
+
+			GZIPOutputStream dataStream = new GZIPOutputStream( new BufferedOutputStream( out ) );
+			WriteNrrdDisplacementField.dumpFloatImg( raiF, null, false, dataStream );
+		}
+		else
+		{
+			System.out.println( "saving displacement other" );
+			IJ.save( ImageJFunctions.wrapFloat( dfield, "dfield" ), outputPath );
+		}
+	}
+
+	public < T extends RealType< T > > RandomAccessibleInterval< FloatType > read( final String fieldPath )
 	{
 		ImagePlus dfieldIp = null;
-		if( fieldPath.endsWith( "nii" ))
+		if ( fieldPath.endsWith( "nii" ) )
 		{
 			try
 			{
-				System.out.println("loading nii");
-				dfieldIp =  NiftiIo.readNifti( new File( fieldPath ) );
-				
-				spacing = new double[]{ 
-						dfieldIp.getCalibration().pixelWidth,
-						dfieldIp.getCalibration().pixelHeight,
-						dfieldIp.getCalibration().pixelDepth };
-				
-			} catch ( FormatException e )
+				System.out.println( "loading nii" );
+				dfieldIp = NiftiIo.readNifti( new File( fieldPath ) );
+
+				spacing = new double[] { dfieldIp.getCalibration().pixelWidth, dfieldIp.getCalibration().pixelHeight, dfieldIp.getCalibration().pixelDepth };
+
+			}
+			catch ( FormatException e )
 			{
 				e.printStackTrace();
-			} catch ( IOException e )
+			}
+			catch ( IOException e )
 			{
 				e.printStackTrace();
 			}
 
 		}
-		else if( fieldPath.endsWith( "nrrd" ))
+		else if ( fieldPath.endsWith( "nrrd" ) )
 		{
-			// This will never work since the Nrrd_Reader can't handle 4d volumes, actually
-			Nrrd_Reader nr = new Nrrd_Reader();
-			File imFile = new File( fieldPath );
 
-			dfieldIp = nr.load( imFile.getParent(), imFile.getName());
-			System.out.println( "baseIp");
-			
+			ImagePlus[] ipList = null;
+			try
+			{
+				ipList = BF.openImagePlus( fieldPath );
+				System.out.println( ipList.length );
+				System.out.println( ipList[ 0 ] );
+			}
+			catch ( Exception e )
+			{
+				e.printStackTrace();
+			}
+
+			if ( ipList == null || ipList.length == 0 )
+				return null;
+			else
+				dfieldIp = ipList[ 0 ];
+
 			spacing = new double[]{ 
 					dfieldIp.getCalibration().pixelWidth,
 					dfieldIp.getCalibration().pixelHeight,
 					dfieldIp.getCalibration().pixelDepth };
 
 		}
-		else if( fieldPath.endsWith( "h5" ))
+		else if ( fieldPath.endsWith( "h5" ) )
 		{
 			try
 			{
@@ -88,61 +170,16 @@ public class DfieldIoHelper
 		{
 			dfieldIp = IJ.openImage( fieldPath );
 		}
-		
-		return ImageJFunctions.wrapFloat( dfieldIp );
+
+		Img< FloatType > tmpImg = ImageJFunctions.wrapFloat( dfieldIp );
+
+		if ( tmpImg.dimension( 2 ) == 3 && tmpImg.dimension( 3 ) > 3 )
+			return Views.permute( tmpImg, 2, 3 );
+		else
+			return tmpImg;
 	}
 
-//	public static <S extends RealType<S>> AbstractQuantizer<FloatType,S> getQuantizer( 
-//			N5HDF5Reader reader, S s ) throws IOException
-//	{
-//		
-//		Double gamma = reader.getAttribute( "dfield","gamma", Double.TYPE );
-//
-//		
-//		if( gamma != null )
-//		{
-//			Double maxIn = reader.getAttribute( "dfield","b", Double.TYPE );
-//			Double maxOut = reader.getAttribute( "dfield","a", Double.TYPE );
-//			return new GammaQuantizer<FloatType,S>( new FloatType(), s, maxOut, maxIn, gamma );
-//		}
-//		else
-//		{
-//			Double mult = reader.getAttribute( "dfield","multiplier", Double.TYPE );
-//			if ( mult == null )
-//				mult = 1/reader.getAttribute( "dfield","m", Double.TYPE );
-//
-//			return new LinearQuantizer<FloatType,S>( new FloatType(), s, mult, 0 );
-//		}
-//	}
-	
-	
-//	N5HDF5Reader reader = new N5HDF5Reader( fieldPath, 32, 32, 32, 3 );
-//	RandomAccessibleInterval<FloatType> dfield_h5;
-//	
-//	Double mult = reader.getAttribute("dfield","multiplier", Double.TYPE);
-//	System.out.println( "mult "  + mult );
-//	
-//	spacing = reader.getAttribute( "dfield","spacing", double[].class );
-//	
-//	DatasetAttributes datasetAttributes = reader.getDatasetAttributes( "dfield" );
-//
-//	
-//	switch (datasetAttributes.getDataType()) {
-//	case INT8:
-//		RandomAccessibleInterval<ByteType> dfield_b = N5Utils.open( reader, "dfield" );
-//	    dfield_h5 = Converters.convert( dfield_b, getQuantizer( reader, new ByteType() ).inverse(), new FloatType());
-//		break;
-//	case INT16:
-//		RandomAccessibleInterval<ShortType> dfield_s = N5Utils.open( reader, "dfield" );
-//		dfield_h5 = Converters.convert( dfield_s, getQuantizer( reader, new ShortType() ).inverse(), new FloatType());
-//		break;
-//	default:
-//		dfield_h5 = N5Utils.open( reader, "dfield" );
-//		break;	
-//	}
-//
-////	return dfield_h5;
-//	return Views.permute( Views.permute( Views.permute(dfield_h5, 0, 1 ), 1, 2 ), 2, 3 );
-	
+	}
+
 
 }
