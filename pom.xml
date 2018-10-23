@@ -25,12 +25,12 @@
   	<dependency>
   		<groupId>sc.fiji</groupId>
   		<artifactId>bigdataviewer-vistools</artifactId>
-  		<version>1.0.0-beta-4</version>
+  		<version>1.0.0-beta-12-SNAPSHOT</version>
   	</dependency>
   	<dependency>
   		<groupId>sc.fiji</groupId>
   		<artifactId>bigdataviewer-core</artifactId>
-  		<version>3.0.3</version>
+  		<version>5.0.1-SNAPSHOT</version>
   	</dependency>
   	<dependency>
   		<groupId>org.janelia</groupId>
@@ -120,18 +120,13 @@
 		</dependency>
 		<dependency>
 			<groupId>org.janelia.saalfeldlab</groupId>
-			<artifactId>n5-hdf5-face</artifactId>
-			<version>1.0.3-SNAPSHOT</version>
+			<artifactId>n5-hdf5</artifactId>
+			<version>1.0.2</version>
 		</dependency>
 		<dependency>
 			<groupId>org.janelia.saalfeldlab</groupId>
 			<artifactId>n5</artifactId>
 			<version>2.0.3-SNAPSHOT</version>
-		</dependency>
-		<dependency>
-			<groupId>org.janelia.saalfeldlab</groupId>
-			<artifactId>n5-imglib2</artifactId>
-			<version>3.0.1-SNAPSHOT</version>
 		</dependency>
 		<dependency>
 			<groupId>org.scijava</groupId>
@@ -151,12 +146,22 @@
 		<dependency>
 			<groupId>net.imglib2</groupId>
 			<artifactId>imglib2</artifactId>
-			<version>5.3.0</version>
+			<version>5.1.0</version>
 		</dependency>
 		<dependency>
 			<groupId>net.imglib2</groupId>
 			<artifactId>imglib2-ij</artifactId>
 			<version>2.0.0-beta-44-SNAPSHOT</version>
+		</dependency>
+		<dependency>
+			<groupId>org.janelia.saalfeldlab</groupId>
+			<artifactId>n5-imglib2-dev</artifactId>
+			<version>3.0.1-SNAPSHOT</version>
+		</dependency>
+		<dependency>
+			<groupId>sc.fiji</groupId>
+			<artifactId>spim_data</artifactId>
+			<version>2.2.2</version>
 		</dependency>
   </dependencies>
 </project>
