@@ -179,7 +179,5 @@ public class DfieldIoHelper
 			return tmpImg;
 	}
 
-	}
-
 
 }
