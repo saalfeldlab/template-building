@@ -16,7 +16,7 @@ import net.imglib2.realtransform.InvertibleRealTransform;
 import net.imglib2.realtransform.InvertibleRealTransformSequence;
 import process.RenderTransformed;
 import sc.fiji.analyzeSkeleton.SwcIO;
-import sc.fiji.analyzeSkeleton.io.SWCPoint;
+import sc.fiji.analyzeSkeleton.SWCPoint;
 import tracing.SNT;
 
 
@@ -30,6 +30,7 @@ public class TransformSwc
 	 */
 	public static void main( String[] args )
 	{
+		System.out.println( "TRANSFORM SWC");
 		String ptFlist = args[ 0 ];
 		String out = args[ 1 ];
 		

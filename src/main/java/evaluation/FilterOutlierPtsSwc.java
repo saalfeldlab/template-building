@@ -12,7 +12,7 @@ import java.util.List;
 import java.util.Map;
 
 import sc.fiji.analyzeSkeleton.SwcIO;
-import sc.fiji.analyzeSkeleton.io.SWCPoint;
+import sc.fiji.analyzeSkeleton.SWCPoint;
 
 public class FilterOutlierPtsSwc
 {
