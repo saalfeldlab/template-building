@@ -4,6 +4,11 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
 
+
+import org.janelia.saalfeldlab.n5.GzipCompression;
+import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Reader;
+import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Writer;
+import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
 import org.janelia.utility.parse.ParseUtils;
 
 import com.beust.jcommander.JCommander;
@@ -13,7 +18,6 @@ import ij.IJ;
 import ij.ImagePlus;
 import io.WritingHelper;
 import io.nii.NiftiIo;
-import io.nii.Nifti_Writer;
 import jitk.spline.XfmUtils;
 import loci.formats.FormatException;
 import net.imglib2.Cursor;
@@ -26,6 +30,8 @@ import net.imglib2.RealPositionable;
 import net.imglib2.RealRandomAccess;
 import net.imglib2.RealRandomAccessible;
 import net.imglib2.algorithm.gauss3.Gauss3;
+import net.imglib2.converter.Converter;
+import net.imglib2.converter.Converters;
 import net.imglib2.exception.ImgLibException;
 import net.imglib2.exception.IncompatibleTypeException;
 import net.imglib2.img.Img;
@@ -41,6 +47,16 @@ import net.imglib2.realtransform.AffineRandomAccessible;
 import net.imglib2.realtransform.RealViews;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.RealType;
+import net.imglib2.type.numeric.integer.ByteType;
+import net.imglib2.type.numeric.integer.IntType;
+import net.imglib2.type.numeric.integer.LongType;
+import net.imglib2.type.numeric.integer.ShortType;
+import net.imglib2.type.numeric.integer.UnsignedByteType;
+import net.imglib2.type.numeric.integer.UnsignedIntType;
+import net.imglib2.type.numeric.integer.UnsignedLongType;
+import net.imglib2.type.numeric.integer.UnsignedShortType;
+import net.imglib2.type.numeric.real.DoubleType;
+import net.imglib2.type.numeric.real.FloatType;
 import net.imglib2.util.Util;
 import net.imglib2.view.RandomAccessibleOnRealRandomAccessible;
 import net.imglib2.view.Views;
@@ -83,6 +99,12 @@ public class DownsampleGaussian
 
 	@Parameter(names = {"--interval", "-n"}, description = "Output interval at the output resolution" )
 	private String intervalString;
+
+	@Parameter(names = {"--convert", "-c"}, description = "Convert type" )
+	private String outputType;
+
+	@Parameter(names = {"--n5dataset"}, description = "N5 output dataset" )
+	private String n5dataset = "data";
 	
 	private double[] resultResolutions;
 	private double[] downsampleFactors;
@@ -94,14 +116,60 @@ public class DownsampleGaussian
 		DownsampleGaussian dg = DownsampleGaussian.parseCommandLineArgs( args );
 		dg.process();
 	}
-
-	public <T extends RealType<T> & NativeType<T> > void process() throws ImgLibException
+	
+	public static <T extends RealType<T> & NativeType<T>> Converter< T, ? > 
+	//public static <? extends RealType<?> & NativeType<?>> Converter< ?, ? > 
+	//public static <T extends RealType<T> & NativeType<T>> Converter< T, ? > 
+		getConverter( T inputType, String outputType )
 	{
+		String typeString = outputType.toLowerCase();
+		switch( typeString )
+		{
+		case "float": return getConverter( inputType, new FloatType() );
+		case "double": return getConverter( inputType, new DoubleType() );
+		case "byte": return getConverter( inputType, new ByteType() );
+		case "ubyte": return getConverter( inputType, new UnsignedByteType() );
+		case "short": return getConverter( inputType, new ShortType() );
+		case "ushort": return getConverter( inputType, new UnsignedShortType() );
+		case "int": return getConverter( inputType, new IntType() );
+		case "uint": return getConverter( inputType, new UnsignedIntType() );
+		case "long": return getConverter( inputType, new LongType() );
+		case "ulong": return getConverter( inputType, new UnsignedLongType() );
+		default: return null;
+		}
+	}
 
-//		FloatImagePlus<FloatType> ipi = new FloatImagePlus<FloatType>( IJ.openImage( args[0] )  );
+	public static <T extends RealType<T> & NativeType<T>, O extends RealType<O> & NativeType<O>> Converter< T, O > getConverter(
+			T inputType, O outputType )
+	{
+		return new Converter< T, O >(){
+			@Override
+			public void convert( T input, O output )
+			{
+				output.setReal( input.getRealDouble() );	
+			}
+		};
+	}
+	
+	public static <T extends RealType<T> & NativeType<T>, O extends RealType<O> & NativeType<O>> 
+		RandomAccessibleInterval< O > convert(
+			RandomAccessibleInterval< T > img,
+			Converter<T,O> conv,
+			O o)
+	{
+		return Converters.convert( img, conv, o );
+	}
+
+	@SuppressWarnings( "unchecked" )
+	public <T extends RealType<T> & NativeType<T>, S extends RealType<S> & NativeType<S> > void process() throws ImgLibException
+	{
+//
+////		FloatImagePlus<FloatType> ipi = new FloatImagePlus<FloatType>( IJ.openImage( args[0] )  );
 		System.out.print( "Loading\n" + inputFilePath + "\n...");
 
 		ImagePlus ipin = null;
+		RandomAccessibleInterval<T> ipi_read = null;
+		double[] resIn = null;
 		if( inputFilePath.endsWith( "nii" ))
 		{
 			try
@@ -115,15 +183,119 @@ public class DownsampleGaussian
 				e.printStackTrace();
 			}
 		}
+		else if( inputFilePath.contains( ".h5:" ))
+		{
+			String[] partList = inputFilePath.split( ":" );
+			String fpath = partList[ 0 ];
+			String dset = partList[ 1 ];
+			
+			System.out.println( "fpath: " + fpath );
+			System.out.println( "dset: " + dset );
+			
+			N5HDF5Reader n5;
+			try
+			{
+				n5 = new N5HDF5Reader( fpath, 32, 32, 32 );
+				ipi_read = N5Utils.open( n5, dset );
+
+				float[] rtmp = n5.getAttribute( dset, "element_size_um", float[].class );
+				if( rtmp != null )
+				{
+					resIn = new double[ 3 ];
+					// h5 attributes are usually listed zyx not xyz
+					resIn[ 0 ] = rtmp[ 2 ];
+					resIn[ 1 ] = rtmp[ 1 ];
+					resIn[ 2 ] = rtmp[ 0 ];
+				}
+				else
+					resIn = new double[]{ 1, 1, 1 };
+			
+				System.out.println( "res: " + Arrays.toString( resIn ));
+
+			}
+			catch ( IOException e )
+			{
+				e.printStackTrace();
+			}
+		}
 		else
 		{
 			ipin = IJ.openImage( inputFilePath );
 		}
+		if( ipin != null )
+		{
+			resIn = new double[]{ 
+					ipin.getCalibration().pixelWidth,
+					ipin.getCalibration().pixelHeight,
+					ipin.getCalibration().pixelDepth };
+		}
 
-		@SuppressWarnings("unchecked")
-		RandomAccessibleInterval< T > ipi = ( RandomAccessibleInterval< T > )ImageJFunctions.wrap( ipin );
+		if( ipi_read == null )
+		{
+			ipi_read = ( RandomAccessibleInterval< T > )ImageJFunctions.wrap( ipin );
+		}
+
 		System.out.println( "finished");
-		System.out.println( ipi );
+		System.out.println( ipi_read );
+		
+		
+		
+		T inputType = Views.flatIterable( ipi_read ).firstElement();
+		
+		RandomAccessibleInterval< S > ipi = null;
+		if( outputType != null && !outputType.isEmpty() )
+		{
+			System.out.println( "converting to: " + outputType );
+
+			S convType = null;
+			String typeString = outputType.toLowerCase();
+			if( typeString.equals("float") )
+			{
+				convType = (S)new FloatType();
+			}
+			else if( typeString.equals("double"))
+			{
+				convType = (S)new DoubleType();
+			}
+			else if( typeString.equals("ubyte"))
+			{
+				convType = (S)new UnsignedByteType();
+			}
+			else if( typeString.equals("byte"))
+			{
+				convType = (S)new ByteType();
+			}
+			else if( typeString.equals("uint") || typeString.equals("uinteger") )
+			{
+				convType = (S)new UnsignedIntType();
+			}
+			else if( typeString.equals("int") || typeString.equals("integer") )
+			{
+				convType = (S)new IntType();
+			}
+			else if( typeString.equals("ushort"))
+			{
+				convType = (S)new UnsignedShortType();
+			}
+			else if( typeString.equals("short"))
+			{
+				convType = (S)new ShortType();
+			}
+			else if( typeString.equals("ulong"))
+			{
+				convType = (S)new LongType();
+			}
+			else if( typeString.equals("long"))
+			{
+				convType = (S)new LongType();
+			}
+
+			ipi = (RandomAccessibleInterval<S>)Converters.convert( ipi_read, getConverter( inputType, convType ), convType );
+		}
+		else
+		{
+			ipi = (RandomAccessibleInterval<S>)ipi_read;
+		}
 
 		int nd = ipi.numDimensions();
 		// make sure the input factors and sigmas are the correct sizes
@@ -146,10 +318,6 @@ public class DownsampleGaussian
 		else if( resultResolutions != null )
 		{
 			System.out.println( "Inferring downsample factors from resolution inputs" );
-			double[] resIn = new double[]{ 
-					ipin.getCalibration().pixelWidth,
-					ipin.getCalibration().pixelHeight,
-					ipin.getCalibration().pixelDepth };
 
 			downsampleFactors = new double[ nd ];
 			for( int d = 0; d < nd; d++ )
@@ -163,10 +331,6 @@ public class DownsampleGaussian
 		else if( downsampleFactors != null  )
 		{
 			System.out.println( "Inferring resolution outputs from downsample factors input" );
-			double[] resIn = new double[]{ 
-					ipin.getCalibration().pixelWidth,
-					ipin.getCalibration().pixelHeight,
-					ipin.getCalibration().pixelDepth };
 
 			resultResolutions = new double[ nd ];
 			for( int d = 0; d < nd; d++ )
@@ -199,23 +363,18 @@ public class DownsampleGaussian
 		}
 		else
 		{
-			long[] newSz  = new long[ nd ];
-			for( int d = 0; d < nd; d++)
-			{
-				newSz[d] = (long)Math.ceil( ipi.dimension( d ) / downsampleFactors[d] );
-				offset[ d ] = outputInterval.min( d );
-			}
-			outputInterval = new FinalInterval( newSz );
+			outputInterval = inferOutputIntervalFromFactors( ipi, downsampleFactors );
 			
 		}
 		System.out.println("Output Interval: " + Util.printInterval(outputInterval) );
 
-		InterpolatorFactory< T, RandomAccessible< T > > interpfactory = 
+	
+		
+		InterpolatorFactory< S, RandomAccessible< S > > interpfactory = 
 				getInterp( interpType, Views.flatIterable( ipi ).firstElement() );
 
-		ImagePlusImgFactory< T > factory = new ImagePlusImgFactory< T >( Views.flatIterable( ipi ).firstElement() );
-		ImagePlusImg< T, ? > out = factory.create( outputInterval );
-
+		ImagePlusImgFactory< S > factory = new ImagePlusImgFactory< S >( Views.flatIterable( ipi ).firstElement());
+		ImagePlusImg< S, ? > out = factory.create( outputInterval );
 
 		resampleGaussianInplace( 
 				ipi, out, offset,
@@ -224,15 +383,87 @@ public class DownsampleGaussian
 				nThreads );
 
 
-		System.out.print( "Saving to\n" + outputFilePath + "\n...");
-		ImagePlus ipout = out.getImagePlus();
-		ipout.getCalibration().setUnit( ipin.getCalibration().getUnit() );
-		ipout.getCalibration().pixelWidth  = resultResolutions[ 0 ];
-		ipout.getCalibration().pixelHeight = resultResolutions[ 1 ];
-		ipout.getCalibration().pixelDepth  = resultResolutions[ 2 ];
+		if( outputFilePath.endsWith( "h5" ))
+		{
+			System.out.print( "Saving to\n" + outputFilePath + " ( dataset: " + n5dataset + "\n...");
+			try
+			{
+				N5HDF5Writer n5 = new N5HDF5Writer( outputFilePath, 32, 32, 32 );
+				N5Utils.save( out, n5, n5dataset, new int[]{ 32, 32, 32 }, new GzipCompression() );
 
-		WritingHelper.write( ipout, outputFilePath);
+				float[] resFloat = new float[ resIn.length ];
+				for(int d=0; d<resIn.length; d++)
+					resFloat[ resIn.length - d - 1] = (float)resIn[d];
+
+				n5.setAttribute( n5dataset, "element_size_um", resFloat );
+			}
+			catch ( IOException e )
+			{
+				e.printStackTrace();
+			}
+		}
+		else
+		{
+
+			System.out.print( "Saving to\n" + outputFilePath + "\n...");
+			ImagePlus ipout = out.getImagePlus();
+
+			if( ipin != null )
+				ipout.getCalibration().setUnit( ipin.getCalibration().getUnit() );
+
+			ipout.getCalibration().pixelWidth  = resultResolutions[ 0 ];
+			ipout.getCalibration().pixelHeight = resultResolutions[ 1 ];
+			ipout.getCalibration().pixelDepth  = resultResolutions[ 2 ];
+			
+			WritingHelper.write( ipout, outputFilePath);
+		}
+
 		System.out.println( "finished");
+	}
+	
+	public static Interval inferOutputIntervalFromFactors(
+			Interval inputInterval,
+			double[] factors)
+	{
+		int nd = inputInterval.numDimensions();
+		long[] newSz  = new long[ nd ];
+		long[] offset = new long[ nd ];
+		for( int d = 0; d < nd; d++)
+		{
+			newSz[d] = (long)Math.ceil( inputInterval.dimension( d ) / factors[d] );
+			offset[ d ] = inputInterval.min( d );
+		}
+		return new FinalInterval( newSz );
+	}
+	
+	public static <S extends RealType<S> & NativeType<S>, T extends RealType<T> & NativeType<T>>
+		RandomAccessibleInterval<T> run(
+			RandomAccessibleInterval<S> in, 
+			ImgFactory<T> outputFactory,
+			String interpType,
+			double[] factors,
+			double[] sourceSigmas,
+			double[] targetSigmas,
+			int nThreads )
+
+	{
+		int nd = in.numDimensions();
+		long[] offset = new long[ nd ];
+		Interval outputInterval = inferOutputIntervalFromFactors( in, factors );
+		System.out.println("Output Interval: " + Util.printInterval(outputInterval) );
+
+		InterpolatorFactory< S, RandomAccessible< S > > interpfactory = 
+				getInterp( interpType , Views.flatIterable( in ).firstElement() );
+
+		Img< T > out = outputFactory.create( outputInterval );
+
+		resampleGaussianInplace( 
+				in, out, offset,
+				interpfactory, 
+				factors, sourceSigmas, targetSigmas,
+				nThreads );
+		
+		return out;
 	}
 
 	public double[] checkAndFillArrays( double[] in, int nd, String kind )
@@ -283,7 +514,6 @@ public class DownsampleGaussian
 	 */
 	public static <T extends RealType<T> & NativeType<T>> Img<T> resampleGaussian( 
 			final RandomAccessibleInterval< T > img, 
-//			final ImgFactory< T > factory,
 			final InterpolatorFactory< T, RandomAccessible< T > > interpFactory,
 			final long[] newSz,
 			final double[] downsampleFactors, 
@@ -291,7 +521,7 @@ public class DownsampleGaussian
 			final double[] targetSigmas,
 			final int nThreads )
 	{
-		ImgFactory< T > factory = new ImagePlusImgFactory< T >();
+		ImgFactory< T > factory = new ImagePlusImgFactory< T >( Views.flatIterable( img ).firstElement() );
 		int ndims = img.numDimensions();
 		long[] sz = new long[ ndims ];
 
@@ -312,7 +542,7 @@ public class DownsampleGaussian
 		inRa.setPosition(pos);
 
 		System.out.print( "Allocating...");
-		Img<T> out = factory.create( newSz, inRa.get());
+		Img<T> out = factory.create( newSz );
 		System.out.println( "finished");
 
 		try
@@ -382,7 +612,7 @@ public class DownsampleGaussian
 			Interval outputInterval,
 			final int nThreads )
 	{
-		ImgFactory< T > factory = new ImagePlusImgFactory< T >();
+		ImgFactory< T > factory = new ImagePlusImgFactory< T >( Views.flatIterable( img ).firstElement());
 		int ndims = img.numDimensions();
 		long[] sz = new long[ ndims ];
 
@@ -391,7 +621,7 @@ public class DownsampleGaussian
 		inRa.setPosition(pos);
 
 		System.out.print( "Allocating...");
-		Img<T> out = factory.create( outputInterval, inRa.get());
+		Img<T> out = factory.create( outputInterval );
 
 		resampleGaussianInplace( img, out, interpFactory,
 			downsampleFactors, sourceSigmas, targetSigmas,
@@ -483,11 +713,11 @@ public class DownsampleGaussian
 	 *
 	 * @return a new {@link Img}
 	 */
-	public static <T extends RealType<T> & NativeType<T>> void resampleGaussianInplace( 
-			final RandomAccessibleInterval< T > img,
+	public static <T extends RealType<T> & NativeType<T>, S extends RealType<S> & NativeType<S>> void resampleGaussianInplace( 
+			final RandomAccessibleInterval< S > img,
 			final RandomAccessibleInterval< T > out,
 			final long[] offset,
-			final InterpolatorFactory< T, RandomAccessible< T > > interpFactory,
+			final InterpolatorFactory< S, RandomAccessible< S > > interpFactory,
 			final double[] downsampleFactors, 
 			final double[] sourceSigmas,
 			final double[] targetSigmas,
@@ -496,34 +726,37 @@ public class DownsampleGaussian
 	
 		int ndims = img.numDimensions();
 
-		double[] sigs = new double[ ndims ];
-		for( int d = 0; d<ndims; d++)
+		if( !Double.isNaN( targetSigmas[0]) && !Double.isNaN(sourceSigmas[0]))
 		{
-			double s = targetSigmas[d] * downsampleFactors[d];
-			sigs[d] = Math.sqrt( s * s  - sourceSigmas[d] * sourceSigmas[d] );
+			double[] sigs = new double[ ndims ];
+			for( int d = 0; d<ndims; d++)
+			{
+				double s = targetSigmas[d] * downsampleFactors[d];
+				sigs[d] = Math.sqrt( s * s  - sourceSigmas[d] * sourceSigmas[d] );
+			}
+			
+			System.out.println( "using sigs: " + Arrays.toString( sigs ));
+			try
+			{
+				System.out.print( "Gaussian..");
+				if ( nThreads < 1 )
+				{
+					System.out.println( "using all threads" );
+					Gauss3.gauss( sigs, Views.extendBorder( img ), img );
+				}
+				else
+				{
+					System.out.println( "using " + nThreads + " threads" );
+					Gauss3.gauss( sigs, Views.extendMirrorDouble( img ), img, nThreads );
+				}
+				System.out.println( "finished");
+			}
+			catch ( IncompatibleTypeException e )
+			{
+				e.printStackTrace();
+			}
 		}
 		
-		System.out.println( "using sigs: " + Arrays.toString( sigs ));
-		try
-		{
-			System.out.print( "Gaussian..");
-			if ( nThreads < 1 )
-			{
-				System.out.println( "using all threads" );
-				Gauss3.gauss( sigs, Views.extendBorder( img ), img );
-			}
-			else
-			{
-				System.out.println( "using " + nThreads + " threads" );
-				Gauss3.gauss( sigs, Views.extendBorder( img ), img, nThreads );
-			}
-			System.out.println( "finished");
-		}
-		catch ( IncompatibleTypeException e )
-		{
-			e.printStackTrace();
-		}
-
 
 		double[] min = new double[ out.numDimensions() ];
 		for( int d = 0; d<ndims; d++)
@@ -547,7 +780,7 @@ public class DownsampleGaussian
 //		RealRandomAccessible< T > rra = Views.interpolate( Views.extendZero( img ), interpFactory );
 //		RealRandomAccess< T > rrab = rra.realRandomAccess();
 
-		RealRandomAccess< T > rra = Views.interpolate( Views.extendZero( img ), interpFactory ).realRandomAccess();
+		RealRandomAccess< S > rra = Views.interpolate( Views.extendMirrorDouble( img ), interpFactory ).realRandomAccess();
 
 
 		System.out.print( "Resampling..");
@@ -558,7 +791,7 @@ public class DownsampleGaussian
 			outc.fwd();
 			outc.localize( pos );
 			setPositionFromLut( pos, coordLUT, rra );
-			outc.get().set( rra.get() );
+			outc.get().setReal( rra.get().getRealDouble() );
 		}
 		System.out.println( "finished");
 
@@ -583,9 +816,12 @@ public class DownsampleGaussian
 	{
 		if ( type.equals( LINEAR_INTERPOLATION ) )
 		{
+			System.out.println( "LINEAR interp");
 			return new NLinearInterpolatorFactory< T >();
-		} else if ( type.equals( NEAREST_INTERPOLATION ) )
+		}
+		else if ( type.equals( NEAREST_INTERPOLATION ) )
 		{
+			System.out.println( "NEAREST interp");
 			return new NearestNeighborInterpolatorFactory< T >();
 		} else
 			return null;
