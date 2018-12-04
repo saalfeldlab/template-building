@@ -1,6 +1,11 @@
 # template-building
 Scripts and code relating to building anatomical templates.
 
+## Installation
+* Check out this repo: `git clone https://github.com/saalfeldlab/template-building.git`
+* Run the build script: `./template-building/build.sh`
+
+
 ## Pipeline outline
 * Decide the resolution and orientation at which to do the registration 
   * To keep the original image orientation ( downsampleGauss )
