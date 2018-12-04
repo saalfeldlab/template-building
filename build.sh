@@ -1,6 +1,21 @@
 #!/bin/bash
 
-# Grab dependencies not managed by maven yet
+
+# remember current directory
+startdir=$(pwd)
+
+BASEDIRREL=$(dirname "$0")
+# where this script lives (i.e. template-building repo directory)
+BASEDIR=$(readlink -f $BASEDIRREL)
+
+
+cd $BASEDIR
+cd ..
+
+depdir=$(pwd)
+echo "building dependencies in: $depdir"
+
+## Grab dependencies not managed by maven yet
 git clone https://github.com/saalfeldlab/janelia-util.git
 cd janelia-util
 mvn clean compile install
@@ -33,6 +48,8 @@ cd ..
 
 
 ## Checkout and build the main repo
-git clone https://github.com/saalfeldlab/template-building.git
-cd template-building
-mvn clean compile install
+cd $BASEDIR # back to template building repo
+mvn -Denforcer.skip=true clean compile install
+
+# back to starting directory
+cd $startdir
