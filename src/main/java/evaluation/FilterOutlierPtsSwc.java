@@ -11,8 +11,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
-import sc.fiji.analyzeSkeleton.SwcIO;
-import sc.fiji.analyzeSkeleton.SWCPoint;
+import sc.fiji.skeleton.SwcIO;
+import sc.fiji.skeleton.SWCPoint;
 
 public class FilterOutlierPtsSwc
 {

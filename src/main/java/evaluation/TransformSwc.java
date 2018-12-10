@@ -15,8 +15,8 @@ import java.util.List;
 import net.imglib2.realtransform.InvertibleRealTransform;
 import net.imglib2.realtransform.InvertibleRealTransformSequence;
 import process.RenderTransformed;
-import sc.fiji.analyzeSkeleton.SwcIO;
-import sc.fiji.analyzeSkeleton.SWCPoint;
+import sc.fiji.skeleton.SwcIO;
+import sc.fiji.skeleton.SWCPoint;
 import tracing.SNT;
 
 
