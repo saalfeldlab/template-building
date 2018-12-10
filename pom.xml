@@ -49,12 +49,12 @@
  	<dependency>
 		<groupId>ome</groupId>
 		<artifactId>bio-formats_plugins</artifactId>
-		<version>5.4.1-SNAPSHOT</version><!--$NO-MVN-MAN-VER$-->
+		<version>5.5.0</version><!--$NO-MVN-MAN-VER$-->
 	</dependency>
 	<dependency>
 		<groupId>ome</groupId>
 		<artifactId>formats-gpl</artifactId>
-		<version>5.4.1-SNAPSHOT</version>
+		<version>5.5.0</version>
 	</dependency>
 	<dependency>
 		<groupId>ome</groupId>
@@ -64,12 +64,10 @@
 	<dependency>
 		<groupId>ome</groupId>
 		<artifactId>formats-api</artifactId>
-		<version>5.4.1-SNAPSHOT</version>
 	</dependency>
 	<dependency>
 		<groupId>ome</groupId>
 		<artifactId>formats-bsd</artifactId>
-		<version>5.4.1-SNAPSHOT</version>
 	</dependency>
 	<dependency>
 		<groupId>org.jfree</groupId>
