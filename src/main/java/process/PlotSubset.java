@@ -9,7 +9,7 @@ import java.util.List;
 import org.janelia.utility.parse.ParseUtils;
 import org.jfree.chart.ChartFactory;
 import org.jfree.chart.ChartFrame;
-import org.jfree.chart.ChartUtilities;
+import org.jfree.chart.ChartUtils;
 import org.jfree.chart.JFreeChart;
 import org.jfree.chart.plot.PlotOrientation;
 import org.jfree.chart.plot.XYPlot;
@@ -160,7 +160,7 @@ public class PlotSubset
 		
 		if( outputPath != null && !outputPath.isEmpty())
 		{
-			ChartUtilities.saveChartAsPNG( new File( outputPath ), chart, 800, 600 );
+			ChartUtils.saveChartAsPNG( new File( outputPath ), chart, 800, 600 );
 		}
 	}
 
