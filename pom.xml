@@ -8,7 +8,11 @@
 		<repository>
 			<id>imagej.public</id>
 			<url>https://maven.imagej.net/content/groups/public</url>
-		</repository>
+        </repository>
+        <repository>
+            <id>saalfeld-lab-maven-repo</id>
+            <url>https://saalfeldlab.github.io/maven</url>
+        </repository>
 	</repositories>
 	
   <parent>
