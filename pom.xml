@@ -124,7 +124,7 @@
 		<dependency>
 			<groupId>net.imglib2</groupId>
 			<artifactId>imglib2-realtransform</artifactId>
-			<version>2.0.0-beta-40-SNAPSHOT</version>
+			<version>2.1.0</version>
 		</dependency>
 		<dependency>
 			<groupId>net.imglib2</groupId>

@@ -41,7 +41,7 @@ public class AffineTransform4DRepeated3D implements AffineGet, Concatenable< Aff
 	}
 
 	@Override
-	public InvertibleRealTransform copy()
+	public AffineTransform4DRepeated3D copy()
 	{
 		return this;
 	}
