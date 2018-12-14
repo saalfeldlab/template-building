@@ -1,5 +1,7 @@
 # template-building
-Scripts and code relating to building anatomical templates.
+Scripts and code relating to building anatomical templates, outlined in the paper [Bogovic et al. "An unbiased template of the Drosophila brain and ventral nerve cord"](https://www.biorxiv.org/content/early/2018/07/25/376384).
+
+Associated template images and transformations can be downloaded [here](https://www.janelia.org/open-science/jrc-2018-brain-templates).
 
 ## Installation
 * Check out this repo: `git clone https://github.com/saalfeldlab/template-building.git`
