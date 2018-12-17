@@ -111,6 +111,8 @@ public class DownsampleGaussian
 	private double[] sourceSigmas;
 	private double[] targetSigmas;
 
+	private double epsilon = 1e-6;
+
 	public static void main( String[] args ) throws ImgLibException
 	{
 		DownsampleGaussian dg = DownsampleGaussian.parseCommandLineArgs( args );
@@ -158,6 +160,11 @@ public class DownsampleGaussian
 			O o)
 	{
 		return Converters.convert( img, conv, o );
+	}
+
+	public void setEpsiolon( final double eps )
+	{
+		this.epsilon = eps;
 	}
 
 	@SuppressWarnings( "unchecked" )
@@ -364,7 +371,6 @@ public class DownsampleGaussian
 		else
 		{
 			outputInterval = inferOutputIntervalFromFactors( ipi, downsampleFactors );
-			
 		}
 		System.out.println("Output Interval: " + Util.printInterval(outputInterval) );
 
@@ -376,11 +382,15 @@ public class DownsampleGaussian
 		ImagePlusImgFactory< S > factory = new ImagePlusImgFactory< S >( Views.flatIterable( ipi ).firstElement());
 		ImagePlusImg< S, ? > out = factory.create( outputInterval );
 
+		validateSigmas( sourceSigmas, epsilon );
+		validateSigmas( targetSigmas, epsilon );
+
 		resampleGaussianInplace( 
 				ipi, out, offset,
 				interpfactory, 
 				downsampleFactors, sourceSigmas, targetSigmas,
-				nThreads );
+				nThreads,
+				epsilon );
 
 
 		if( outputFilePath.endsWith( "h5" ))
@@ -421,6 +431,15 @@ public class DownsampleGaussian
 		System.out.println( "finished");
 	}
 	
+	public static void validateSigmas( final double[] sigmas, double epsilon )
+	{
+		for( int i = 0; i < sigmas.length; i++ )
+		{
+			if( sigmas[ i ] < epsilon || Double.isNaN( sigmas[ i ] ))
+				sigmas[ i ] = epsilon;
+		}
+	}
+
 	public static Interval inferOutputIntervalFromFactors(
 			Interval inputInterval,
 			double[] factors)
@@ -444,7 +463,8 @@ public class DownsampleGaussian
 			double[] factors,
 			double[] sourceSigmas,
 			double[] targetSigmas,
-			int nThreads )
+			int nThreads,
+			double epsilon )
 
 	{
 		int nd = in.numDimensions();
@@ -461,7 +481,7 @@ public class DownsampleGaussian
 				in, out, offset,
 				interpfactory, 
 				factors, sourceSigmas, targetSigmas,
-				nThreads );
+				nThreads, epsilon );
 		
 		return out;
 	}
@@ -528,13 +548,11 @@ public class DownsampleGaussian
 		img.dimensions(sz);
 
 		double[] sigs = new double[ ndims ];
-//		long[] newSz  = new long[ ndims ];
 
 		for( int d = 0; d<ndims; d++)
 		{
 			double s = targetSigmas[d] * downsampleFactors[d]; 
 			sigs[d] = Math.sqrt( s * s  - sourceSigmas[d] * sourceSigmas[d] );
-//			newSz[d] = (long)Math.ceil( sz[d] / downsampleFactors[d] );
 		}
 
 		int[] pos = new int[ ndims ];
@@ -721,7 +739,8 @@ public class DownsampleGaussian
 			final double[] downsampleFactors, 
 			final double[] sourceSigmas,
 			final double[] targetSigmas,
-			final int nThreads )
+			final int nThreads,
+			final double epsilon )
 	{
 	
 		int ndims = img.numDimensions();
@@ -733,6 +752,9 @@ public class DownsampleGaussian
 			{
 				double s = targetSigmas[d] * downsampleFactors[d];
 				sigs[d] = Math.sqrt( s * s  - sourceSigmas[d] * sourceSigmas[d] );
+
+				if( sigs[d] < epsilon || Double.isNaN( sigs[ d ]))
+					sigs[ d ] = epsilon;
 			}
 			
 			System.out.println( "using sigs: " + Arrays.toString( sigs ));
