@@ -54,8 +54,8 @@ import net.imglib2.view.Views;
 import net.imglib2.view.composite.CompositeIntervalView;
 import net.imglib2.view.composite.GenericComposite;
 
-import sc.fiji.io.Nrrd_Reader;
-import sc.fiji.io.Nrrd_Writer;
+import sc.fiji.io.Dfield_Nrrd_Reader;
+import sc.fiji.io.Dfield_Nrrd_Writer;
 
 public class WriteNrrdDisplacementField {
 
@@ -182,7 +182,7 @@ public class WriteNrrdDisplacementField {
 		else if( imF.endsWith( "nrrd" ))
 		{
 			// This will never work since the Nrrd_Reader can't handle 4d volumes, actually
-			Nrrd_Reader nr = new Nrrd_Reader();
+			Dfield_Nrrd_Reader nr = new Dfield_Nrrd_Reader();
 			File imFile = new File( imF );
 			baseIp = nr.load( imFile.getParent(), imFile.getName());
 		}
@@ -667,7 +667,7 @@ public class WriteNrrdDisplacementField {
 		out.write("# Created by NrrdDisplacementFieldWriter at "+(new Date())+"\n");
 
 		// Fetch and write the data type
-		out.write("type: "+Nrrd_Writer.imgType(fi.fileType)+"\n");
+		out.write("type: "+Dfield_Nrrd_Writer.imgType(fi.fileType)+"\n");
 		
 		// write dimensionality
 		out.write("dimension: "+dimension+"\n");
