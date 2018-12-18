@@ -7,6 +7,10 @@ Associated template images and transformations can be downloaded [here](https://
 * Check out this repo: `git clone https://github.com/saalfeldlab/template-building.git`
 * Run the build script: `./template-building/build.sh`
 
+## Documentation
+
+* [Support for transformations](https://github.com/saalfeldlab/template-building/wiki/Transformations)
+* [Registration algorithms and parameter settings](https://github.com/saalfeldlab/template-building/wiki/Registration-algorithms-and-parameter-settings)
 
 ## Notes
 ### Dependencies
