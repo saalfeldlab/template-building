@@ -11,6 +11,7 @@ Associated template images and transformations can be downloaded [here](https://
 
 * [Support for transformations](https://github.com/saalfeldlab/template-building/wiki/Transformations)
 * [Registration algorithms and parameter settings](https://github.com/saalfeldlab/template-building/wiki/Registration-algorithms-and-parameter-settings)
+* [Software for evaluating registration](https://github.com/saalfeldlab/template-building/wiki/Evaluation-Documentation)
 
 ## Notes
 ### Dependencies
