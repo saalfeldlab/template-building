@@ -1,7 +1,7 @@
 # template-building
 Scripts and code relating to building anatomical templates, outlined in the paper [Bogovic et al. "An unbiased template of the Drosophila brain and ventral nerve cord"](https://www.biorxiv.org/content/early/2018/07/25/376384).
 
-Associated template images and transformations can be downloaded [here](https://www.janelia.org/open-science/jrc-2018-brain-templates).  We also provide fiji scripts for automatically [downloading multiple templates](https://raw.githubusercontent.com/saalfeldlab/template-building/master/fiji/download_templates.py) or [downloading multiple transformations at once](https://raw.githubusercontent.com/saalfeldlab/template-building/master/fiji/download_bridges.py).
+Associated template images and transformations can be downloaded [here](https://www.janelia.org/open-science/jrc-2018-brain-templates).  We also provide fiji scripts for automatically [downloading multiple templates](https://raw.githubusercontent.com/saalfeldlab/template-building/master/fiji/download_templates.py) or [downloading multiple transformations at once](https://raw.githubusercontent.com/saalfeldlab/template-building/master/fiji/download_bridges.py).  [See here](https://imagej.net/Scripting#Using_the_script_editor) for help on running Fiji scripts.
 
 ## Installation
 * Check out this repo: `git clone https://github.com/saalfeldlab/template-building.git`
