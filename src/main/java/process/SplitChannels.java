@@ -6,7 +6,7 @@ import java.io.IOException;
 import ij.IJ;
 import ij.ImagePlus;
 import ij.plugin.ChannelSplitter;
-import io.WritingHelper;
+import io.IOHelper;
 import io.nii.NiftiIo;
 import loci.formats.FormatException;
 
@@ -54,7 +54,7 @@ public class SplitChannels {
 			String outF = destDir + File.separator + outName;
 			
 			System.out.println("saving to: " + outF );
-			WritingHelper.write( ch, outF );
+			IOHelper.write( ch, outF );
 		}
 	}
 }

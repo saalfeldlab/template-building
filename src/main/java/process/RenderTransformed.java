@@ -11,7 +11,7 @@ import org.janelia.utility.parse.ParseUtils;
 import ij.IJ;
 import ij.ImagePlus;
 import io.AffineImglib2IO;
-import io.WritingHelper;
+import io.IOHelper;
 import io.nii.NiftiIo;
 import io.nii.Nifti_Writer;
 import loci.formats.FormatException;
@@ -44,7 +44,7 @@ import net.imglib2.type.numeric.real.FloatType;
 import net.imglib2.util.Util;
 import net.imglib2.view.IntervalView;
 import net.imglib2.view.Views;
-import sc.fiji.io.Nrrd_Reader;
+import sc.fiji.io.Dfield_Nrrd_Reader;
 import util.RenderUtil;
 
 /**
@@ -96,7 +96,7 @@ public class RenderTransformed
 		}
 		else if( imF.endsWith( "nrrd" ))
 		{
-			Nrrd_Reader nr = new Nrrd_Reader();
+			Dfield_Nrrd_Reader nr = new Dfield_Nrrd_Reader();
 			File imFile = new File( imF );
 
 			baseIp = nr.load( imFile.getParent(), imFile.getName());
@@ -183,7 +183,7 @@ public class RenderTransformed
 		}
 
 		System.out.println("saving to: " + outF );
-		WritingHelper.write( ipout, outF );
+		IOHelper.write( ipout, outF );
 	}
 	
 	public static InvertibleRealTransform loadTransform( String filePath, boolean invert ) throws IOException

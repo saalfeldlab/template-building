@@ -6,7 +6,7 @@ import org.janelia.utility.parse.ParseUtils;
 
 import ij.IJ;
 import ij.ImagePlus;
-import io.WritingHelper;
+import io.IOHelper;
 import io.nii.Nifti_Writer;
 import net.imglib2.FinalInterval;
 import net.imglib2.RandomAccessibleInterval;
@@ -85,7 +85,7 @@ public class GeneratePositionFieldRes
 		System.out.println( "nFrames " + imp.getNFrames() );
 		System.out.println( "nSlices " + imp.getNSlices() );
 
-		WritingHelper.write( imp, outArg );
+		IOHelper.write( imp, outArg );
 	}
 
 }

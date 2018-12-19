@@ -51,7 +51,7 @@ import net.imglib2.util.Intervals;
 import net.imglib2.util.Util;
 import net.imglib2.view.IntervalView;
 import net.imglib2.view.Views;
-import sc.fiji.io.Nrrd_Reader;
+import sc.fiji.io.Dfield_Nrrd_Reader;
 
 public class DownsampleDfieldErrors
 {
@@ -113,7 +113,7 @@ public class DownsampleDfieldErrors
 		else if( options.fieldPath.endsWith( "nrrd" ))
 		{
 			// This will never work since the Nrrd_Reader can't handle 4d volumes, actually
-			Nrrd_Reader nr = new Nrrd_Reader();
+			Dfield_Nrrd_Reader nr = new Dfield_Nrrd_Reader();
 			File imFile = new File( options.fieldPath );
 			dfieldIp = nr.load( imFile.getParent(), imFile.getName());
 		}

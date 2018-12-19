@@ -12,23 +12,34 @@ import org.kohsuke.args4j.Option;
 
 import com.google.common.collect.Streams;
 
+import bdv.BigDataViewer;
+import bdv.util.BdvFunctions;
+import bigwarp.BigWarp.BigWarpData;
 import ij.IJ;
 import ij.ImagePlus;
-import io.WritingHelper;
+import io.IOHelper;
 import io.nii.NiftiIo;
 import loci.formats.FormatException;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.exception.ImgLibException;
 import net.imglib2.img.Img;
 import net.imglib2.img.display.imagej.ImageJFunctions;
-import net.imglib2.img.imageplus.ImagePlusImg;
+import net.imglib2.img.imageplus.FloatImagePlus;
+import net.imglib2.img.imageplus.ImagePlusImgs;
 import net.imglib2.interpolation.randomaccess.NLinearInterpolatorFactory;
+import net.imglib2.realtransform.AffineGet;
+import net.imglib2.realtransform.AffineRandomAccessible;
 import net.imglib2.realtransform.AffineTransform;
+import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.realtransform.RealViews;
+import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.numeric.real.FloatType;
+import net.imglib2.util.Intervals;
+import net.imglib2.util.Util;
 import net.imglib2.view.IntervalView;
+import net.imglib2.view.RandomAccessibleOnRealRandomAccessible;
 import net.imglib2.view.Views;
-import sc.fiji.io.Nrrd_Reader;
+import sc.fiji.io.Dfield_Nrrd_Reader;
 
 public class DownsampleDfield
 {
@@ -71,9 +82,21 @@ public class DownsampleDfield
 
 	public static void main( String[] args )
 	{
-//		new ImageJ();
 
 		final Options options = new Options(args);
+
+		String[] factorArrays = options.factors.split( "," );
+		
+		System.out.println( options.factors );
+		System.out.println( Arrays.toString( factorArrays ));
+		
+		long[] factors;
+		if( factorArrays.length >= 4 )
+			factors = Arrays.stream( factorArrays ).mapToLong( Long::parseLong ).toArray();
+		else
+			factors = Streams.concat(
+					Arrays.stream( factorArrays ).mapToLong( Long::parseLong ), 
+					LongStream.of( 1 ) ).toArray();
 		
 		ImagePlus dfieldIp = null;
 		if( options.fieldPath.endsWith( "nii" ))
@@ -94,7 +117,7 @@ public class DownsampleDfield
 		else if( options.fieldPath.endsWith( "nrrd" ))
 		{
 			// This will never work since the Nrrd_Reader can't handle 4d volumes, actually
-			Nrrd_Reader nr = new Nrrd_Reader();
+			Dfield_Nrrd_Reader nr = new Dfield_Nrrd_Reader();
 			File imFile = new File( options.fieldPath );
 			dfieldIp = nr.load( imFile.getParent(), imFile.getName());
 		}
@@ -104,25 +127,8 @@ public class DownsampleDfield
 		}
 		
 		System.out.println( dfieldIp );
-		
-//		dfieldIp.show();
-		
-		
-		String[] factorArrays = options.factors.split( "," );
-		
-		System.out.println( options.factors );
-		System.out.println( Arrays.toString( factorArrays ));
-		
-		long[] factors;
-		if( factorArrays.length >= 4 )
-			factors = Arrays.stream( factorArrays ).mapToLong( Long::parseLong ).toArray();
-		else
-			factors = Streams.concat(
-					Arrays.stream( factorArrays ).mapToLong( Long::parseLong ), 
-					LongStream.of( 1 ) ).toArray();
-		
-		
-		
+
+
 		Img< FloatType > dfield = ImageJFunctions.wrapFloat( dfieldIp );
 		
 		double[] resIn = new double[ 3 ];
@@ -135,7 +141,15 @@ public class DownsampleDfield
 		resOut[ 1 ] = resIn[ 1 ] * factors[ 1 ];
 		resOut[ 2 ] = resIn[ 2 ] * factors[ 2 ];
 
+		long[] interval = Intervals.dimensionsAsLongArray( Views.subsample( dfield, factors ));
+
+		// this gymnastics ensures that z ends up as 'slices' in the ImagePlus
+		FloatImagePlus< FloatType > outIpImg= ImagePlusImgs.floats( 
+				interval[0], interval[1], interval[3], interval[2]);
+		
+		
 		RandomAccessibleInterval< FloatType > dfieldDownAvg = DownsampleDfieldErrors.downsampleAverage( dfield, factors, options.nThreads );
+		System.out.println( "ds size: " + Util.printInterval( dfieldDownAvg ));
 
 		if( options.estimateError )
 		{
@@ -143,32 +157,39 @@ public class DownsampleDfield
 			dfieldToPhysical.set( factors[0], 0, 0 );
 			dfieldToPhysical.set( factors[1], 1, 1 );
 			dfieldToPhysical.set( factors[2], 2, 2 );
+
+			AffineRandomAccessible< FloatType, AffineGet > dfieldSubInterpReal = 
+					RealViews.affine(
+							Views.interpolate( 
+								Views.extendZero( dfieldDownAvg ),
+								new NLinearInterpolatorFactory< FloatType >()),
+						dfieldToPhysical );
 			
-			IntervalView< FloatType > dfieldSubInterp = Views.interval( 
-				Views.raster( 
-					RealViews.affine( 
-						Views.interpolate( 
-							Views.extendZero( dfieldDownAvg ),
-							new NLinearInterpolatorFactory< FloatType >()),
-					dfieldToPhysical )),
-				dfield);
-			
-			DownsampleDfieldErrors.compare( dfield, dfieldSubInterp, options.nThreads );
+			IntervalView< FloatType > dfieldSubInterpRaster = Views.interval( Views.raster( dfieldSubInterpReal ), dfield );
+			DownsampleDfieldErrors.compare( dfield, dfieldSubInterpRaster, options.nThreads );
 		}
+
 		
 		try
 		{
-			ImagePlus ip = ((ImagePlusImg<?,?>)dfieldDownAvg).getImagePlus();
+			ImagePlus ip = outIpImg.getImagePlus();
 			ip.getCalibration().pixelWidth = resOut[ 0 ];
 			ip.getCalibration().pixelHeight = resOut[ 1 ];
 			ip.getCalibration().pixelDepth = resOut[ 2 ];
 
-			WritingHelper.write( ip, options.outputPath);
+			IOHelper.write( ip, options.outputPath);
 		} catch ( ImgLibException e )
 		{
 			e.printStackTrace();
 		}
 	}
 
+	public static <T extends RealType<T>> AffineRandomAccessible< T, AffineGet > upsampleDisplacementCoordinate( final RandomAccessibleInterval<T> dfield, final int coord, final AffineTransform3D xfm )
+	{
+		return RealViews.affine(
+			Views.interpolate( Views.extendZero( Views.hyperSlice( dfield, 3, coord )), 
+					new NLinearInterpolatorFactory< T >()),
+			xfm);
+	}
 }
 

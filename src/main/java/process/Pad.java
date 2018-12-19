@@ -17,7 +17,7 @@ import com.beust.jcommander.Parameter;
 
 import ij.IJ;
 import ij.ImagePlus;
-import io.WritingHelper;
+import io.IOHelper;
 import io.nii.NiftiIo;
 import io.nii.Nifti_Writer;
 import jitk.spline.XfmUtils;
@@ -356,7 +356,7 @@ public class Pad
 			ipout.getCalibration().pixelHeight = resIn[ 1 ];
 			ipout.getCalibration().pixelDepth  = resIn[ 2 ];
 			
-			WritingHelper.write( ipout, outputFilePath);
+			IOHelper.write( ipout, outputFilePath);
 		}
 
 		System.out.println( "finished");

@@ -39,7 +39,7 @@ public class SetResolution {
 		if( unit != null )
 			ip.getCalibration().setUnit( unit );
 
-		WritingHelper.write( ip, out );
+		IOHelper.write( ip, out );
 	}
 
 }

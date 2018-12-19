@@ -16,7 +16,7 @@ import com.beust.jcommander.Parameter;
 
 import ij.IJ;
 import ij.ImagePlus;
-import io.WritingHelper;
+import io.IOHelper;
 import io.nii.NiftiIo;
 import jitk.spline.XfmUtils;
 import loci.formats.FormatException;
@@ -425,7 +425,7 @@ public class DownsampleGaussian
 			ipout.getCalibration().pixelHeight = resultResolutions[ 1 ];
 			ipout.getCalibration().pixelDepth  = resultResolutions[ 2 ];
 			
-			WritingHelper.write( ipout, outputFilePath);
+			IOHelper.write( ipout, outputFilePath);
 		}
 
 		System.out.println( "finished");
