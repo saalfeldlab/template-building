@@ -13,18 +13,3 @@ while( c.hasNext() )
 }
 
 println( ssd )
-
-def makeTable(listOfMaps) {
-	table = new DefaultGenericTable()
-	for (columnHeader in listOfMaps[0].keySet()) {
-		column = new GenericColumn(columnHeader)
-		for (row in listOfMaps) {
-			column.add(row.get(columnHeader))
-		}
-		table.add(column)
-	}
-	return table	
-}
-
-table = makeTable( [['A':,'B',:,'SSD':ssd]])
-tableDisplay = displayService.createDisplay(table)
