@@ -6,6 +6,7 @@ Associated template images and transformations can be downloaded [here](https://
 ## Installation
 * Check out this repo: `git clone https://github.com/saalfeldlab/template-building.git`
 * Run the build script: `./template-building/build.sh`
+* To install into your Fiji: `mvn -Dimagej.app.directory=<path to your Fiji> -Denforcer.skip=true`
 
 ## Documentation
 
