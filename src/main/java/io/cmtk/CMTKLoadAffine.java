@@ -1,4 +1,4 @@
-package net.imglib2.realtransform.cmtk;
+package io.cmtk;
 
 import java.io.File;
 import java.io.IOException;
@@ -89,36 +89,64 @@ public class CMTKLoadAffine
 		final double sin0xsin1 = sin0 * sin1;
 		final double cos0xsin1 = cos0 * sin1;
 		
-		final double scaleX = logScaleFactors ? Math.exp( scale[ 0 ] ) : scale[ 0 ];
-		final double scaleY = logScaleFactors ? Math.exp( scale[ 1 ] ) : scale[ 1 ];
-		final double scaleZ = logScaleFactors ? Math.exp( scale[ 2 ] ) : scale[ 2 ];
-		
-		mtx.set( scaleX *  cos1 * cos2, 0, 0 );
-		mtx.set( scaleX * -cos1 * sin2, 0, 1 );
-		mtx.set( scaleX * -sin1, 0, 2 );
+		mtx.set( cos1 * cos2, 0, 0 );
+		mtx.set( -cos1 * sin2, 0, 1 );
+		mtx.set( -sin1, 0, 2 );
 
-		mtx.set( scaleY * (  sin0xsin1*cos2 + cos0*sin2 ), 1, 0 );
-		mtx.set( scaleY * ( -sin0xsin1*sin2 + cos0*cos2 ), 1, 1 );
-		mtx.set( scaleY * sin0 * cos1, 1, 2 );
+		mtx.set( (  sin0xsin1*cos2 + cos0*sin2 ), 1, 0 );
+		mtx.set( ( -sin0xsin1*sin2 + cos0*cos2 ), 1, 1 );
+		mtx.set( sin0 * cos1, 1, 2 );
 		
-		mtx.set( scaleZ * (  cos0xsin1*cos2 - sin0*sin2 ), 2, 0 );
-		mtx.set( scaleZ * ( -cos0xsin1*sin2 - sin0*cos2 ), 2, 1 );
-		mtx.set( scaleZ * cos0 * cos1, 2, 2 );
+		mtx.set( (  cos0xsin1*cos2 - sin0*sin2 ), 2, 0 );
+		mtx.set( ( -cos0xsin1*sin2 - sin0*cos2 ), 2, 1 );
+		mtx.set( cos0 * cos1, 2, 2 );
 
-		// TODO generate shears
-		// (skipping for the moment)
-		
+		AffineTransform3D scaleShear = new AffineTransform3D();
+		for ( int i = 0; i < 3; ++i )
+		{
+			if( logScaleFactors )
+				scaleShear.set( Math.exp( scale[ i ]), i, i );
+			else
+				scaleShear.set( scale[ i ], i, i );
+	
+		    scaleShear.set( shear[ i ],(i/2)+(i%2)+1, i/2 );
+		}
+
+		mtx.preConcatenate( scaleShear );
+		transposeInPlace( mtx );
+
 		// transform rotation center
 		double[] xfmCenter = new double[ 3 ];
-		transpose( mtx ).apply( center, xfmCenter );
+		mtx.apply( center, xfmCenter );
 		
-
 		// set translations
 		mtx.set( xlate[ 0 ] - xfmCenter[ 0 ] + center[ 0 ], 0, 3 );
 		mtx.set( xlate[ 1 ] - xfmCenter[ 1 ] + center[ 1 ], 1, 3 );
 		mtx.set( xlate[ 2 ] - xfmCenter[ 2 ] + center[ 2 ], 2, 3 );
 
 		return mtx;
+	}
+	
+	public static AffineTransform3D permutationXform()
+	{
+		AffineTransform3D out = new AffineTransform3D();
+		out.set( 0, 1, 0, 0, 
+			 	 1, 0, 0, 0,
+			 	 0, 0, 1, 0 );
+
+//		out.set( -1, 0, 0 );
+//		out.set( -1, 1, 1 );
+//		out.set( -1, 2, 2 );
+		return out;
+	}
+	
+	public void transposeInPlace( AffineTransform3D mtx )
+	{
+		AffineTransform3D copy = mtx.copy();
+		for( int i = 0; i < 3; i++ ) for( int j = 0; j < 3; j++ )
+		{
+			mtx.set( copy.get( i, j ), j, i );
+		}
 	}
 
 	public static AffineTransform3D transpose( AffineTransform3D in )
@@ -219,6 +247,32 @@ public class CMTKLoadAffine
 		
 		return out;
 	}
+	
+	public static double[] apply( double[] pt, AffineTransform3D xfm )
+	{
+		double[] y = new double[ 3 ];
+		xfm.apply( pt, y );
+		return y;
+	}
+
+	public static double[] applyLeft( double[] pt, AffineTransform3D xfm )
+	{
+		double[] y = new double[ 3 ];
+		
+		y[ 0 ] = xfm.get( 0, 0 ) * pt[ 0 ] + 
+				 xfm.get( 1, 0 ) * pt[ 1 ] + 
+				 xfm.get( 2, 0 ) * pt[ 2 ];
+
+		y[ 1 ] = xfm.get( 0, 1 ) * pt[ 0 ] + 
+				 xfm.get( 1, 1 ) * pt[ 1 ] + 
+				 xfm.get( 2, 1 ) * pt[ 2 ];
+
+		y[ 2 ] = xfm.get( 0, 2 ) * pt[ 0 ] + 
+				 xfm.get( 1, 2 ) * pt[ 1 ] + 
+				 xfm.get( 2, 2 ) * pt[ 2 ];
+
+		return y;
+	}
 
 	public static void main( String[] args ) throws IOException
 	{
@@ -245,6 +299,33 @@ public class CMTKLoadAffine
 		//System.out.println( res );
 		System.out.println( Arrays.toString( res.getRowPackedCopy() ).replace("[","").replace("]",""));
 		
+	}
+
+	public static String toString( AffineTransform3D xfm )
+	{
+		return toString( xfm, "%.2f" );
+	}
+	
+	public static String toString( AffineTransform3D xfm, String formatString )
+	{
+		StringBuffer str = new StringBuffer();
+//		str.append( String.format( "%.2f %.2f %.2f %.2f\n", xfm.get( 0, 0 ), xfm.get( 0, 1 ), xfm.get(0, 2), xfm.get(0,3)));
+//		str.append( String.format( "%.2f %.2f %.2f %.2f\n", xfm.get( 1, 0 ), xfm.get( 1, 1 ), xfm.get(1, 2), xfm.get(1,3)));
+//		str.append( String.format( "%.2f %.2f %.2f %.2f\n", xfm.get( 2, 0 ), xfm.get( 2, 1 ), xfm.get(2, 2), xfm.get(2,3)));
+
+		str.append( String.format( 
+				String.format( "%s %s %s %s\n", formatString, formatString, formatString, formatString ), 
+				xfm.get( 0, 0 ), xfm.get( 0, 1 ), xfm.get(0, 2), xfm.get(0,3)));
+
+		str.append( String.format( 
+				String.format( "%s %s %s %s\n", formatString, formatString, formatString, formatString ), 
+				xfm.get( 1, 0 ), xfm.get( 1, 1 ), xfm.get(1, 2), xfm.get(1,3)));
+
+		str.append( String.format( 
+				String.format( "%s %s %s %s\n", formatString, formatString, formatString, formatString ), 
+				xfm.get( 2, 0 ), xfm.get( 2, 1 ), xfm.get(2, 2), xfm.get(2,3)));
+
+		return str.toString();
 	}
 
 }
