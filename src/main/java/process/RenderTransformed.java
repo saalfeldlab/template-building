@@ -14,7 +14,6 @@ import io.AffineImglib2IO;
 import io.IOHelper;
 import io.cmtk.CMTKLoadAffine;
 import io.nii.NiftiIo;
-import io.nii.Nifti_Writer;
 import loci.formats.FormatException;
 import net.imglib2.FinalInterval;
 import net.imglib2.RandomAccessible;
@@ -28,8 +27,6 @@ import net.imglib2.interpolation.randomaccess.NLinearInterpolatorFactory;
 import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
 import net.imglib2.realtransform.AffineTransform;
 import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.realtransform.DeformationFieldTransform;
-import net.imglib2.realtransform.InverseRealTransform;
 
 import net.imglib2.realtransform.InvertibleRealTransform;
 import net.imglib2.realtransform.InvertibleRealTransformSequence;
@@ -38,7 +35,6 @@ import net.imglib2.realtransform.ants.ANTSDeformationField;
 import net.imglib2.realtransform.ants.ANTSLoadAffine;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.NumericType;
-import net.imglib2.type.numeric.integer.ShortType;
 import net.imglib2.type.numeric.integer.UnsignedByteType;
 import net.imglib2.type.numeric.integer.UnsignedShortType;
 import net.imglib2.type.numeric.real.FloatType;
@@ -46,8 +42,6 @@ import net.imglib2.util.Util;
 import net.imglib2.view.IntervalView;
 import net.imglib2.view.Views;
 import sc.fiji.io.Dfield_Nrrd_Reader;
-import sc.fiji.io.Nrrd_Reader;
-import sc.fiji.io.Nrrd_Reader_4d;
 import util.RenderUtil;
 
 /**
