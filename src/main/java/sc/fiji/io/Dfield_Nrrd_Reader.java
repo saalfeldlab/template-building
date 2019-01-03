@@ -55,20 +55,6 @@ public class Dfield_Nrrd_Reader extends ImagePlus implements PlugIn
 	public String imageName=null;
 	
 	
-	public static void main( String[] args )
-	{
-		System.out.println("nrrd reader");
-
-		String dir = "/groups/saalfeld/public/jrc2018/transformations/JRC2018F_FAFB/forCmtk";
-		String f = "JRC2018F_FAFB_Warp_cmtk.nrrd";
-
-		Nrrd_Reader_4d reader = new Nrrd_Reader_4d();
-		ImagePlus ip = reader.load( dir, f );
-		System.out.println( ip );
-		
-		ip.show();
-	}
-
 	public void run(String arg) {
 		String directory = "", name = arg;
 		if ((arg==null) || (arg==""))
