@@ -16,7 +16,9 @@ import net.imglib2.RandomAccessible;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.RealInterval;
 import net.imglib2.realtransform.RealTransform;
+import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.NumericType;
+import net.imglib2.type.numeric.integer.IntType;
 import net.imglib2.view.IntervalView;
 import net.imglib2.view.Views;
 
@@ -97,7 +99,7 @@ public class RenderUtil
 	public static void copyToLongCeil( final double[] src, final long[] dst )
 	{
 		for( int d = 0; d < src.length; d++ )
-			dst[ d ] = (long)Math.floor( src[d] );
+			dst[ d ] = (long)Math.ceil( src[d] );
 	}
 
 	public static long[] splitPoints( int nThreads, int dim2split, Interval target )
