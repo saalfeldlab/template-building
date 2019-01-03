@@ -12,6 +12,7 @@ import ij.IJ;
 import ij.ImagePlus;
 import io.AffineImglib2IO;
 import io.IOHelper;
+import io.cmtk.CMTKLoadAffine;
 import io.nii.NiftiIo;
 import io.nii.Nifti_Writer;
 import loci.formats.FormatException;
@@ -45,6 +46,8 @@ import net.imglib2.util.Util;
 import net.imglib2.view.IntervalView;
 import net.imglib2.view.Views;
 import sc.fiji.io.Dfield_Nrrd_Reader;
+import sc.fiji.io.Nrrd_Reader;
+import sc.fiji.io.Nrrd_Reader_4d;
 import util.RenderUtil;
 
 /**
@@ -206,6 +209,19 @@ public class RenderTransformed
 				e.printStackTrace();
 			}
 		}
+		else if( filePath.endsWith( "xform" ))
+		{
+			try
+			{
+				CMTKLoadAffine reader = new CMTKLoadAffine();
+				AffineTransform3D xfm = reader.load( new File( filePath ));
+				return xfm;
+			}
+			catch( Exception e )
+			{
+				e.printStackTrace();
+			}
+		}
 		else if( filePath.endsWith( "txt" ))
 		{
 			if( Files.readAllLines( Paths.get( filePath ) ).get( 0 ).startsWith( "#Insight Transform File" ))
@@ -259,6 +275,13 @@ public class RenderTransformed
 				{
 					e.printStackTrace();
 				}
+			}
+			else if( filePath.endsWith( "nrrd" ))
+			{
+				//Nrrd_Reader_4d reader = new Nrrd_Reader_4d();
+				Dfield_Nrrd_Reader reader = new Dfield_Nrrd_Reader();
+				File tmp = new File( filePath );
+				displacementIp = reader.load( tmp.getParent(), tmp.getName() );
 			}
 			else
 			{

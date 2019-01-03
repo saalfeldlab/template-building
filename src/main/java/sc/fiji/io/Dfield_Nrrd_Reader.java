@@ -62,7 +62,7 @@ public class Dfield_Nrrd_Reader extends ImagePlus implements PlugIn
 		String dir = "/groups/saalfeld/public/jrc2018/transformations/JRC2018F_FAFB/forCmtk";
 		String f = "JRC2018F_FAFB_Warp_cmtk.nrrd";
 
-		Dfield_Nrrd_Reader reader = new Dfield_Nrrd_Reader();
+		Nrrd_Reader_4d reader = new Nrrd_Reader_4d();
 		ImagePlus ip = reader.load( dir, f );
 		System.out.println( ip );
 		
@@ -145,6 +145,11 @@ public class Dfield_Nrrd_Reader extends ImagePlus implements PlugIn
 			imp = fo.open(false);
 		}
 		if(imp==null) return null;
+	
+		if( fi.sizes.length > 3 )
+			imp.setDimensions( fi.sizes[2], fi.sizes[3], 1 );
+		else
+			imp.setDimensions( 1, fi.sizes[2], 1 );
 		
 		// Copy over the spatial scale info which we found in readHeader
 		// nb the first we don't just overwrite the current calibration 
@@ -247,8 +252,12 @@ public class Dfield_Nrrd_Reader extends ImagePlus implements PlugIn
 					fi.sizes[i]=Integer.valueOf(getSubField(thisLine,i)).intValue();
 					if(i==0) fi.width=fi.sizes[0];
 					if(i==1) fi.height=fi.sizes[1];
-					if(i==2) fi.nImages=fi.sizes[2];
 				}
+
+				if ( fi.dimension > 3 )
+					fi.nImages = fi.sizes[ 2 ] * fi.sizes[ 3 ];
+				else
+					fi.nImages = fi.sizes[ 2 ];
 			}
 
 			if (noteType.equals("units")) spatialCal.setUnit(firstNoteValue);
@@ -274,8 +283,8 @@ public class Dfield_Nrrd_Reader extends ImagePlus implements PlugIn
 
 			if(noteType.equals("space")){
 				fi.setSpace(noteValue);
-				if(fi.spaceDims>3) throw new IOException
-					("Nrrd_Reader: Dimension>3 not yet implemented!");				
+				if(fi.spaceDims > 4) throw new IOException
+					("Nrrd_Reader: Dimension>4 not yet implemented!");				
 			}
 			
 			if(noteType.equals("space directions")){
