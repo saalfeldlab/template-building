@@ -18,7 +18,7 @@ package sc.fiji.io;
 
 // Compiling:
 // You must compile Nrrd_Writer.java first because this plugin
-// depends on the NrrdFileInfo class declared in that file
+// depends on the NrrdDfieldFileInfo class declared in that file
 
 import ij.IJ;
 import ij.ImagePlus;
@@ -101,7 +101,7 @@ public class Dfield_Nrrd_Reader extends ImagePlus implements PlugIn
 //		imagePath=fi.directory+fi.fileName;
 //		headerPath=fi.directory+fi.fileName;
 		
-		NrrdFileInfo fi;
+		NrrdDfieldFileInfo fi;
 		try {
 			fi=getHeaderInfo(directory, fileName);
 		}
@@ -154,10 +154,10 @@ public class Dfield_Nrrd_Reader extends ImagePlus implements PlugIn
 		return imp; 
 	} 
 	
-	public NrrdFileInfo getHeaderInfo( String directory, String fileName ) throws IOException {
+	public NrrdDfieldFileInfo getHeaderInfo( String directory, String fileName ) throws IOException {
 
 		if (IJ.debugMode) IJ.log("Entering Nrrd_Reader.readHeader():");
-		NrrdFileInfo fi = new NrrdFileInfo();
+		NrrdDfieldFileInfo fi = new NrrdDfieldFileInfo();
 		fi.directory=directory; fi.fileName=fileName;
 		Calibration spatialCal = this.getCalibration();
 		

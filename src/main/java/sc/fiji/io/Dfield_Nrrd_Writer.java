@@ -176,7 +176,7 @@ public class Dfield_Nrrd_Writer implements PlugIn {
 		Writer bw = new BufferedWriter(new OutputStreamWriter(out));
 		// Note, right now this is the only way compression that is implemented
 		if(nrrdEncoding.equals("gzip"))
-			fi.compression=NrrdFileInfo.GZIP;
+			fi.compression=NrrdDfieldFileInfo.GZIP;
 		// Blank line terminates header
 		bw.write(makeHeader(fi,cal)+"\n");
 		// Flush rather than close
@@ -201,7 +201,7 @@ public class Dfield_Nrrd_Writer implements PlugIn {
 		Writer bw = new BufferedWriter(new OutputStreamWriter(out));
 		// Note, right now this is the only way compression that is implemented
 		if(nrrdEncoding.equals("gzip"))
-			fi.compression=NrrdFileInfo.GZIP;
+			fi.compression=NrrdDfieldFileInfo.GZIP;
 		// Blank line terminates header
 		bw.write(makeHeader(fi,cal)+"\n");
 		// Flush rather than close
@@ -375,26 +375,26 @@ public class Dfield_Nrrd_Writer implements PlugIn {
 	}
 	
 	public static String getEncoding(FileInfo fi) {
-		NrrdFileInfo nfi;
+		NrrdDfieldFileInfo nfi;
 		
 		if (IJ.debugMode) IJ.log("fi :"+fi);
 		
 		try {
-			nfi=(NrrdFileInfo) fi;
+			nfi=(NrrdDfieldFileInfo) fi;
 			if (IJ.debugMode) IJ.log("nfi :"+nfi);
 			if(nfi.encoding!=null && !nfi.encoding.equals("")) return (nfi.encoding);
 		} catch (Exception e) { }
 		
 		switch(fi.compression) {
-			case NrrdFileInfo.GZIP: return("gzip");
-			case NrrdFileInfo.BZIP2: return null;
+			case NrrdDfieldFileInfo.GZIP: return("gzip");
+			case NrrdDfieldFileInfo.BZIP2: return null;
 			default:
 			break;
 		}
 		// These aren't yet supported
 		switch(fi.fileFormat) {
-			case NrrdFileInfo.NRRD_TEXT:
-			case NrrdFileInfo.NRRD_HEX:
+			case NrrdDfieldFileInfo.NRRD_TEXT:
+			case NrrdDfieldFileInfo.NRRD_HEX:
 			return(null);
 			default:
 			break;
@@ -432,7 +432,7 @@ public class Dfield_Nrrd_Writer implements PlugIn {
 	}	
 }
 
-class NrrdFileInfo extends FileInfo {
+class NrrdDfieldFileInfo extends FileInfo {
 	public int dimension=0;
 	public int[] sizes;
 	public String encoding="";
