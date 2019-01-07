@@ -72,12 +72,12 @@ if( rx != 1.0  || ry != 1.0 || rz != 1.0 )
 }
 
 renderInterval = new FinalInterval(
-				[ ip.getWidth(), ip.getHeight(), ip.getNSlices() ] as long[] );
+				[ ref.getWidth(), ref.getHeight(), ref.getNSlices() ] as long[] );
 
 outputResolutions = [
-			ip.getCalibration().pixelWidth, 
-			ip.getCalibration().pixelHeight,
-			ip.getCalibration().pixelDepth] as double[]
+			ref.getCalibration().pixelWidth, 
+			ref.getCalibration().pixelHeight,
+			ref.getCalibration().pixelDepth] as double[]
 
 
 
