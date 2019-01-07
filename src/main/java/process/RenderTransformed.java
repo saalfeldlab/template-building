@@ -56,6 +56,8 @@ import util.RenderUtil;
  */
 public class RenderTransformed
 {
+	
+	public enum INTERP_OPTIONS { LINEAR, NEAREST };
 
 	public static void main( String[] args ) throws FormatException, IOException
 	{
@@ -182,7 +184,7 @@ public class RenderTransformed
 		System.out.println("saving to: " + outF );
 		IOHelper.write( ipout, outF );
 	}
-	
+
 	public static InvertibleRealTransform loadTransform( String filePath, boolean invert ) throws IOException
 	{
 		if( filePath.endsWith( "mat" ))
@@ -332,6 +334,110 @@ public class RenderTransformed
 				(long)Math.round( ip.getHeight() * resIn[ 1 ] / resOutXfm.get( 1, 1 )),
 				(long)Math.round( ip.getNSlices() * resIn[ 2 ] / resOutXfm.get( 2, 2 )));
 	}
+	
+	public static <T extends NumericType<T> & NativeType<T> > InterpolatorFactory<T,RandomAccessible<T>> getInterpolator( String option,
+			RandomAccessible<T> ra )
+	{
+		if( INTERP_OPTIONS.valueOf(option) == INTERP_OPTIONS.LINEAR )
+		{
+			return new NLinearInterpolatorFactory<T>();	
+		}
+		else if( INTERP_OPTIONS.valueOf(option) == INTERP_OPTIONS.NEAREST )
+		{
+			return new NearestNeighborInterpolatorFactory<T>();
+		}
+		else 
+			return null;
+	}
+
+	public static  <T extends NumericType<T> & NativeType<T> > ImagePlus run(
+			Img<T> baseImg,
+			ImagePlusImg< T, ? > out,
+			AffineTransform3D resInXfm,
+			FinalInterval renderInterval,
+			InvertibleRealTransform xfm,
+			double[] outputResolutions,
+			InterpolatorFactory<T,RandomAccessible<T>> interp,
+			int nThreads )
+	{
+		InvertibleRealTransformSequence totalXfm = new InvertibleRealTransformSequence();
+
+		if( resInXfm != null )
+			totalXfm.add( resInXfm );
+
+		totalXfm.add( xfm );
+		
+		AffineTransform3D resOutXfm;
+		if( outputResolutions != null )
+		{
+			resOutXfm = new AffineTransform3D();
+			resOutXfm.set( 	outputResolutions[ 0 ], 0.0, 0.0, 0.0, 
+					  		0.0, outputResolutions[ 1 ], 0.0, 0.0, 
+					  		0.0, 0.0, outputResolutions[ 2 ], 0.0 );
+			totalXfm.add( resOutXfm.inverse() );
+		}
+
+
+		System.out.println("transforming");
+		IntervalView< T > imgHiXfm = Views.interval( 
+				Views.raster( 
+					RealViews.transform(
+							Views.interpolate( Views.extendZero( baseImg ), interp ),
+							totalXfm )),
+				renderInterval );
+
+		IntervalView< T > outTranslated = Views.translate( out,
+				renderInterval.min( 0 ),
+				renderInterval.min( 1 ),
+				renderInterval.min( 2 ));
+
+		System.out.println("copying with " + nThreads + " threads");
+		RenderUtil.copyToImageStack( imgHiXfm, outTranslated, nThreads );
+
+		ImagePlus ipout = null;
+		try
+		{
+			ipout = out.getImagePlus();
+		}
+		catch ( ImgLibException e )
+		{
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+		if (outputResolutions != null )
+		{
+			ipout.getCalibration().pixelWidth  = outputResolutions[ 0 ];
+			ipout.getCalibration().pixelHeight = outputResolutions[ 1 ];
+			ipout.getCalibration().pixelDepth  = outputResolutions[ 2 ];
+		}
+		if( ipout.getNSlices() == 1 && ipout.getNChannels() > 1 )
+		{
+			ipout.setDimensions(  ipout.getNSlices(),  ipout.getNChannels(), ipout.getNFrames() );
+		}
+
+		return ipout;
+	}
+	
+	public static InvertibleRealTransformSequence parseAndReadTransforms(
+			final String[] args )
+	{
+//		String arg = " ";
+//		arg.split(" ");
+//		
+//		ImagePlus ip = null;
+//		FinalInterval renderInterval = new FinalInterval(
+//				ip.getWidth(), ip.getHeight(), ip.getNSlices()
+//				);
+//		
+//		double[] a = new double[]{ ip.getCalibration().pixelWidth, 
+//			ip.getCalibration().pixelHeight,
+//			ip.getCalibration().pixelDepth
+//		}
+		
+		return null;
+
+	}
 
 	public static  <T extends NumericType<T> & NativeType<T> > ImagePlus doIt(
 			Img<T> baseImg,
@@ -343,18 +449,11 @@ public class RenderTransformed
 		// Concatenate all the transforms
 		InvertibleRealTransformSequence totalXfm = new InvertibleRealTransformSequence();
 
-		if( resInXfm != null )
-		{
-			totalXfm.add( resInXfm );
-			System.out.println( "resInXfm: " + resInXfm );
-		}
-
 		int nThreads = 8;
-		AffineTransform3D resOutXfm = null;
-
 		InterpolatorFactory<T,RandomAccessible<T>> interp =  new NLinearInterpolatorFactory<T>();
 
 		int i = 3;
+		double[] outputResolution = null;
 		while( i < args.length )
 		{
 			boolean invert = false;
@@ -388,13 +487,8 @@ public class RenderTransformed
 			if( args[ i ].equals( "-r" ))
 			{
 				i++;
-				double[] outputResolution = ParseUtils.parseDoubleArray( args[ i ] );
+				outputResolution = ParseUtils.parseDoubleArray( args[ i ] );
 				i++;
-
-				resOutXfm = new AffineTransform3D();
-				resOutXfm.set( 	outputResolution[ 0 ], 0.0, 0.0, 0.0, 
-						  		0.0, outputResolution[ 1 ], 0.0, 0.0, 
-						  		0.0, 0.0, outputResolution[ 2 ], 0.0 );
 
 				System.out.println( "output Resolution " + Arrays.toString( outputResolution ));
 				continue;
@@ -417,49 +511,7 @@ public class RenderTransformed
 			i++;
 		}
 
-		if( resOutXfm != null )
-			totalXfm.add( resOutXfm.inverse() );
-
-
-		System.out.println("transforming");
-		IntervalView< T > imgHiXfm = Views.interval( 
-				Views.raster( 
-					RealViews.transform(
-							Views.interpolate( Views.extendZero( baseImg ), interp ),
-							totalXfm )),
-				renderInterval );
-
-		IntervalView< T > outTranslated = Views.translate( out,
-				renderInterval.min( 0 ),
-				renderInterval.min( 1 ),
-				renderInterval.min( 2 ));
-
-		System.out.println("copying with " + nThreads + " threads");
-		RenderUtil.copyToImageStack( imgHiXfm, outTranslated, nThreads );
-
-		ImagePlus ipout = null;
-		try
-		{
-			ipout = out.getImagePlus();
-		}
-		catch ( ImgLibException e )
-		{
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-
-		if (resOutXfm != null )
-		{
-			ipout.getCalibration().pixelWidth  = resOutXfm.get( 0, 0 );
-			ipout.getCalibration().pixelHeight = resOutXfm.get( 1, 1 );
-			ipout.getCalibration().pixelDepth  = resOutXfm.get( 2, 2 );
-		}
-		if( ipout.getNSlices() == 1 && ipout.getNChannels() > 1 )
-		{
-			ipout.setDimensions(  ipout.getNSlices(),  ipout.getNChannels(), ipout.getNFrames() );
-		}
-
-		return ipout;
+		return run( baseImg, out, resInXfm, renderInterval, totalXfm, outputResolution, interp, nThreads );
 	}
 
 	public static FinalInterval parseInterval( String outSz )
