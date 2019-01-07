@@ -11,7 +11,13 @@ import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.Callable;
+import java.util.concurrent.Executors;
 
+import com.beust.jcommander.JCommander;
+import com.beust.jcommander.Parameter;
+
+import ch.qos.logback.core.util.ExecutorServiceUtil;
 import net.imglib2.realtransform.InvertibleRealTransform;
 import net.imglib2.realtransform.InvertibleRealTransformSequence;
 import process.RenderTransformed;
@@ -23,6 +29,21 @@ import tracing.SNT;
 public class TransformSwc
 {
 
+	@Parameter(names = {"-s"}, description = "Input skeletons" )
+	private List<String> skeletonPaths;
+
+	@Parameter(names = {"-o"}, description = "Output skeletons" )
+	private List<String> outputSkeletonPaths;
+
+	@Parameter(names = {"-t", "--transform"}, variableArity = true, description = "Transforms" )
+	private List<String> transforms;
+
+	@Parameter(names = {"-q", "--nThreads"}, description = "Number of threads" )
+	private int nThreads;
+	
+	private transient JCommander jCommander;
+	
+
 	/*
 	 * Reads the first argument as a swc file
 	 * If the second argument is a directory, will rename the input and write to that directory,
@@ -30,59 +51,65 @@ public class TransformSwc
 	 */
 	public static void main( String[] args )
 	{
-		System.out.println( "TRANSFORM SWC");
-		String ptFlist = args[ 0 ];
-		String out = args[ 1 ];
-		
-		String[] list = null;
-		if( ptFlist.indexOf( ',' ) < 0 )
-		{
-			list = new String[]{ ptFlist };
-		}
-		else
-		{
-			list = ptFlist.split( "," );
-		}
-		System.out.println( Arrays.toString( list ));
+		TransformSwc transformer = parseCommandLineArgs( args );
+		transformer.run();
+	}
 
-		File testOutDir = new File( out );
-		boolean isOutDir = testOutDir.isDirectory();
+	public static TransformSwc parseCommandLineArgs( final String[] args )
+	{
+		TransformSwc ob = new TransformSwc();
+		ob.initCommander();
+		try 
+		{
+			ob.jCommander.parse( args );
+		}
+		catch( Exception e )
+		{
+			e.printStackTrace();
+		}
+		return ob;
+	}
 
-		System.out.println( "writing to: " + out );
+	private void initCommander()
+	{
+		jCommander = new JCommander( this );
+		jCommander.setProgramName( "input parser" ); 
+	}
+
+	public void run()
+	{
 		
+		if( skeletonPaths.size() != outputSkeletonPaths.size() )
+		{
+			System.err.println("Must have the same number of input and output skeleton arguments");
+			return;
+		}
+		
+		// parse Transform
 		// Concatenate all the transforms
 		InvertibleRealTransformSequence totalXfm = new InvertibleRealTransformSequence();
 
 		int nThreads = 1;
-		
-		int i = 2;
-		while( i < args.length )
+	
+		int i = 0;
+		while( i < transforms.size() )
 		{
 			boolean invert = false;
-			if( args[ i ].equals( "-i" ))
+			if( transforms.get( i ).toLowerCase().trim().equals( "inverse" ))
 			{
 				invert = true;
 				i++;
 			}
-
-			if( args[ i ].equals( "-q" ))
-			{
-				i++;
-				nThreads = Integer.parseInt( args[ i ] );
-				i++;
-				System.out.println( "argument specifies " + nThreads + " threads" );
-				continue;
-			}
 			
 			if( invert )
-				System.out.println( "loading transform from " + args[ i ] + " AND INVERTING" );
+				System.out.println( "loading transform from " + transforms.get( i ) + " AND INVERTING" );
 			else
-				System.out.println( "loading transform from " + args[ i ]);
+				System.out.println( "loading transform from " + transforms.get( i ));
 			
 			InvertibleRealTransform xfm = null;
 			try
 			{
-				xfm = RenderTransformed.loadTransform( args[ i ], invert );
+				xfm = RenderTransformed.loadTransform( transforms.get( i ), invert );
 			} catch ( IOException e )
 			{
 				e.printStackTrace();
@@ -97,33 +124,27 @@ public class TransformSwc
 			totalXfm.add( xfm );
 			i++;
 		}
-		
-		for ( String ptF : list )
+	
+
+		i = 0;
+		while( i < skeletonPaths.size())
 		{
-			File fileIn = new File( ptF );
-			
-			File fileOut = null;
-			if( isOutDir )
-			{
-				fileOut = new File( out + File.separator + fileIn.getName().replaceAll( ".swc", "_xfm.swc" ));
-			}
-			else
-			{
-				fileOut = new File( out );
-			}
-		
-			ArrayList< SWCPoint > res = transformSWC( totalXfm, SwcIO.loadSWC( fileIn ) );
-			System.out.println( "Exporting to " + fileOut );
+			final File in = new File( skeletonPaths.get( i ));
+			final File out = new File( outputSkeletonPaths.get( i ));
+
+			ArrayList< SWCPoint > res = transformSWC( totalXfm, SwcIO.loadSWC( in ) );
+			System.out.println( "Exporting to " + out );
 			try
 			{
-				final PrintWriter pw = new PrintWriter(new OutputStreamWriter(new FileOutputStream(fileOut), "UTF-8"));
+				final PrintWriter pw = new PrintWriter(new OutputStreamWriter(new FileOutputStream( out ), "UTF-8"));
 				flushSWCPoints( res, pw);
 			}
 			catch (final IOException ioe)
 			{
-				System.err.println("Saving to " + fileOut + " failed");
-				continue;
+				System.err.println("Saving to " + out + " failed");
 			}
+
+			i++;
 		}
 	}
 
@@ -138,7 +159,7 @@ public class TransformSwc
 //		else
 //			pw.println("# Voxel separation (x,y,z): " + x_spacing + ", " + y_spacing + ", " + z_spacing);
 		pw.println("#");
-		
+
 		for (final SWCPoint p : swcPoints)
 			p.println(pw);
 
