@@ -194,11 +194,9 @@ public class RenderTransformed
 				AffineTransform3D xfm = ANTSLoadAffine.loadAffine( filePath );
 				if( invert )
 				{
-					System.out.println("inverting");
-					System.out.println( "xfm: " + xfm );
 					return xfm.inverse().copy();
 				}
-				System.out.println( "xfm: " + xfm );
+
 				return xfm;
 			} catch ( IOException e )
 			{
@@ -211,6 +209,11 @@ public class RenderTransformed
 			{
 				CMTKLoadAffine reader = new CMTKLoadAffine();
 				AffineTransform3D xfm = reader.load( new File( filePath ));
+				if( invert )
+				{
+					return xfm.inverse().copy();
+				}
+
 				return xfm;
 			}
 			catch( Exception e )
