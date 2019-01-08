@@ -38,8 +38,11 @@ public class TransformSwc
 	@Parameter(names = {"-t", "--transform"}, variableArity = true, description = "Transforms" )
 	private List<String> transforms;
 
-	@Parameter(names = {"-q", "--nThreads"}, description = "Number of threads" )
-	private int nThreads;
+//	@Parameter(names = {"-q", "--nThreads"}, description = "Number of threads" )
+//	private int nThreads;
+
+	@Parameter(names = {"-h", "--help"}, description = "Print this help message" )
+	private boolean help;
 	
 	private transient JCommander jCommander;
 	
@@ -52,6 +55,11 @@ public class TransformSwc
 	public static void main( String[] args )
 	{
 		TransformSwc transformer = parseCommandLineArgs( args );
+		if( args.length == 0 || transformer.help )
+		{
+			transformer.jCommander.usage();
+			return;
+		}
 		transformer.run();
 	}
 
@@ -110,7 +118,7 @@ public class TransformSwc
 			try
 			{
 				xfm = RenderTransformed.loadTransform( transforms.get( i ), invert );
-			} catch ( IOException e )
+			} catch ( Exception e )
 			{
 				e.printStackTrace();
 			}
