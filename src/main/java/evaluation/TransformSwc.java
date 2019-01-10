@@ -11,13 +11,12 @@ import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.Callable;
-import java.util.concurrent.Executors;
+import java.util.regex.Pattern;
 
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 
-import ch.qos.logback.core.util.ExecutorServiceUtil;
+import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.realtransform.InvertibleRealTransform;
 import net.imglib2.realtransform.InvertibleRealTransformSequence;
 import process.RenderTransformed;
@@ -29,10 +28,19 @@ import tracing.SNT;
 public class TransformSwc
 {
 
-	@Parameter(names = {"-s"}, description = "Input skeletons" )
+	@Parameter(names = {"-d"}, description = "Directory containing skeletons", required = false )
+	private String skeletonDirectory;
+
+	@Parameter(names = {"--include"}, description = "Matching pattern", required = false )
+	private String includeMatcher;
+
+	@Parameter(names = {"--exclude"}, description = "Exclusion pattern", required = false )
+	private String excludeMatcher;
+
+	@Parameter(names = {"-s"}, description = "Input skeletons", required = false )
 	private List<String> skeletonPaths;
 
-	@Parameter(names = {"-o"}, description = "Output skeletons" )
+	@Parameter(names = {"-o"}, description = "Output skeletons", required = false )
 	private List<String> outputSkeletonPaths;
 
 	@Parameter(names = {"-t", "--transform"}, variableArity = true, description = "Transforms" )
@@ -67,11 +75,11 @@ public class TransformSwc
 	{
 		TransformSwc ob = new TransformSwc();
 		ob.initCommander();
-		try 
+		try
 		{
 			ob.jCommander.parse( args );
 		}
-		catch( Exception e )
+		catch ( Exception e )
 		{
 			e.printStackTrace();
 		}
@@ -81,26 +89,33 @@ public class TransformSwc
 	private void initCommander()
 	{
 		jCommander = new JCommander( this );
-		jCommander.setProgramName( "input parser" ); 
+		jCommander.setProgramName( "input parser" );
 	}
 
 	public void run()
 	{
-		
-		if( skeletonPaths.size() != outputSkeletonPaths.size() )
+
+		if ( skeletonDirectory != null && !skeletonDirectory.isEmpty() )
 		{
-			System.err.println("Must have the same number of input and output skeleton arguments");
+			populateSkeletonListFromDirectory();
+		}
+
+		if ( skeletonPaths.size() != outputSkeletonPaths.size() )
+		{
+			System.err.println( "Must have the same number of input and output skeleton arguments" );
 			return;
 		}
-		
+
 		// parse Transform
 		// Concatenate all the transforms
 		InvertibleRealTransformSequence totalXfm = new InvertibleRealTransformSequence();
+		if ( transforms == null )
+		{
+			totalXfm.add( new AffineTransform3D() );
+		}
 
-		int nThreads = 1;
-	
 		int i = 0;
-		while( i < transforms.size() )
+		while( transforms != null && i < transforms.size() )
 		{
 			boolean invert = false;
 			if( transforms.get( i ).toLowerCase().trim().equals( "inverse" ))
@@ -135,12 +150,27 @@ public class TransformSwc
 	
 
 		i = 0;
-		while( i < skeletonPaths.size())
+		while ( i < skeletonPaths.size() )
 		{
-			final File in = new File( skeletonPaths.get( i ));
-			final File out = new File( outputSkeletonPaths.get( i ));
+			final File in = new File( skeletonPaths.get( i ) );
+			final File out = new File( outputSkeletonPaths.get( i ) );
+
+			if ( !in.exists() )
+			{
+				System.err.println( "input file does not exist: " + in );
+				i++;
+				continue;
+			}
+
+			if ( out.exists() )
+			{
+				System.err.println( "output file does already exists, skipping: " + in );
+				i++;
+				continue;
+			}
 
 			ArrayList< SWCPoint > res = transformSWC( totalXfm, SwcIO.loadSWC( in ) );
+			System.out.println( "Reading from: " + in );
 			System.out.println( "Exporting to " + out );
 			try
 			{
@@ -151,8 +181,42 @@ public class TransformSwc
 			{
 				System.err.println("Saving to " + out + " failed");
 			}
+			System.out.println( " " );
 
 			i++;
+		}
+	}
+
+	public void populateSkeletonListFromDirectory()
+	{
+		skeletonPaths = new ArrayList< String >();
+		outputSkeletonPaths = new ArrayList< String >();
+
+		File dir = new File( skeletonDirectory );
+
+		if ( !dir.isDirectory() )
+			System.err.println( "Not a directory: " + skeletonDirectory );
+
+		String[] fullFileList = dir.list();
+		for ( String f : fullFileList )
+		{
+			if ( f.endsWith( "swc" ) )
+			{
+				if ( includeMatcher != null && !includeMatcher.isEmpty() )
+				{
+					if ( !Pattern.matches( includeMatcher, f ) )
+						continue;
+				}
+
+				if ( excludeMatcher != null && !excludeMatcher.isEmpty() )
+				{
+					if ( Pattern.matches( excludeMatcher, f ) )
+						continue;
+				}
+
+				skeletonPaths.add( dir + File.separator + f );
+				outputSkeletonPaths.add( dir + File.separator + f.replaceAll( ".swc$", "_transformed.swc" ) );
+			}
 		}
 	}
 
