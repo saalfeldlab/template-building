@@ -9,7 +9,6 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.regex.Pattern;
 
@@ -28,22 +27,36 @@ import tracing.SNT;
 public class TransformSwc
 {
 
-	@Parameter(names = {"-d"}, description = "Directory containing skeletons", required = false )
+	@Parameter(names = {"-d", "--directory"}, description = "Directory containing skeletons", required = false )
 	private String skeletonDirectory;
 
-	@Parameter(names = {"--include"}, description = "Matching pattern", required = false )
+	@Parameter(names = {"--include"}, description = "Matching pattern: " +
+			"Files not matching the given regular expression will be ignored.  Only relevant when passing a directory",
+			required = false )
 	private String includeMatcher;
 
-	@Parameter(names = {"--exclude"}, description = "Exclusion pattern", required = false )
+	@Parameter(names = {"--exclude"}, description = "Exclusion pattern: "
+			+ "Files matching the given regular expression will be ignored. Only relevant when pass a directory",
+			required = false )
 	private String excludeMatcher;
 
-	@Parameter(names = {"-s"}, description = "Input skeletons", required = false )
+	@Parameter(names = {"--suffix"}, description = "Suffix applied to output files when passing a directory.",
+			required = false )
+	private String suffix = "_transformed";
+
+	@Parameter(names = {"-s", "--skeleton"}, description = "Input skeletons. Can pass multiple skeletons",
+		required = false )
 	private List<String> skeletonPaths;
 
-	@Parameter(names = {"-o"}, description = "Output skeletons", required = false )
+	@Parameter(names = {"-o", "--output"}, description = "Output skeleton file names. "
+			+ "Must have one output for every input skeleton, and pass output"
+			+ "file paths in the same order as the input sketons.",
+			required = false )
 	private List<String> outputSkeletonPaths;
 
-	@Parameter(names = {"-t", "--transform"}, variableArity = true, description = "Transforms" )
+	@Parameter(names = {"-t", "--transform"}, variableArity = true, description = "List of transforms.  "
+			+ "Every transform that is passed will be applied to the skeletons in the order they are passed. "
+			+ "-t 'inverse' <transform file path> applies the inverse of the given transform if possible." )
 	private List<String> transforms;
 
 //	@Parameter(names = {"-q", "--nThreads"}, description = "Number of threads" )
@@ -215,7 +228,7 @@ public class TransformSwc
 				}
 
 				skeletonPaths.add( dir + File.separator + f );
-				outputSkeletonPaths.add( dir + File.separator + f.replaceAll( ".swc$", "_transformed.swc" ) );
+				outputSkeletonPaths.add( dir + File.separator + f.replaceAll( ".swc$", suffix + ".swc" ) );
 			}
 		}
 	}
