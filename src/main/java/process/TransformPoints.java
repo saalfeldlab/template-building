@@ -35,7 +35,7 @@ import net.imglib2.realtransform.InvertibleRealTransformSequence;
 public class TransformPoints
 {
 
-	public static void main( String[] args ) throws FormatException, IOException
+	public static void main( String[] args ) throws FormatException, Exception
 	{
 
 		String ptsF = args[ 0 ];
