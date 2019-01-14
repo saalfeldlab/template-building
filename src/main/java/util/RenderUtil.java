@@ -167,7 +167,7 @@ public class RenderUtil
 						final FinalInterval subItvl = getSubInterval( target, dim2split, start, end );
 						final IntervalView< T > subTgt = Views.interval( target, subItvl );
 						final Cursor< T > c = subTgt.cursor();
-						final RandomAccess< T > ra = raible.randomAccess();
+						final RandomAccess< T > ra = raible.randomAccess().copyRandomAccess();
 						while ( c.hasNext() )
 						{
 							c.fwd();
