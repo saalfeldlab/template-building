@@ -5,99 +5,72 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.Arrays;
-import java.util.Map;
 
 import org.janelia.saalfeldlab.n5.Compression;
 import org.janelia.saalfeldlab.n5.GzipCompression;
 import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Writer;
 import org.janelia.saalfeldlab.n5.imglib2.N5DisplacementField;
-import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
 import org.janelia.utility.parse.ParseUtils;
 import org.kohsuke.args4j.CmdLineException;
 import org.kohsuke.args4j.CmdLineParser;
 import org.kohsuke.args4j.Option;
 
-import bdv.util.BdvFunctions;
-import bdv.util.BdvOptions;
-import bdv.util.BdvStackSource;
 import ij.IJ;
 import ij.ImagePlus;
 import io.nii.NiftiIo;
 import loci.formats.FormatException;
-import net.imglib2.Cursor;
-import net.imglib2.FinalInterval;
-import net.imglib2.IterableInterval;
-import net.imglib2.RandomAccessible;
-import net.imglib2.RandomAccessibleInterval;
-import net.imglib2.converter.Converter;
-import net.imglib2.converter.Converters;
 import net.imglib2.img.Img;
 import net.imglib2.img.display.imagej.ImageJFunctions;
-import net.imglib2.interpolation.randomaccess.NLinearInterpolatorFactory;
-import net.imglib2.quantization.AbstractQuantizer;
-import net.imglib2.quantization.GammaQuantizer;
-import net.imglib2.quantization.LinearQuantizer;
-import net.imglib2.realtransform.AffineTransform;
 import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.realtransform.RealViews;
 import net.imglib2.realtransform.ants.ANTSLoadAffine;
-import net.imglib2.transform.integer.MixedTransform;
-import net.imglib2.type.NativeType;
-import net.imglib2.type.numeric.NumericType;
-import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.numeric.integer.ByteType;
 import net.imglib2.type.numeric.integer.ShortType;
 import net.imglib2.type.numeric.real.FloatType;
-import net.imglib2.util.Util;
-import net.imglib2.view.IntervalView;
-import net.imglib2.view.MixedTransformView;
-import net.imglib2.view.Views;
-import sc.fiji.io.Nrrd_Reader;
-import util.RenderUtil;
+import sc.fiji.io.Dfield_Nrrd_Reader;
 
 
-public class WriteH5Transform {
-	
+public class WriteH5Transform
+{
+
 	public static final String SHORTTYPE = "SHORT";
+
 	public static final String BYTETYPE = "BYTE";
-	
+
+	public static final String FLOATTYPE = "FLOAT";
+
+	public static final String DOUBLETYPE = "DOUBLE";
+
 	public static class Options implements Serializable
 	{
 
 		private static final long serialVersionUID = -5666039337474416226L;
 
-		@Option( name = "-d", aliases = {"--dfield"}, required = true, usage = "" )
+		@Option( name = "-d", aliases = { "--dfield" }, required = true, usage = "" )
 		private String field;
-		
-		@Option( name = "-a", aliases = {"--affine"}, required = false, usage = "" )
+
+		@Option( name = "-a", aliases = { "--affine" }, required = false, usage = "" )
 		private String affine;
-		
-		@Option( name = "-o", aliases = {"--output"}, required = true, usage = "" )
+
+		@Option( name = "-o", aliases = { "--output" }, required = true, usage = "" )
 		private String output;
 
-//		@Option( name = "-i", aliases = {"--inverse"}, required = false, usage = "" )
-//		private boolean isInverse = false;
-		
-		@Option( name = "-i", aliases = {"--invDfield"}, required = false, usage = "" )
+		@Option( name = "-i", aliases = { "--invDfield" }, required = false, usage = "" )
 		private String invDfield;
-		
-		@Option( name = "-t", aliases = {"--type"}, required = false, usage = "" )
+
+		@Option( name = "-t", aliases = { "--type" }, required = false, usage = "" )
 		private String convertType = "";
-		
-		@Option( name = "-b", aliases = {"--blockSize"}, required = false, usage = "" )
+
+		@Option( name = "-b", aliases = { "--blockSize" }, required = false, usage = "" )
 		private String blockSizeArg;
-		
-		@Option( name = "-m", aliases = {"--maxValue"}, required = false, usage = "" )
+
+		@Option( name = "-m", aliases = { "--maxValue" }, required = false, usage = "" )
 		private double maxValue = Double.NaN;
-		
-		@Option( name = "-e", aliases = {"--maxErr"}, required = false, usage = "" )
+
+		@Option( name = "-e", aliases = { "--maxErr" }, required = false, usage = "" )
 		private double maxErr = Double.NaN;
-		
-		
-		private int[] blockSizeDefault = new int[]{ 3, 32, 32, 32 };
-//		private int[] blockSizeDefault = new int[]{ 32, 32, 32, 3 };
+
+		private int[] blockSizeDefault = new int[] { 3, 32, 32, 32 };
 
 		public Options(final String[] args)
 		{
@@ -106,18 +79,13 @@ public class WriteH5Transform {
 			try {
 				parser.parseArgument(args);
 			} catch (final CmdLineException e) {
-				System.err.println(e.getMessage());
 				parser.printUsage(System.err);
+				System.err.println(e.getMessage());
 			}
-		}
 
-//		/**
-//		 * @return is this an inverse transform
-//		 */
-//		public boolean isInverse()
-//		{
-//			return isInverse;
-//		}
+			if( parser.getArguments().size() == 0 )
+				parser.printUsage( System.out );
+		}
 		
 		/**
 		 * @return is this an inverse transform
@@ -195,27 +163,15 @@ public class WriteH5Transform {
 		String imF = options.getField();
 		String affineF = options.getAffine();
 		String fout = options.getOutput();
-		
-//		boolean inv = options.isInverse;
+
 		String invDfield = options.getInverseField();
 
 		int[] blockSize = options.getBlockSize();
 		String convertType = options.convertType();
-		double maxValue = options.getMaxValue();
 		double maxErr = options.getMaxError();
-		
-//		AffineTransform3D affineXfm = loadAffine( affineF, inv );
+	
 		AffineTransform3D affineXfm = loadAffine( affineF, false );
-
-
-//		System.out.println( "block size: " + Arrays.toString( blockSize ));
-//		System.out.println( "subsample_factors: " + Arrays.toString( subsample_factors ));
-
-//		System.out.println( "m: " + s  );
-//		convertLinear( f, s, m );
-//		System.out.println( "s: " + s );
-		
-		
+	
 		N5Writer n5Writer = new N5HDF5Writer( fout, blockSize );
 		write( imF, n5Writer, "dfield", blockSize, convertType, maxErr, affineXfm );
 
@@ -252,7 +208,7 @@ public class WriteH5Transform {
 		else if( imF.endsWith( "nrrd" ))
 		{
 			// This will never work since the Nrrd_Reader can't handle 4d volumes, actually
-			Nrrd_Reader nr = new Nrrd_Reader();
+			Dfield_Nrrd_Reader nr = new Dfield_Nrrd_Reader();
 			File imFile = new File( imF );
 			baseIp = nr.load( imFile.getParent(), imFile.getName());
 		}
@@ -303,11 +259,8 @@ public class WriteH5Transform {
 				AffineTransform3D xfm = ANTSLoadAffine.loadAffine( filePath );
 				if( invert )
 				{
-//					System.out.println("inverting");
-//					System.out.println( "xfm: " + xfm );
 					return xfm.inverse().copy();
 				}
-				System.out.println( "xfm: " + xfm );
 				return xfm;
 			} catch ( IOException e )
 			{
@@ -324,7 +277,6 @@ public class WriteH5Transform {
 					AffineTransform3D xfm = ANTSLoadAffine.loadAffine( filePath );
 					if( invert )
 					{
-//						System.out.println("inverting");
 						return xfm.inverse().copy();
 					}
 					return xfm;
@@ -332,24 +284,6 @@ public class WriteH5Transform {
 				{
 					e.printStackTrace();
 				}
-			}
-			else
-			{
-//				System.out.println("Reading imglib2 transform file");
-//				try
-//				{
-//					AffineTransform xfm = AffineImglib2IO.readXfm( 3, new File( filePath ) );
-//					System.out.println( Arrays.toString(xfm.getRowPackedCopy() ));
-//					if( invert )
-//					{
-////						System.out.println("inverting");
-//						return xfm.inverse().copy();
-//					}
-//					return xfm;
-//				} catch ( IOException e )
-//				{
-//					e.printStackTrace();
-//				}
 			}
 		}
 		return null;
