@@ -6,8 +6,12 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Arrays;
 
+import org.janelia.saalfeldlab.n5.N5Reader;
+import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Reader;
+import org.janelia.saalfeldlab.n5.imglib2.N5DisplacementField;
 import org.janelia.utility.parse.ParseUtils;
 
+import bigwarp.landmarks.LandmarkTableModel;
 import ij.IJ;
 import ij.ImagePlus;
 import io.AffineImglib2IO;
@@ -25,16 +29,25 @@ import net.imglib2.img.imageplus.ImagePlusImgs;
 import net.imglib2.interpolation.InterpolatorFactory;
 import net.imglib2.interpolation.randomaccess.NLinearInterpolatorFactory;
 import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
+import net.imglib2.realtransform.AffineGet;
 import net.imglib2.realtransform.AffineTransform;
 import net.imglib2.realtransform.AffineTransform3D;
-
+import net.imglib2.realtransform.DeformationFieldTransform;
+import net.imglib2.realtransform.RealTransformAsInverseRealTransform;
+import net.imglib2.realtransform.InverseRealTransform;
 import net.imglib2.realtransform.InvertibleRealTransform;
 import net.imglib2.realtransform.InvertibleRealTransformSequence;
+import net.imglib2.realtransform.RealTransform;
+import net.imglib2.realtransform.RealTransformRandomAccessible;
+import net.imglib2.realtransform.RealTransformSequence;
 import net.imglib2.realtransform.RealViews;
+import net.imglib2.realtransform.ThinplateSplineTransform;
 import net.imglib2.realtransform.ants.ANTSDeformationField;
 import net.imglib2.realtransform.ants.ANTSLoadAffine;
+import net.imglib2.realtransform.inverse.WrappedIterativeInvertibleRealTransform;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.NumericType;
+import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.numeric.integer.UnsignedByteType;
 import net.imglib2.type.numeric.integer.UnsignedShortType;
 import net.imglib2.type.numeric.real.FloatType;
@@ -59,7 +72,7 @@ public class RenderTransformed
 	
 	public enum INTERP_OPTIONS { LINEAR, NEAREST };
 
-	public static void main( String[] args ) throws FormatException, IOException
+	public static void main( String[] args ) throws FormatException, Exception
 	{
 
 		String imF = args[ 0 ];
@@ -184,10 +197,72 @@ public class RenderTransformed
 		System.out.println("saving to: " + outF );
 		IOHelper.write( ipout, outF );
 	}
-
-	public static InvertibleRealTransform loadTransform( String filePath, boolean invert ) throws IOException
+	
+	public static final <T extends RealType<T> & NativeType<T>> InvertibleRealTransform openH5Xfm( 
+			final N5Reader n5,
+			final String dataset,
+			final boolean inverse,
+			final T defaultType,
+			final InterpolatorFactory< T, RandomAccessible<T> > interpolator ) throws Exception
 	{
-		if( filePath.endsWith( "mat" ))
+
+		AffineGet affine = N5DisplacementField.openAffine( n5, dataset );
+
+		DeformationFieldTransform< T > dfield = new DeformationFieldTransform<>(
+				N5DisplacementField.openCalibratedField( n5, dataset, interpolator, defaultType ));
+		
+		if( affine != null )
+		{
+			InvertibleRealTransformSequence xfmSeq = new InvertibleRealTransformSequence();
+			if( inverse )
+			{
+				xfmSeq.add( new RealTransformAsInverseRealTransform( dfield ));
+				xfmSeq.add( affine.inverse() );
+			}
+			else
+			{
+				xfmSeq.add( affine.inverse() );
+				xfmSeq.add( new RealTransformAsInverseRealTransform( dfield ));
+			}
+			return xfmSeq;
+		}
+		else
+		{
+			return null;
+		}
+	}
+
+	public static InvertibleRealTransform loadTransform( String filePath, boolean invert ) throws Exception
+	{
+		if( filePath.endsWith( "h5" ))
+		{
+
+			String dataset = invert ? "invdfield" : "dfield";
+			N5HDF5Reader n5 = new N5HDF5Reader( filePath, 3, 32, 32, 32 );
+
+			// THIS DOES NOT WORK with multiple threads
+//			RealTransform xfm = N5DisplacementField.open( n5, dataset, invert,
+//					new FloatType(),
+//					new NLinearInterpolatorFactory<FloatType>());
+//			RealTransformAsInverseRealTransform ixfm = new RealTransformAsInverseRealTransform( xfm );
+//			return ixfm;
+
+			InvertibleRealTransform ixfm = openH5Xfm( n5, dataset, invert,
+					new FloatType(),
+					new NLinearInterpolatorFactory<FloatType>());
+			return ixfm;
+	
+		}
+		else if( filePath.endsWith( "csv" ))
+		{
+			System.out.println("READING BIGWARP TRANSFORM");
+			LandmarkTableModel ltm = new LandmarkTableModel( 3 );
+			ltm.load( new File( filePath ));
+			return new InverseRealTransform( 
+					new WrappedIterativeInvertibleRealTransform< ThinplateSplineTransform >( 
+							new ThinplateSplineTransform( ltm.getTransform() )));
+		}
+		else if( filePath.endsWith( "mat" ))
 		{
 			try
 			{
@@ -380,7 +455,6 @@ public class RenderTransformed
 			totalXfm.add( resOutXfm.inverse() );
 		}
 
-
 		System.out.println("transforming");
 		IntervalView< T > imgHiXfm = Views.interval( 
 				Views.raster( 
@@ -393,7 +467,7 @@ public class RenderTransformed
 				renderInterval.min( 0 ),
 				renderInterval.min( 1 ),
 				renderInterval.min( 2 ));
-
+		
 		System.out.println("copying with " + nThreads + " threads");
 		RenderUtil.copyToImageStack( imgHiXfm, outTranslated, nThreads );
 
@@ -447,7 +521,7 @@ public class RenderTransformed
 			ImagePlusImg< T, ? > out,
 			AffineTransform3D resInXfm,
 			String[] args,
-			FinalInterval renderInterval ) throws IOException
+			FinalInterval renderInterval ) throws Exception
 	{
 		// Concatenate all the transforms
 		InvertibleRealTransformSequence totalXfm = new InvertibleRealTransformSequence();
