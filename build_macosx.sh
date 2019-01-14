@@ -20,6 +20,12 @@ echo "build n5-imglib2 repo"
 mvn -Denforcer.skip=true clean compile install
 cd $BASEDIR
 
+git clone https://github.com/bogovicj/imglib2-realtransform.git
+cd imglib2-realtransform
+mvn clean compile install
+cd $BASEDIR
+
+
 echo "building template repo"
 ## Checkout and build the main repo
 cd $BASEDIR # back to template building repo

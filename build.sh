@@ -20,6 +20,11 @@ cd n5-imglib2
 mvn -Denforcer.skip=true clean compile install
 cd ..
 
+git clone https://github.com/bogovicj/imglib2-realtransform.git
+cd imglib2-realtransform
+mvn clean compile install
+cd ..
+
 
 ## Checkout and build the main repo
 cd $BASEDIR # back to template building repo
