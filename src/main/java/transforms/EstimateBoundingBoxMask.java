@@ -16,7 +16,7 @@ import process.RenderTransformed;
 public class EstimateBoundingBoxMask
 {
 
-	public static void main( String[] args )
+	public static void main( String[] args ) throws Exception
 	{
 		int i = 0;
 		String maskPath = args[ i++ ];
