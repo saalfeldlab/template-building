@@ -18,7 +18,6 @@ import ij.ImagePlus;
 import io.nii.NiftiIo;
 import io.nii.Nifti_Writer;
 import loci.formats.FormatException;
-import loci.plugins.BF;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.converter.Converter;
 import net.imglib2.converter.Converters;
@@ -28,7 +27,7 @@ import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.numeric.real.FloatType;
 import net.imglib2.util.Util;
-import net.imglib2.view.Views;
+import sc.fiji.io.Dfield_Nrrd_Reader;
 
 public class DfieldIoHelper
 {
@@ -36,8 +35,17 @@ public class DfieldIoHelper
 	public static final String MULT_KEY = "multiplier";
 
 	public double[] spacing;
+	
+	public static void main( String[] args ) throws Exception
+	{
+		String dfieldIn = args[ 0 ];
+		String dfieldOut = args[ 1 ];
+		
+		DfieldIoHelper io = new DfieldIoHelper();
+		io.write( io.read( dfieldIn ), dfieldOut );
+	}
 
-	public < T extends RealType< T > & NativeType< T > > void write( final RandomAccessibleInterval< T > dfield, final String outputPath ) throws IOException
+	public < T extends RealType< T > & NativeType< T > > void write( final RandomAccessibleInterval< T > dfield, final String outputPath ) throws Exception
 	{
 
 		System.out.println( "dfield out sz: " + Util.printInterval( dfield ) );
@@ -101,12 +109,21 @@ public class DfieldIoHelper
 		else
 		{
 			System.out.println( "saving displacement other" );
-			IJ.save( ImageJFunctions.wrapFloat( dfield, "dfield" ), outputPath );
+			System.out.println( "size: " + Util.printInterval( dfield ));
+
+			RandomAccessibleInterval< T > dfieldPerm = vectorAxisThird( dfield );
+			System.out.println( "size perm: " + Util.printInterval( dfieldPerm ));
+
+			ImagePlus dfieldip = ImageJFunctions.wrapFloat( dfieldPerm, "dfield" );
+
+			IJ.save( dfieldip , outputPath );
 		}
 	}
 
-	public < T extends RealType< T > > RandomAccessibleInterval< FloatType > read( final String fieldPath )
+	public < T extends RealType< T > > RandomAccessibleInterval< FloatType > read( final String fieldPath ) throws Exception
 	{
+		System.out.println("reading deformation field: " + fieldPath );
+
 		ImagePlus dfieldIp = null;
 		if ( fieldPath.endsWith( "nii" ) )
 		{
@@ -130,23 +147,9 @@ public class DfieldIoHelper
 		}
 		else if ( fieldPath.endsWith( "nrrd" ) )
 		{
-
-			ImagePlus[] ipList = null;
-			try
-			{
-				ipList = BF.openImagePlus( fieldPath );
-				System.out.println( ipList.length );
-				System.out.println( ipList[ 0 ] );
-			}
-			catch ( Exception e )
-			{
-				e.printStackTrace();
-			}
-
-			if ( ipList == null || ipList.length == 0 )
-				return null;
-			else
-				dfieldIp = ipList[ 0 ];
+			Dfield_Nrrd_Reader reader = new Dfield_Nrrd_Reader();
+			File tmp = new File( fieldPath );
+			dfieldIp = reader.load( tmp.getParent(), tmp.getName() );
 
 			spacing = new double[]{ 
 					dfieldIp.getCalibration().pixelWidth,
@@ -172,12 +175,47 @@ public class DfieldIoHelper
 		}
 
 		Img< FloatType > tmpImg = ImageJFunctions.wrapFloat( dfieldIp );
-
-		if ( tmpImg.dimension( 2 ) == 3 && tmpImg.dimension( 3 ) > 3 )
-			return Views.permute( tmpImg, 2, 3 );
-		else
-			return tmpImg;
+		return N5DisplacementField.vectorAxisLast( tmpImg );
 	}
 
+	public static final < T extends RealType< T > > RandomAccessibleInterval< T > vectorAxisThird( RandomAccessibleInterval< T > source ) throws Exception
+	{
+		final int n = source.numDimensions();
+		int[] component = null;
+		
+		if( n != 4 )
+		{
+			throw new Exception( "Displacement field must be 4d" );
+		}
+
+		if ( source.dimension( 2 ) == 3 )
+		{	
+			return source;
+		}
+		else if ( source.dimension( 3 ) == 3 )
+		{
+			component = new int[ n ];
+			component[ 0 ] = 0; 
+			component[ 1 ] = 1; 
+			component[ 2 ] = 3; 
+			component[ 3 ] = 2;
+
+			return N5DisplacementField.permute( source, component );
+		}
+		else if ( source.dimension( 0 ) == 3 )
+		{
+			component = new int[ n ];
+			component[ 0 ] = 1;
+			component[ 1 ] = 2;
+			component[ 2 ] = 0;
+			component[ 3 ] = 3;
+
+			return N5DisplacementField.permute( source, component );
+		}
+
+		throw new Exception( 
+				String.format( "Displacement fields must store vector components in the first or last dimension. " + 
+						"Found a %d-d volume; expect size [%d,...] or [...,%d]", n, ( n - 1 ), ( n - 1 ) ) );
+	}
 
 }
