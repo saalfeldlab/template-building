@@ -161,6 +161,11 @@
 			<version>3.0.1-SNAPSHOT</version>
 		</dependency>
   </dependencies>
+
+  <properties>
+      <enforcer.skip>true</enforcer.skip>
+  </properties>
+
 <build>
   <plugins>
       <plugin>
