@@ -15,7 +15,7 @@ import net.imglib2.view.Views;
 public class DfieldComparisons
 {
 
-	public static void main( String[] args )
+	public static void main( String[] args ) throws Exception
 	{
 		String dfield1Path = args[ 0 ];
 		String dfield2Path = args[ 1 ];

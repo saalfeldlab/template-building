@@ -230,15 +230,15 @@ public class WriteH5Transform
 
 			if ( convertType.toUpperCase().equals( SHORTTYPE ))
 			{
-				N5DisplacementField.save( affineXfm, img, spacing, n5Writer, dataset, blockSize, compression, new ShortType(), maxErr );
+				N5DisplacementField.save( n5Writer, dataset, affineXfm, img, spacing, blockSize, compression, new ShortType(), maxErr );
 			}
 			else if ( convertType.toUpperCase().equals( BYTETYPE ) )
 			{
-				N5DisplacementField.save( affineXfm, img, spacing, n5Writer, dataset, blockSize, compression, new ByteType(), maxErr );
+				N5DisplacementField.save( n5Writer, dataset, affineXfm, img, spacing, blockSize, compression, new ByteType(), maxErr );
 			}
 			else
 			{
-				N5DisplacementField.save( affineXfm, img, spacing, n5Writer, dataset, blockSize, compression );
+				N5DisplacementField.save( n5Writer, dataset, affineXfm, img, spacing, blockSize, compression );
 			}
 
 		}
