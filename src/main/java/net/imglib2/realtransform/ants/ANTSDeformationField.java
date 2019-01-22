@@ -5,6 +5,8 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 
+import org.janelia.saalfeldlab.n5.imglib2.N5DisplacementField;
+
 import net.imglib2.Cursor;
 import net.imglib2.FinalInterval;
 import net.imglib2.Interval;
@@ -70,15 +72,21 @@ public class ANTSDeformationField implements InvertibleRealTransform
 					  ip.getCalibration().pixelDepth });
 	}
 	
-	public ANTSDeformationField( RandomAccessibleInterval<FloatType> def, double[] resolution )
+	public ANTSDeformationField( RandomAccessibleInterval<FloatType> defIn, double[] resolution ) 
 	{
-		this.def = def;
+		try {
+			this.def = N5DisplacementField.vectorAxisLast( defIn );
+		} catch (Exception e) {
+			e.printStackTrace();
+			this.def = null;
+			return;
+		}
+
 		this.resolution = resolution;
 
 		lastDim = def.numDimensions() - 1;
 		numDimOut = (int)def.dimension( lastDim );
-//		IntervalView< FloatType > def = Views.permute( defRaw, 2, 3 );
-		
+
 		System.out.println( "lastDim: " + lastDim );
 		System.out.println( "numDimOut: " + numDimOut );
 		
