@@ -17,6 +17,7 @@ Associated template images and transformations can be downloaded [here](https://
 
 * [Usage and examples](https://github.com/saalfeldlab/template-building/wiki/Usage-examples)
 * [Support for transformations](https://github.com/saalfeldlab/template-building/wiki/Transformations)
+  * [Hdf5 / N5 transform format spec](https://github.com/saalfeldlab/template-building/wiki/Hdf5-Deformation-fields)
 * [Registration algorithms and parameter settings](https://github.com/saalfeldlab/template-building/wiki/Registration-algorithms-and-parameter-settings)
 * [Software for evaluating registration](https://github.com/saalfeldlab/template-building/wiki/Evaluation-Documentation)
 
