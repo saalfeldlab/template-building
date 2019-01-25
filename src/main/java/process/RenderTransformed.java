@@ -20,6 +20,8 @@ import io.cmtk.CMTKLoadAffine;
 import io.nii.NiftiIo;
 import loci.formats.FormatException;
 import net.imglib2.FinalInterval;
+import net.imglib2.Interval;
+import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessible;
 import net.imglib2.exception.ImgLibException;
 import net.imglib2.img.Img;
@@ -382,6 +384,36 @@ public class RenderTransformed
 		}
 		return null;
 	}
+
+	public static FinalInterval inferOutputInterval( String[] args, Interval pixelInterval, double[] resIn )
+	{
+		int i = 0;
+		AffineTransform3D resOutXfm = null;
+		while( i < args.length )
+		{
+
+			if( args[ i ].equals( "-r" ))
+			{
+				i++;
+				double[] outputResolution = ParseUtils.parseDoubleArray( args[ i ] );
+				i++;
+
+				resOutXfm = new AffineTransform3D();
+				resOutXfm.set( 	outputResolution[ 0 ], 0.0, 0.0, 0.0, 
+								0.0, outputResolution[ 1 ], 0.0, 0.0, 
+								0.0, 0.0, outputResolution[ 2 ], 0.0 );
+
+				System.out.println( "output Resolution " + Arrays.toString( outputResolution ));
+				continue;
+			}
+			i++;
+		}
+
+		return new FinalInterval( 
+				(long)Math.round( pixelInterval.dimension( 0 ) * resIn[ 0 ] / resOutXfm.get( 0, 0 )),
+				(long)Math.round( pixelInterval.dimension( 1 ) * resIn[ 1 ] / resOutXfm.get( 1, 1 )),
+				(long)Math.round( pixelInterval.dimension( 2 ) * resIn[ 2 ] / resOutXfm.get( 2, 2 )));
+	}
 	
 	public static FinalInterval inferOutputInterval( String[] args, ImagePlus ip, double[] resIn )
 	{
@@ -454,6 +486,19 @@ public class RenderTransformed
 					  		0.0, 0.0, outputResolutions[ 2 ], 0.0 );
 			totalXfm.add( resOutXfm.inverse() );
 		}
+		
+//		double[] testPtPixel = new double[]{ 155, 54, 54 };
+//		double[] testPtPixelResult = new double[ 3 ];
+//		totalXfm.applyInverse( testPtPixelResult, testPtPixel );
+//		System.out.println( "testPtPixel      : " + Arrays.toString( testPtPixel ) );
+//		System.out.println( "testPtPixelResult: " + Arrays.toString( testPtPixelResult ) );
+//		
+//		System.out.println("\n\n\n");
+//		double[] p = new double[]{ 465, 162, 162 };
+//		double[] q = new double[ 3 ];
+//		xfm.applyInverse( q, p );
+//		System.out.println( "p : " + Arrays.toString( p ) );
+//		System.out.println( "q : " + Arrays.toString( q ) );
 
 		System.out.println("transforming");
 		IntervalView< T > imgHiXfm = Views.interval( 
@@ -467,6 +512,12 @@ public class RenderTransformed
 				renderInterval.min( 0 ),
 				renderInterval.min( 1 ),
 				renderInterval.min( 2 ));
+		
+//		RandomAccess<T> testra = imgHiXfm.randomAccess();
+//		testra.setPosition( new int[]{ 155, 54, 54 });
+//		T t  = testra.get();
+//		System.out.println( "interpolated value at: " + t );
+
 		
 		System.out.println("copying with " + nThreads + " threads");
 		RenderUtil.copyToImageStack( imgHiXfm, outTranslated, nThreads );
