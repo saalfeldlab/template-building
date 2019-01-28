@@ -19,10 +19,12 @@ import io.nii.NiftiIo;
 import io.nii.Nifti_Writer;
 import loci.formats.FormatException;
 import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.RealRandomAccessibleRealInterval;
 import net.imglib2.converter.Converter;
 import net.imglib2.converter.Converters;
 import net.imglib2.img.Img;
 import net.imglib2.img.display.imagej.ImageJFunctions;
+import net.imglib2.realtransform.ants.ANTSDeformationField;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.numeric.real.FloatType;
@@ -120,6 +122,83 @@ public class DfieldIoHelper
 		}
 	}
 
+	public ANTSDeformationField readAsDeformationField( final String fieldPath ) throws Exception
+	{
+		return readAsDeformationField( fieldPath, new FloatType() );
+	}
+
+	public < T extends RealType< T > > ANTSDeformationField readAsDeformationField( final String fieldPath, final T defaultType ) throws Exception
+	{
+		
+		RandomAccessibleInterval<FloatType> dfieldRAI = null;
+		ImagePlus dfieldIp = null;
+		double[] spacing = null;
+		if ( fieldPath.endsWith( "nii" ) )
+		{
+			try
+			{
+				System.out.println( "loading nii" );
+				dfieldIp = NiftiIo.readNifti( new File( fieldPath ) );
+
+				spacing = new double[] { dfieldIp.getCalibration().pixelWidth, dfieldIp.getCalibration().pixelHeight, dfieldIp.getCalibration().pixelDepth };
+
+			}
+			catch ( FormatException e )
+			{
+				e.printStackTrace();
+			}
+			catch ( IOException e )
+			{
+				e.printStackTrace();
+			}
+
+		}
+		else if ( fieldPath.endsWith( "nrrd" ) )
+		{
+			Dfield_Nrrd_Reader reader = new Dfield_Nrrd_Reader();
+			File tmp = new File( fieldPath );
+			dfieldIp = reader.load( tmp.getParent(), tmp.getName() );
+
+			spacing = new double[]{ 
+					dfieldIp.getCalibration().pixelWidth,
+					dfieldIp.getCalibration().pixelHeight,
+					dfieldIp.getCalibration().pixelDepth };
+
+		}
+		else if ( fieldPath.contains( "h5" ) )
+		{
+			String dataset = "dfield";
+			String filepath = fieldPath;
+
+			if( fieldPath.contains( ":" ))
+			{
+				String[] split = fieldPath.split( ":" );
+				filepath = split[ 0 ];
+				dataset = split[ 1 ];
+			}
+
+			try
+			{
+				N5HDF5Reader n5 = new N5HDF5Reader( filepath, 32, 32, 32, 3 );
+				dfieldRAI = N5DisplacementField.openField( n5, dataset, new FloatType() );
+				spacing = n5.getAttribute( dataset, N5DisplacementField.SPACING_ATTR, double[].class );
+			}
+			catch ( Exception e )
+			{
+				e.printStackTrace();
+			}
+		}
+		else
+		{
+			dfieldIp = IJ.openImage( fieldPath );
+		}
+		
+		if( dfieldIp != null )
+			dfieldRAI = ImageJFunctions.wrapFloat( dfieldIp );
+
+		return new ANTSDeformationField( N5DisplacementField.vectorAxisLast( dfieldRAI ), spacing );
+	}
+
 	public < T extends RealType< T > > RandomAccessibleInterval< FloatType > read( final String fieldPath ) throws Exception
 	{
 		System.out.println("reading deformation field: " + fieldPath );
@@ -157,12 +236,22 @@ public class DfieldIoHelper
 					dfieldIp.getCalibration().pixelDepth };
 
 		}
-		else if ( fieldPath.endsWith( "h5" ) )
+		else if ( fieldPath.contains( "h5" ) )
 		{
+			String dataset = "dfield";
+			String filepath = fieldPath;
+
+			if( fieldPath.contains( ":" ))
+			{
+				String[] split = fieldPath.split( ":" );
+				filepath = split[ 0 ];
+				dataset = split[ 1 ];
+			}
+
 			try
 			{
-				N5HDF5Reader n5 = new N5HDF5Reader( fieldPath, 32, 32, 32, 3 );
-				return N5DisplacementField.openField( n5, "dfield", new FloatType() );
+				N5HDF5Reader n5 = new N5HDF5Reader( filepath, 32, 32, 32, 3 );
+				return N5DisplacementField.openField( n5, dataset, new FloatType() );
 			}
 			catch ( Exception e )
 			{

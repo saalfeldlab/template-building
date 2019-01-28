@@ -173,6 +173,11 @@ public class ANTSDeformationField implements InvertibleRealTransform
 		return defInterval;
 	}
 	
+	public RandomAccessibleInterval<FloatType> getImg()
+	{
+		return def;
+	}
+	
 	public double[] getResolution()
 	{
 		return resolution;
@@ -361,7 +366,7 @@ public class ANTSDeformationField implements InvertibleRealTransform
 		return new ANTSDeformationField( this );
 	}
 	
-	public static <T extends RealType<T>> RandomAccessibleInterval< T > doit( 
+	public static <T extends RealType<T>> RandomAccessibleInterval< T > apply( 
 			RandomAccessibleInterval<T> img,
 			double[] resolutions, 
 			ANTSDeformationField df )
@@ -396,19 +401,6 @@ public class ANTSDeformationField implements InvertibleRealTransform
 		}
 
 		RandomAccessibleInterval< T > ipimgXfm = Views.interval( Views.raster( ipimgXfmRealOrig ), img );
-		
-//		ipimgXfmRealOrig = ipimgXfmReal;
-//		Interval outInterval;
-//		if( resolutions != null )
-//		{
-//			outInterval = largestIntervalFromRealInterval( img, resolutions );
-//		}
-//		else
-//		{
-//			outInterval = img;
-//		}
-//
-//		RandomAccessibleInterval< T > ipimgXfm = Views.interval( Views.raster( ipimgXfmRealOrig ), outInterval );
 
 		return ipimgXfm;
 	}
@@ -434,7 +426,15 @@ public class ANTSDeformationField implements InvertibleRealTransform
 		return Views.stack( imglist );
 	}
 	
-	public static Interval largestIntervalFromRealInterval( RealInterval interval, double[] resolutions )
+	/**
+	 * Returns the largest discrete interval in physical coordinates that contains 
+	 * the given (Real)Interval in pixel space when it samples space at the given resolutions.
+	 * 
+	 * @param interval
+	 * @param resolutions
+	 * @return
+	 */
+	public static FinalInterval largestIntervalFromRealInterval( RealInterval interval, double[] resolutions )
 	{
 		int nd = interval.numDimensions();
 		long[] min = new long[ nd ];
@@ -487,7 +487,7 @@ public class ANTSDeformationField implements InvertibleRealTransform
 //		double[] resolution = null;
 		RealFloatConverter<UnsignedByteType> conv = new RealFloatConverter<UnsignedByteType>(); 
 		RandomAccessibleInterval< FloatType > ipimgconv = Converters.convert( ipimg, conv, new FloatType() );
-		RandomAccessibleInterval< FloatType > res = doit( ipimgconv, resolution, df );
+		RandomAccessibleInterval< FloatType > res = apply( ipimgconv, resolution, df );
 
 		System.out.println( 
 				res.dimension( 0 ) + " " +

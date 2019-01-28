@@ -1,16 +1,15 @@
 package process;
 
-import java.util.Arrays;
-
 import io.DfieldIoHelper;
-import net.imglib2.Cursor;
+import net.imglib2.FinalInterval;
 import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.RealRandomAccess;
 import net.imglib2.iterator.IntervalIterator;
+import net.imglib2.realtransform.ants.ANTSDeformationField;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.numeric.real.FloatType;
 import net.imglib2.util.Util;
-import net.imglib2.view.Views;
 
 public class DfieldComparisons
 {
@@ -21,31 +20,24 @@ public class DfieldComparisons
 		String dfield2Path = args[ 1 ];
 		
 		DfieldIoHelper dfieldIo = new DfieldIoHelper();
-		RandomAccessibleInterval< FloatType > dfield1 = dfieldIo.read( dfield1Path );
-		RandomAccessibleInterval< FloatType > dfield2 = dfieldIo.read( dfield2Path );
+//		RandomAccessibleInterval< FloatType > dfield1 = dfieldIo.read( dfield1Path );
+//		RandomAccessibleInterval< FloatType > dfield2 = dfieldIo.read( dfield2Path );
+		
+		ANTSDeformationField obj1 = dfieldIo.readAsDeformationField( dfield1Path );
+		ANTSDeformationField obj2 = dfieldIo.readAsDeformationField( dfield2Path );
+
+		RandomAccessibleInterval< FloatType > dfield1 = obj1.getImg();
+		RandomAccessibleInterval< FloatType > dfield2 = obj2.getImg();
 	
 		System.out.println( " dfield1: " + Util.printInterval( dfield1 ));
 		System.out.println( " dfield2: " + Util.printInterval( dfield2 ));
 		
-//		System.out.println( " spacing: " + Arrays.toString( dfieldIo.spacing ));
+		// the interval (in physical space) on which to measure
+		FinalInterval processingInterval = ANTSDeformationField.largestIntervalFromRealInterval( obj1.getDefInterval(), obj1.getResolution() );
+		IntervalIterator it = new IntervalIterator( processingInterval );
 		
-		IntervalIterator it = new IntervalIterator( 
-				new long[]{
-						dfield1.min( 0 ),
-						dfield1.min( 1 ),
-						dfield1.min( 2 ),
-						0
-				}, 
-				new long[]{
-						dfield1.max( 0 ),
-						dfield1.max( 1 ),
-						dfield1.max( 2 ),
-						0
-				} );
-		
-		
-		RandomAccess< FloatType > ra1 = dfield1.randomAccess();
-		RandomAccess< FloatType > ra2 = dfield2.randomAccess();
+		RealRandomAccess< FloatType > ra1 = obj1.getDefField().realRandomAccess();
+		RealRandomAccess< FloatType > ra2 = obj2.getDefField().realRandomAccess();
 		
 		double avgErrMag = 0;
 		double minErrMag = Double.MAX_VALUE;
@@ -86,7 +78,7 @@ public class DfieldComparisons
 		
 	}
 
-	public static <T extends RealType<T>,S extends RealType<S>> void err( double[] err, RandomAccess<T> truth, RandomAccess<S> approx )
+	public static <T extends RealType<T>,S extends RealType<S>> void err( double[] err, RealRandomAccess<T> truth, RealRandomAccess<S> approx )
 	{
 		for( int d = 0; d < 3; d++ )
 		{
