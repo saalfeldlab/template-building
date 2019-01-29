@@ -11,7 +11,7 @@ function printXform {
     echo "       scale $7 $8 $9" 
     echo "       shear $10 $11 $12" 
     echo "       center $13 $14 $15" 
-    echo "    }
+    echo "    }"
 }
 
 params=$(mat2dof < $1 | awk '{print $2}' | paste -sd ' ')
