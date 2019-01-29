@@ -50,7 +50,9 @@ public class DfieldIoHelper
 		io.write( io.read( dfieldIn ), dfieldOut );
 	}
 
-	public < T extends RealType< T > & NativeType< T > > void write( final RandomAccessibleInterval< T > dfieldIn, final String outputPath ) throws Exception
+	public < T extends RealType< T > & NativeType< T > > void write( 
+			final RandomAccessibleInterval< T > dfieldIn, 
+			final String outputPath ) throws Exception
 	{
 
 		if ( outputPath.contains( "h5" ) )
@@ -277,7 +279,9 @@ public class DfieldIoHelper
 			try
 			{
 				N5HDF5Reader n5 = new N5HDF5Reader( filepath, 32, 32, 32, 3 );
-				return N5DisplacementField.openField( n5, dataset, new FloatType() );
+				RandomAccessibleInterval<FloatType> dfield = N5DisplacementField.openField( n5, dataset, new FloatType() );
+				spacing = n5.getAttribute( dataset, N5DisplacementField.SPACING_ATTR, double[].class );
+				return dfield;
 			}
 			catch ( Exception e )
 			{
@@ -287,6 +291,12 @@ public class DfieldIoHelper
 		else
 		{
 			dfieldIp = IJ.openImage( fieldPath );
+			spacing = new double[]
+					{
+						dfieldIp.getCalibration().pixelWidth,
+						dfieldIp.getCalibration().pixelHeight,
+						dfieldIp.getCalibration().pixelDepth
+					};
 		}
 
 		Img< FloatType > tmpImg = ImageJFunctions.wrapFloat( dfieldIp );
