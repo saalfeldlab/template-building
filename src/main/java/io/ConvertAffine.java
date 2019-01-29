@@ -2,11 +2,13 @@ package io;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
 
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Reader;
 import org.janelia.saalfeldlab.n5.imglib2.N5DisplacementField;
-import org.python.google.common.io.Files;
 
 import io.cmtk.CMTKLoadAffine;
 import net.imglib2.realtransform.AffineTransform;
@@ -74,8 +76,9 @@ public class ConvertAffine {
 		}
 		else if( output.endsWith("mat"))
 		{
-			Files.write( ANTSLoadAffine.toHomogeneousMatrixString(affine).getBytes(),
-					new File( output ));
+			Files.write( Paths.get(output), 
+					ANTSLoadAffine.toHomogeneousMatrixString(affine).getBytes(),
+					StandardOpenOption.CREATE );
 		}
 		else if( output.contains("h5"))
 		{
