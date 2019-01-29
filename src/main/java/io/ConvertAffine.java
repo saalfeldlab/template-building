@@ -56,6 +56,7 @@ public class ConvertAffine {
 			N5Reader n5 = new N5HDF5Reader( fpath, 32, 32, 32, 3 );
 			AffineTransform3D out = new AffineTransform3D();
 			out.set( n5.getAttribute( dataset, N5DisplacementField.AFFINE_ATTR, double[].class ));
+			return out;
 		}
 		return null;
 	}
