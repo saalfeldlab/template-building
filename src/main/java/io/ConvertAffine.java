@@ -3,6 +3,9 @@ package io;
 import java.io.File;
 import java.io.IOException;
 
+import org.janelia.saalfeldlab.n5.N5Reader;
+import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Reader;
+import org.janelia.saalfeldlab.n5.imglib2.N5DisplacementField;
 import org.python.google.common.io.Files;
 
 import io.cmtk.CMTKLoadAffine;
@@ -41,7 +44,18 @@ public class ConvertAffine {
 		}
 		else if( input.contains("h5"))
 		{
-			return null;
+			String fpath = input;
+			String dataset = "dfield";
+			if( input.contains(":"))
+			{
+				String[] pathAndDataset = input.split(":");
+				fpath = pathAndDataset[ 0 ];
+				dataset = pathAndDataset[ 1 ];
+			}
+
+			N5Reader n5 = new N5HDF5Reader( fpath, 32, 32, 32, 3 );
+			AffineTransform3D out = new AffineTransform3D();
+			out.set( n5.getAttribute( dataset, N5DisplacementField.AFFINE_ATTR, double[].class ));
 		}
 		return null;
 	}
