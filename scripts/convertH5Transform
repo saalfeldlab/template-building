@@ -29,12 +29,12 @@ then
     echo "to ants"
     convertAffine $input ${output}_fwd.mat
     convertDfield $input ${output}_fwd.nii
-    convertDfield "${input}:invdfield" ${output}_inverse.nii
+    convertDfield "${input}:invdfield" ${output}_inv.nii
 
 elif [[ $toCmtk ]]
 then
     echo "to cmtk"
     convertAffine $input ${output}_fwd.xform
     convertDfield $input ${output}_fwd.nrrd
-    convertDfield "${input}:invdfield" ${output}_inverse.nrrd
+    convertDfield "${input}:invdfield" ${output}_inv.nrrd
 fi 
