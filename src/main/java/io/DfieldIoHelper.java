@@ -90,10 +90,15 @@ public class DfieldIoHelper
 
 			RandomAccessibleInterval<T> dfield = vectorAxisThird( dfieldIn );
 			System.out.println( "dfield out sz: " + Util.printInterval( dfield ) );
+			
+			ImagePlus ip = ImageJFunctions.wrapFloat( dfield, "dfield" );
+			ip.getCalibration().pixelWidth = spacing[ 0 ];
+			ip.getCalibration().pixelHeight = spacing[ 1 ];
+			ip.getCalibration().pixelDepth = spacing[ 2 ];
 
 			File outFile = new File( outputPath );
 			Nifti_Writer writer = new Nifti_Writer( true );
-			writer.save( ImageJFunctions.wrapFloat( dfield, "dfield" ), outFile.getParent(), outFile.getName() );
+			writer.save( ip, outFile.getParent(), outFile.getName() );
 		}
 		else if ( outputPath.endsWith( "nrrd" ) )
 		{
@@ -115,6 +120,9 @@ public class DfieldIoHelper
 			}, new FloatType() );
 
 			ImagePlus ip = ImageJFunctions.wrapFloat( raiF, "wrapped" );
+			ip.getCalibration().pixelWidth = spacing[ 0 ];
+			ip.getCalibration().pixelHeight = spacing[ 1 ];
+			ip.getCalibration().pixelDepth = spacing[ 2 ];
 
 			String nrrdHeader = WriteNrrdDisplacementField.makeDisplacementFieldHeader( ip, subFactors, "gzip" );
 			if ( nrrdHeader == null )
