@@ -1,0 +1,40 @@
+#!/bin/bash
+
+
+input="$1"
+shift
+
+output="$1"
+shift
+
+type="$1"
+shift
+
+toAnts="1"
+toCmtk=""
+if [[ $type == "--ants" ]]
+then
+    toAnts="1"
+elif [[ $type == "--cmtk" ]]
+then
+    toCmtk="1"
+    toAnts=""
+fi
+
+echo "ants? $toAnts"
+echo "cmtk? $toCmtk"
+
+if [[ $toAnts ]]
+then
+    echo "to ants"
+    convertAffine $input ${output}_fwd.mat
+    convertDfield $input ${output}_fwd.nii
+    convertDfield "${input}:invdfield" ${output}_inverse.nii
+
+elif [[ $toCmtk ]]
+then
+    echo "to cmtk"
+    convertAffine $input ${output}_fwd.xform
+    convertDfield $input ${output}_fwd.nrrd
+    convertDfield "${input}:invdfield" ${output}_inverse.nrrd
+fi 
