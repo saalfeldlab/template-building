@@ -9,7 +9,10 @@ import java.io.OutputStreamWriter;
 import java.io.Writer;
 import java.util.zip.GZIPOutputStream;
 
+import org.janelia.saalfeldlab.n5.GzipCompression;
+import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Reader;
+import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Writer;
 import org.janelia.saalfeldlab.n5.imglib2.N5DisplacementField;
 
 import bdv.util.BdvFunctions;
@@ -47,17 +50,32 @@ public class DfieldIoHelper
 		io.write( io.read( dfieldIn ), dfieldOut );
 	}
 
-	public < T extends RealType< T > & NativeType< T > > void write( final RandomAccessibleInterval< T > dfield, final String outputPath ) throws Exception
+	public < T extends RealType< T > & NativeType< T > > void write( final RandomAccessibleInterval< T > dfieldIn, final String outputPath ) throws Exception
 	{
 
-		System.out.println( "dfield out sz: " + Util.printInterval( dfield ) );
-
-		if ( outputPath.endsWith( "h5" ) )
+		if ( outputPath.contains( "h5" ) )
 		{
+			RandomAccessibleInterval<T> dfield = N5DisplacementField.vectorAxisLast( dfieldIn );
+			System.out.println( "dfield out sz: " + Util.printInterval( dfield ) );
+
+			String dataset =  N5DisplacementField.FORWARD_ATTR;
+			String path = outputPath;
+			if( outputPath.contains( ":" ))
+			{
+				String[] split = outputPath.split( ":" );
+				path = split[ 0 ];
+				dataset = split[ 1 ];
+			}
+					
 			System.out.println( "saving displacement field hdf5" );
 			try
 			{
-				WriteH5DisplacementField.write( dfield, outputPath, new int[] { 3, 32, 32, 32 }, spacing, null );
+				//WriteH5DisplacementField.write( dfield, outputPath, new int[] { 3, 32, 32, 32 }, spacing, null );
+
+				N5Writer n5Writer = new N5HDF5Writer( path, 3, 32, 32, 32 );
+				N5DisplacementField.save(n5Writer, dataset, null, 
+						dfield, spacing, new int[]{ 3, 32, 32, 32},
+						new GzipCompression() );
 			}
 			catch ( IOException e )
 			{
@@ -67,6 +85,10 @@ public class DfieldIoHelper
 		else if ( outputPath.endsWith( "nii" ) )
 		{
 			System.out.println( "saving displacement field nifti" );
+
+			RandomAccessibleInterval<T> dfield = vectorAxisThird( dfieldIn );
+			System.out.println( "dfield out sz: " + Util.printInterval( dfield ) );
+
 			File outFile = new File( outputPath );
 			Nifti_Writer writer = new Nifti_Writer( true );
 			writer.save( ImageJFunctions.wrapFloat( dfield, "dfield" ), outFile.getParent(), outFile.getName() );
@@ -74,6 +96,9 @@ public class DfieldIoHelper
 		else if ( outputPath.endsWith( "nrrd" ) )
 		{
 			System.out.println( "saving displacement field nrrd" );
+
+			RandomAccessibleInterval<T> dfield = vectorAxisThird( dfieldIn );
+			System.out.println( "dfield out sz: " + Util.printInterval( dfield ) );
 
 			File outFile = new File( outputPath );
 			long[] subFactors = new long[] { 1, 1, 1, 1 };
@@ -111,12 +136,12 @@ public class DfieldIoHelper
 		else
 		{
 			System.out.println( "saving displacement other" );
+			RandomAccessibleInterval< T > dfield = vectorAxisThird( dfieldIn );
 			System.out.println( "size: " + Util.printInterval( dfield ));
 
-			RandomAccessibleInterval< T > dfieldPerm = vectorAxisThird( dfield );
-			System.out.println( "size perm: " + Util.printInterval( dfieldPerm ));
+			System.out.println( "size perm: " + Util.printInterval( dfield ));
 
-			ImagePlus dfieldip = ImageJFunctions.wrapFloat( dfieldPerm, "dfield" );
+			ImagePlus dfieldip = ImageJFunctions.wrapFloat( dfield, "dfield" );
 
 			IJ.save( dfieldip , outputPath );
 		}
@@ -180,6 +205,7 @@ public class DfieldIoHelper
 			try
 			{
 				N5HDF5Reader n5 = new N5HDF5Reader( filepath, 32, 32, 32, 3 );
+
 				dfieldRAI = N5DisplacementField.openField( n5, dataset, new FloatType() );
 				spacing = n5.getAttribute( dataset, N5DisplacementField.SPACING_ATTR, double[].class );
 			}
