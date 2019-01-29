@@ -1,0 +1,19 @@
+#!/bin/bash
+# Usage:
+#   convertAffine <input affine file> <output affine file>
+
+javaOpts="-Xmx1g"
+
+BASEDIR=$(dirname "$0")
+cp=`cat "$BASEDIR/gaussDs.cp"`
+
+if [[ $2 == *xform ]]
+then
+    echo 'yes'
+    tmp="$(mktemp).mat"
+    java -cp "$cp" $javaOpts io.ConvertAffine $1 $tmp
+    mat2CmtkXform $tmp > $2
+    rm $tmp
+else
+    java -cp "$cp" $javaOpts io.ConvertAffine $1 $2
+fi
