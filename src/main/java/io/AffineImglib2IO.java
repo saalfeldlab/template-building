@@ -15,8 +15,14 @@ public class AffineImglib2IO
 
 	public static AffineTransform readXfm( int ndims, File f ) throws IOException
 	{
+		return readXfm( ndims, f, "," );
+	}
+
+	public static AffineTransform readXfm( int ndims, File f, String delimeter ) throws IOException
+	{
 		return readXfm( ndims,
-				new String( Files.readAllBytes( Paths.get( f.getAbsolutePath() ))));
+				new String( Files.readAllBytes( Paths.get( f.getAbsolutePath() ))),
+				delimeter );
 	}
 	
 	public static void writeXfm( File f, AffineGet affine ) throws IOException
@@ -42,26 +48,16 @@ public class AffineImglib2IO
 		Files.write( Paths.get( f.getAbsolutePath() ), lines );
 	}
 	
-	public static AffineTransform readXfm( int ndims, String s )
+	public static AffineTransform readXfm( int ndims, String s, String delimeter )
 	{
-//		System.out.println( s );
-		AffineTransform xfm = new AffineTransform( ndims );
-		String[] array = s.replaceAll( " ", "" ).split( "," );
-		int row = 0;
-		int col = 0;
+		double[] data = new double[ ndims * ( ndims + 1 ) ];
+		String[] array = s.split( delimeter );
+		int i = 0;
 		for( String elem : array )
-		{
-//			System.out.println( "row: " + row );
-//			System.out.println( "col: " + col );
-//			System.out.println( "elm: " + elem );
-			xfm.set( Double.parseDouble( elem ), row, col );
-			col++;
-			if( col == ( ndims + 1 ) )
-			{
-				col = 0;
-				row++;
-			}
-		}
+			data[ i++ ] = Double.parseDouble( elem );
+		
+		AffineTransform xfm = new AffineTransform( ndims );
+		xfm.set( data );
 		
 		return xfm;
 	}

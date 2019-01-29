@@ -34,6 +34,24 @@ public class ANTSLoadAffine
 		return out.toString();
 	}
 
+	/**
+	 * Returns a representation of the given {@link AffineTransform3D},
+	 * where the 4D homogeneous matrix is written as a string
+	 * 
+	 * @param xfm the affine
+	 * @returns the 4d homogeneous matrix as a string
+	 */
+	public static String toHomogeneousMatrixString( AffineTransform3D xfm )
+	{
+		StringBuffer out = new StringBuffer();
+		out.append( String.format( "%f %f %f %f\n%f %f %f %f\n%f %f %f %f\n0 0 0 1", 
+				xfm.get( 0, 0 ), xfm.get( 0, 1 ), xfm.get( 0, 2 ), xfm.get( 0, 3 ),
+				xfm.get( 1, 0 ), xfm.get( 1, 1 ), xfm.get( 1, 2 ), xfm.get( 1, 3 ),
+				xfm.get( 2, 0 ), xfm.get( 2, 1 ), xfm.get( 2, 2 ), xfm.get( 2, 3)));
+
+		return out.toString();
+	}
+
 	public static AffineTransform3D loadAffine( String filePath ) throws IOException
 	{
 
