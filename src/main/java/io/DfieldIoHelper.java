@@ -7,6 +7,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
+import java.util.Arrays;
 import java.util.zip.GZIPOutputStream;
 
 import org.janelia.saalfeldlab.n5.GzipCompression;
@@ -351,4 +352,59 @@ public class DfieldIoHelper
 						"Found a %d-d volume; expect size [%d,...] or [...,%d]", n, ( n - 1 ), ( n - 1 ) ) );
 	}
 
+	/**
+	 * Permutes the dimensions of the input {@link RandomAccessibleInterval} so that 
+	 * the first dimension of length dimLength is in dimension destinationDim in the output image.
+	 * Other dimensions are "shifted" so that the order of the remaining dimensions is preserved.
+	 * 
+	 * @param source
+	 * @param dimLength
+	 * @param destinationDim
+	 * @return the permuted image
+	 * @throws Exception
+	 */
+	public static final < T extends RealType< T > > RandomAccessibleInterval< T > vectorAxisPermute( 
+			final RandomAccessibleInterval< T > source,
+			final int dimLength,
+			final int destinationDim ) throws Exception
+	{
+		// the dimension of the vector field
+		final int n = source.numDimensions(); 
+
+		int currentVectorDim = -1;
+		for( int i = 0; i < n; i++ )
+		{
+			if( source.dimension( i ) == dimLength )
+				currentVectorDim = i;
+		}
+	
+		if( currentVectorDim == destinationDim )
+			return source;
+
+		if( currentVectorDim < 0 )
+			throw new Exception( 
+					String.format( "Displacement fields must contain a dimension with a length of %d", n-1 ));
+
+		int j = 0;
+
+		int[] component = new int[ n ];
+		component[ currentVectorDim ] = destinationDim;
+
+		if( j == currentVectorDim )
+			j++;
+
+		for( int i = 0; i < n; i++ )
+		{
+			if( i != destinationDim )
+			{
+				component[ j ] = i;
+				j++;
+
+				if( j == currentVectorDim )
+					j++;
+			}
+		}
+
+		return N5DisplacementField.permute( source, component );
+	}
 }
