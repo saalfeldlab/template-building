@@ -48,7 +48,12 @@ public class DfieldIoHelper
 		String dfieldOut = args[ 1 ];
 		
 		DfieldIoHelper io = new DfieldIoHelper();
-		io.write( io.read( dfieldIn ), dfieldOut );
+
+		RandomAccessibleInterval< FloatType > dfield = io.read( dfieldIn );
+		System.out.println( "dfield: " + Util.printInterval( dfield ));
+
+
+		io.write( dfield, dfieldOut );
 	}
 
 	public < T extends RealType< T > & NativeType< T > > void write( 
@@ -58,7 +63,7 @@ public class DfieldIoHelper
 
 		if ( outputPath.contains( "h5" ) )
 		{
-			RandomAccessibleInterval<T> dfield = N5DisplacementField.vectorAxisLast( dfieldIn );
+			RandomAccessibleInterval<T> dfield = vectorAxisPermute( dfieldIn, 3, 3 );
 			System.out.println( "dfield out sz: " + Util.printInterval( dfield ) );
 
 			String dataset =  N5DisplacementField.FORWARD_ATTR;
@@ -89,7 +94,8 @@ public class DfieldIoHelper
 		{
 			System.out.println( "saving displacement field nifti" );
 
-			RandomAccessibleInterval<T> dfield = vectorAxisThird( dfieldIn );
+			RandomAccessibleInterval<T> dfield = vectorAxisPermute( dfieldIn, 3, 3 );
+			//RandomAccessibleInterval<T> dfield = vectorAxisThird( dfieldIn );
 			System.out.println( "dfield out sz: " + Util.printInterval( dfield ) );
 			
 			ImagePlus ip = ImageJFunctions.wrapFloat( dfield, "dfield" );
@@ -105,12 +111,12 @@ public class DfieldIoHelper
 		{
 			System.out.println( "saving displacement field nrrd" );
 
-			RandomAccessibleInterval<T> dfield = vectorAxisThird( dfieldIn );
-			System.out.println( "dfield out sz: " + Util.printInterval( dfield ) );
-
 			File outFile = new File( outputPath );
 			long[] subFactors = new long[] { 1, 1, 1, 1 };
 
+			//RandomAccessibleInterval<T> dfield = vectorAxisThird( dfieldIn );
+			RandomAccessibleInterval<T> dfield = vectorAxisPermute( dfieldIn, 3, 0 );
+			System.out.println( "dfield out sz: " + Util.printInterval( dfield ) );
 			RandomAccessibleInterval< FloatType > raiF = Converters.convert( dfield, new Converter< T, FloatType >()
 			{
 				@Override
@@ -120,7 +126,8 @@ public class DfieldIoHelper
 				}
 			}, new FloatType() );
 
-			ImagePlus ip = ImageJFunctions.wrapFloat( raiF, "wrapped" );
+			RandomAccessibleInterval<T> dfieldForIp = vectorAxisPermute( dfieldIn, 3, 2 );
+			ImagePlus ip = ImageJFunctions.wrapFloat( dfieldForIp, "wrapped" );
 			ip.getCalibration().pixelWidth = spacing[ 0 ];
 			ip.getCalibration().pixelHeight = spacing[ 1 ];
 			ip.getCalibration().pixelDepth = spacing[ 2 ];
@@ -147,7 +154,8 @@ public class DfieldIoHelper
 		else
 		{
 			System.out.println( "saving displacement other" );
-			RandomAccessibleInterval< T > dfield = vectorAxisThird( dfieldIn );
+			//RandomAccessibleInterval< T > dfield = vectorAxisThird( dfieldIn );
+			RandomAccessibleInterval<T> dfield = vectorAxisPermute( dfieldIn, 3, 2 );
 			System.out.println( "size: " + Util.printInterval( dfield ));
 
 			System.out.println( "size perm: " + Util.printInterval( dfield ));
