@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Arrays;
+import java.util.LinkedList;
 import java.util.List;
 
 import org.janelia.utility.parse.ParseUtils;
@@ -39,13 +40,17 @@ public class TransformPoints
 	{
 
 		String ptsF = args[ 0 ];
+		String fout = args[ 1 ];
+
+		String delimeter = " ";
+		int numHeaderLines = 0;
 		
 		// Concatenate all the transforms
 		InvertibleRealTransformSequence totalXfm = new InvertibleRealTransformSequence();
 
 		int nThreads = 1;
 
-		int i = 1;
+		int i = 2;
 		while( i < args.length )
 		{
 			boolean invert = false;
@@ -63,7 +68,25 @@ public class TransformPoints
 				System.out.println( "argument specifies " + nThreads + " threads" );
 				continue;
 			}
+
+			if( args[ i ].equals( "-d" ))
+			{
+				i++;
+				delimeter = args[ i ];
+				i++;
+				System.out.println( "argument specifies delimeter " + delimeter );
+				continue;
+			}
 			
+			if( args[ i ].equals( "-h" ))
+			{
+				i++;
+				numHeaderLines = Integer.parseInt( args[ i ] );
+				i++;
+				System.out.println( "argument specifies header lines " + numHeaderLines );
+				continue;
+			}
+
 			if( invert )
 				System.out.println( "loading transform from " + args[ i ] + " AND INVERTING" );
 			else
@@ -84,13 +107,25 @@ public class TransformPoints
 		List< String > lines = Files.readAllLines( Paths.get( ptsF ) );
 		double[] result = new double[ 3 ];
 		
+		int j = 0;
+		List< String > linesout = new LinkedList< String >();
 		for( String line : lines )
 		{
-			double[] src = ParseUtils.parseDoubleArray( line, " " );
-			totalXfm.apply( src, result );
-			System.out.println( Arrays.toString( result ));
+			if ( j < numHeaderLines )
+			{
+				linesout.add( line );
+			}
+			else
+			{
+				double[] src = ParseUtils.parseDoubleArray( line, delimeter );
+				totalXfm.apply( src, result );
+				//System.out.println( Arrays.toString( result ));
+				linesout.add( result[0] + delimeter + result[1] + delimeter +result[2] );
+			}
+
+			j++;
 		}
-		
+		Files.write( Paths.get( fout ), linesout );
 	}
 	
 
