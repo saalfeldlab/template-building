@@ -23,7 +23,6 @@ import io.nii.NiftiIo;
 import io.nii.Nifti_Writer;
 import loci.formats.FormatException;
 import net.imglib2.RandomAccessibleInterval;
-import net.imglib2.RealRandomAccessibleRealInterval;
 import net.imglib2.converter.Converter;
 import net.imglib2.converter.Converters;
 import net.imglib2.img.Img;
@@ -93,19 +92,9 @@ public class DfieldIoHelper
 		else if ( outputPath.endsWith( "nii" ) )
 		{
 			System.out.println( "saving displacement field nifti" );
-
-			RandomAccessibleInterval<T> dfield = vectorAxisPermute( dfieldIn, 3, 3 );
-			//RandomAccessibleInterval<T> dfield = vectorAxisThird( dfieldIn );
-			System.out.println( "dfield out sz: " + Util.printInterval( dfield ) );
-			
-			ImagePlus ip = ImageJFunctions.wrapFloat( dfield, "dfield" );
-			ip.getCalibration().pixelWidth = spacing[ 0 ];
-			ip.getCalibration().pixelHeight = spacing[ 1 ];
-			ip.getCalibration().pixelDepth = spacing[ 2 ];
-
 			File outFile = new File( outputPath );
 			Nifti_Writer writer = new Nifti_Writer( true );
-			writer.save( ip, outFile.getParent(), outFile.getName() );
+			writer.save( dfieldIn, outFile.getParent(), outFile.getName(), spacing );
 		}
 		else if ( outputPath.endsWith( "nrrd" ) )
 		{
@@ -161,6 +150,9 @@ public class DfieldIoHelper
 			System.out.println( "size perm: " + Util.printInterval( dfield ));
 
 			ImagePlus dfieldip = ImageJFunctions.wrapFloat( dfield, "dfield" );
+			dfieldip.getCalibration().pixelWidth = spacing[ 0 ];
+			dfieldip.getCalibration().pixelHeight = spacing[ 1 ];
+			dfieldip.getCalibration().pixelDepth = spacing[ 2 ];
 
 			IJ.save( dfieldip , outputPath );
 		}
@@ -241,7 +233,8 @@ public class DfieldIoHelper
 		if( dfieldIp != null )
 			dfieldRAI = ImageJFunctions.wrapFloat( dfieldIp );
 
-		return new ANTSDeformationField( N5DisplacementField.vectorAxisLast( dfieldRAI ), spacing );
+		RandomAccessibleInterval< FloatType > fieldPermuted = DfieldIoHelper.vectorAxisPermute( dfieldRAI, 3, 3 );
+		return new ANTSDeformationField( fieldPermuted, spacing );
 	}
 
 	public < T extends RealType< T > > RandomAccessibleInterval< FloatType > read( final String fieldPath ) throws Exception

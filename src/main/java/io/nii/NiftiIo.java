@@ -5,7 +5,7 @@ import java.io.IOException;
 import java.util.Hashtable;
 
 import loci.formats.FormatException;
-import loci.formats.in.NiftiReader;
+import loci.formats.in.DfieldNiftiReader;
 import loci.plugins.util.ImageProcessorReader;
 import ij.ImagePlus;
 import ij.ImageStack;
@@ -20,7 +20,7 @@ public class NiftiIo
 	
 	public static ImagePlus readNifti( File f ) throws FormatException, IOException
 	{
-		NiftiReader reader = new NiftiReader();
+		DfieldNiftiReader reader = new DfieldNiftiReader();
 		reader.setId( f.getAbsolutePath() );
 		
 

@@ -6,6 +6,14 @@ import ij.*;
 import ij.gui.*; 
 import ij.plugin.*;
 import ij.process.*;
+import io.DfieldIoHelper;
+import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.img.display.imagej.ImageJFunctions;
+import net.imglib2.type.NativeType;
+import net.imglib2.type.numeric.RealType;
+import net.imglib2.util.Util;
+import net.imglib2.view.IntervalView;
+import net.imglib2.view.Views;
 import ij.io.*;
 import ij.measure.Calibration;
 
@@ -28,6 +36,7 @@ import ij.measure.Calibration;
 	- Requires ImageJ 1.34p or later 
 
 	Guy Williams, gbw1000@wbic.cam.ac.uk 	19/08/2005	
+	John Bogovic, 2018
 */  
 
 public class Nifti_Writer implements PlugIn {
@@ -112,6 +121,7 @@ public class Nifti_Writer implements PlugIn {
 		}
 		ImageStack stack = imp.getStack();
 		if (output_type==ANALYZE_7_5) { 
+			System.out.println( "flip 1");
 			for (int i=1; i<=stack.getSize(); i++) {
 				ImageProcessor ip = stack.getProcessor(i);
 				ip.flipVertical();
@@ -120,13 +130,17 @@ public class Nifti_Writer implements PlugIn {
 		int nChannels = imp.getNChannels();
 		int nOthers = imp.getNFrames() * imp.getNSlices();
 		if (nChannels != 1) { 
+			//System.out.println( "shuffle 1");
 			reshuffleStack( stack.getImageArray(), nChannels, nChannels * nOthers ); 
 		}
 		save(imp, directory, name);
+
 		if (imp.getNChannels() != 1) { 
+			//System.out.println( "shuffle 2");
 			reshuffleStack( stack.getImageArray(), nOthers, nChannels * nOthers ); 
 		}
 		if (output_type==ANALYZE_7_5) { 
+			//System.out.println( "flip 2");
 			for (int i=1; i<=stack.getSize(); i++) {
 				ImageProcessor ip = stack.getProcessor(i);
 				ip.flipVertical();
@@ -140,6 +154,32 @@ public class Nifti_Writer implements PlugIn {
 		IJ.showStatus(""); 
 	}
 
+	public <T extends RealType<T> & NativeType<T>> boolean save( final RandomAccessibleInterval<T> img, final String directory, final String name, final double[] spacing ) {
+
+		if( !isDisplacement )
+			return save( ImageJFunctions.wrap( img, name ), directory, name );
+
+		RandomAccessibleInterval< T > dfieldPermuted;
+		try
+		{
+			dfieldPermuted = DfieldIoHelper.vectorAxisPermute( img, 3, 3 );
+			//System.out.println( "dfield interval after permutation:" + Util.printInterval(  dfieldPermuted ));
+
+			ImagePlus ip = ImageJFunctions.wrap( dfieldPermuted, name );
+			ip.getCalibration().pixelWidth = spacing[ 0 ];
+			ip.getCalibration().pixelHeight = spacing[ 1 ];
+			ip.getCalibration().pixelDepth = spacing[ 2 ];
+
+			ImagePlus ipWriteMe = arrangeDfieldImagePlus( ip );
+
+			return save( ipWriteMe, directory, name );
+		}
+		catch ( Exception e )
+		{
+			e.printStackTrace();
+			return false;
+		}
+	}
 	// Save return false if one of the files already exists and the user pressed Cancel.
 	public boolean save(ImagePlus imp, String directory, String name) {
 		if (name == null) return false;
@@ -173,7 +213,8 @@ public class Nifti_Writer implements PlugIn {
 			if (fi.fileType != FileInfo.RGB) { 
 				if (imp.getStackSize()>1 && imp.getStack().isVirtual()) {
 					fi.virtualStack = (VirtualStack)imp.getStack();
-					fi.fileName = "FlipTheseImages";
+//					fi.fileName = "FlipTheseImages";
+//					System.out.println( fi.fileName );
 				}
 				ImageWriter iw = new ImageWriter( fi );
 				iw.write(output); 
@@ -205,7 +246,34 @@ public class Nifti_Writer implements PlugIn {
 		
 		return newStack;
 	}
-	
+
+	public static ImagePlus arrangeDfieldImagePlus( ImagePlus imp )
+	{
+		int nChannels = imp.getNChannels();
+		int nSlices = imp.getNSlices();
+		int nFrames = imp.getNFrames();
+
+		ImagePlus useMe = imp;
+		if ( nChannels == 3 && nSlices > 1 && nFrames == 1 )
+		{
+			// System.out.println("shuffle");
+			useMe = new ImagePlus( "shuffled", shuffleStackSliceMajor( imp.getStack(), nChannels ) );
+		}
+		else if ( nSlices == 3 && nChannels > 1 && nFrames == 1 )
+		{
+			// swap role of slices and channels
+			// System.out.println("woop");
+			useMe.setDimensions( nSlices, nChannels, nFrames );
+		}
+		else if ( nChannels == 1 && nSlices > 1 && nFrames == 3 )
+		{
+			// System.out.println("woop 2 ");
+			useMe.setDimensions( nFrames, nSlices, nChannels );
+		}
+
+		return useMe;
+	}
+
 	public static void writeDisplacementField3d( ImagePlus imp, File fout )
 	{
 		int nChannels = imp.getNChannels();
@@ -295,10 +363,7 @@ public class Nifti_Writer implements PlugIn {
 		dims[1] = (short) fi.width; 
 		dims[2] = (short) fi.height; 
 		dims[3] = (short) imp.getNSlices();
-//		/* John Bogovic changed this to place nicely with ANTS */
-//		dims[4] = (short) imp.getNChannels();
-//		dims[5] = (short) imp.getNFrames();  
-		
+
 		/* This was the original code */
 		dims[4] = (short) imp.getNFrames(); 
 		dims[5] = (short) imp.getNChannels(); 
@@ -355,7 +420,7 @@ public class Nifti_Writer implements PlugIn {
 						}
 					}
 				
-					if (mapper[i] instanceof QuaternCoors) { 
+					/*if (mapper[i] instanceof QuaternCoors) { 
 						QuaternCoors mp = (QuaternCoors) ((CoordinateMapper) mapper[i]).copy();
 						
 						if (mp.convertToType( CoordinateMapper.NIFTI ) ) {
@@ -367,7 +432,7 @@ public class Nifti_Writer implements PlugIn {
 							qoffset_y = mapper[i].getY(0,0,0);
 							qoffset_z = mapper[i].getZ(0,0,0);
 						}
-					}
+					}*/
 				}
 			} else if (nfti_hdr != null) { 
 				quaterns[0] = nfti_hdr.pixdim[0]; 
@@ -501,9 +566,9 @@ public class Nifti_Writer implements PlugIn {
 			{
 				sform_code = NiftiHeader.NIFTI_XFORM_SCANNER_ANAT;
 				qform_code = NiftiHeader.NIFTI_XFORM_ALIGNED_ANAT;
-				srow[0][0] = -1;
-				srow[1][1] = -1;
-				srow[2][2] = 1;
+				srow[0][0] = pixdims[1];
+				srow[1][1] = pixdims[2];
+				srow[2][2] = pixdims[3];
 				
 			}
 			writeShort( output, (short) qform_code ); 	// qform_code 

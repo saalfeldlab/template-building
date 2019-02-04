@@ -418,8 +418,8 @@ public class Nifti_Reader extends ImagePlus implements PlugIn {
 			offset[1] = nfti_hdr.qoffset_y;
 			offset[2] = nfti_hdr.qoffset_z;
 			double [] pixdim = new double[] { nfti_hdr.pixdim[1],  nfti_hdr.pixdim[2],  nfti_hdr.pixdim[3] };
-			qmapper = new QuaternCoors( q, pixdim, offset, 
-				CoordinateMapper.NIFTI, NiftiHeader.getCoorTypeString( nfti_hdr.qform_code ) ); 
+			//qmapper = new QuaternCoors( q, pixdim, offset, 
+		//		CoordinateMapper.NIFTI, NiftiHeader.getCoorTypeString( nfti_hdr.qform_code ) ); 
 		}
 		if (nfti_hdr.sform_code != NiftiHeader.NIFTI_XFORM_UNKNOWN ) {
 			double [][] m = new double[3][4]; 

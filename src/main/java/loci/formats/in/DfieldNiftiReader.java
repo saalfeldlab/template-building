@@ -284,6 +284,8 @@ public class DfieldNiftiReader extends FormatReader {
 
     m.imageCount = getSizeZ() * getSizeT() * getSizeC();
     System.out.println( "imageCount: " + m.imageCount );
+    System.out.println( "nz : " + getSizeZ() );
+    System.out.println( "nc : " + getSizeC() );
     
     m.indexed = false;
     m.dimensionOrder = "XYCZT";
@@ -294,8 +296,8 @@ public class DfieldNiftiReader extends FormatReader {
     m.rgb = getSizeC() > 1 && ( dataType == DATATYPE_RGB || dataType == DATATYPE_RGBA );
     m.interleaved = isRGB();
 
-    System.out.println( "is rgb: " + isRGB() );
-    System.out.println( "is interleaved: " + m.interleaved );
+//    System.out.println( "is rgb: " + isRGB() );
+//    System.out.println( "is interleaved: " + m.interleaved );
     
 //    m.rgb = false;
 //    System.out.println( "interleaved = true" );
