@@ -1,93 +1,89 @@
 package transforms;
 
-import java.io.File;
-import java.io.IOException;
-import java.io.Serializable;
 import java.util.Arrays;
 import java.util.stream.LongStream;
 
-import org.kohsuke.args4j.CmdLineException;
-import org.kohsuke.args4j.CmdLineParser;
-import org.kohsuke.args4j.Option;
+import org.janelia.utility.parse.ParseUtils;
 
+import com.beust.jcommander.JCommander;
+import com.beust.jcommander.Parameter;
 import com.google.common.collect.Streams;
 
-import bdv.BigDataViewer;
-import bdv.util.BdvFunctions;
-import bigwarp.BigWarp.BigWarpData;
-import ij.IJ;
-import ij.ImagePlus;
-import io.IOHelper;
-import io.nii.NiftiIo;
-import loci.formats.FormatException;
+import io.DfieldIoHelper;
+import net.imglib2.Interval;
 import net.imglib2.RandomAccessibleInterval;
-import net.imglib2.exception.ImgLibException;
-import net.imglib2.img.Img;
-import net.imglib2.img.display.imagej.ImageJFunctions;
-import net.imglib2.img.imageplus.FloatImagePlus;
-import net.imglib2.img.imageplus.ImagePlusImgs;
+import net.imglib2.img.array.ArrayImg;
+import net.imglib2.img.array.ArrayImgFactory;
 import net.imglib2.interpolation.randomaccess.NLinearInterpolatorFactory;
 import net.imglib2.realtransform.AffineGet;
 import net.imglib2.realtransform.AffineRandomAccessible;
 import net.imglib2.realtransform.AffineTransform;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.realtransform.RealViews;
+import net.imglib2.realtransform.ants.ANTSDeformationField;
+import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.numeric.real.FloatType;
-import net.imglib2.util.Intervals;
 import net.imglib2.util.Util;
 import net.imglib2.view.IntervalView;
-import net.imglib2.view.RandomAccessibleOnRealRandomAccessible;
 import net.imglib2.view.Views;
-import sc.fiji.io.Dfield_Nrrd_Reader;
+import process.DownsampleGaussian;
 
 public class DownsampleDfield
 {
-	
-	public static class Options implements Serializable
+
+	@Parameter( names = { "-d", "--dfield" }, required = true, description = "Displacement field path" )
+	private String fieldPath;
+
+	@Parameter( names = { "-o", "--output" }, required = true, description = "Output path" )
+	private String outputPath;
+
+	@Parameter( names = { "-f", "--factors" }, required = false, description = "Downsampling factors" )
+	private String factors = "";
+
+//	@Parameter( names = {"-r", "--resolution"}, required = false, 
+//			description = "Res" )
+//	private double[] targetResolution;
+
+	@Parameter( names = { "-j", "--nThreads" }, required = false, description = "Number of threads for downsampling" )
+	private int nThreads = 8;
+
+	@Parameter( names = "--sample", required = false, description = "Sample for downsampling instead of averaging" )
+	private boolean sample = false;
+
+	@Parameter( names = "--estimateError", required = false, description = "Estimate errors for downsampling" )
+	private boolean estimateError = false;
+
+	@Parameter( names = { "--sourceSigma", "-s" }, description = "Sigma for source image (default = 0.5)", converter = ParseUtils.DoubleArrayConverter.class )
+	private double[] sourceSigmasIn = new double[] { 0.5 };
+
+	@Parameter( names = { "--targetSigma", "-t" }, description = "Sigma for target image (default = 0.5)", converter = ParseUtils.DoubleArrayConverter.class )
+	private double[] targetSigmasIn = new double[] { 0.5 };
+
+	final private JCommander jCommander;
+
+	public DownsampleDfield( final String[] args )
 	{
+		jCommander = new JCommander( this );
+		jCommander.setProgramName( "input parser" );
 
-		private static final long serialVersionUID = -5666039337474416226L;
-
-		@Option( name = "-d", aliases = {"--dfield"}, required = true, usage = "Displacement field path" )
-		private String fieldPath;
-		
-		@Option( name = "-o", aliases = {"--output"}, required = true, usage = "Output path" )
-		private String outputPath;
-
-		@Option( name = "-f", aliases = {"--factors"}, required = false, usage = "Downsampling factors" )
-		private String factors = "";
-
-		@Option( name = "-j", aliases = {"--nThreads"}, required = false, usage = "Number of threads for downsampling" )
-		private int nThreads = 8;
-		
-		@Option( name = "--sample", required = false, usage = "Sample for downsampling instead of averaging" )
-		private boolean sample = false;
-		
-		@Option( name = "--estimateError", required = false, usage = "Estimate errors for downsampling" )
-		private boolean estimateError = false;
-		
-		public Options(final String[] args) {
-
-			final CmdLineParser parser = new CmdLineParser(this);
-			try {
-				parser.parseArgument(args);
-			} catch (final CmdLineException e) {
-				System.err.println(e.getMessage());
-				parser.printUsage(System.err);
-			}
+		try
+		{
+			jCommander.parse( args );
 		}
-
+		catch ( Exception e )
+		{
+			e.printStackTrace();
+		}
 	}
 
 	public static void main( String[] args )
 	{
+		DownsampleDfield downsampler = new DownsampleDfield( args ); 
 
-		final Options options = new Options(args);
-
-		String[] factorArrays = options.factors.split( "," );
+		String[] factorArrays = downsampler.factors.split( "," );
 		
-		System.out.println( options.factors );
+		System.out.println( downsampler.factors );
 		System.out.println( Arrays.toString( factorArrays ));
 		
 		long[] factors;
@@ -98,61 +94,51 @@ public class DownsampleDfield
 					Arrays.stream( factorArrays ).mapToLong( Long::parseLong ), 
 					LongStream.of( 1 ) ).toArray();
 		
-		ImagePlus dfieldIp = null;
-		if( options.fieldPath.endsWith( "nii" ))
+		DfieldIoHelper io = new DfieldIoHelper();
+		ANTSDeformationField dfieldobj;
+		try
 		{
-			try
-			{
-				System.out.println("loading nii");
-				dfieldIp =  NiftiIo.readNifti( new File( options.fieldPath ) );
-			} catch ( FormatException e )
-			{
-				e.printStackTrace();
-			} catch ( IOException e )
-			{
-				e.printStackTrace();
-			}
-			System.out.println("done");
+			dfieldobj = io.readAsDeformationField( downsampler.fieldPath );
 		}
-		else if( options.fieldPath.endsWith( "nrrd" ))
+		catch ( Exception e1 )
 		{
-			// This will never work since the Nrrd_Reader can't handle 4d volumes, actually
-			Dfield_Nrrd_Reader nr = new Dfield_Nrrd_Reader();
-			File imFile = new File( options.fieldPath );
-			dfieldIp = nr.load( imFile.getParent(), imFile.getName());
+			e1.printStackTrace();
+			return;
 		}
-		else
-		{
-			dfieldIp = IJ.openImage( options.fieldPath );
-		}
-		
-		System.out.println( dfieldIp );
-
-
-		Img< FloatType > dfield = ImageJFunctions.wrapFloat( dfieldIp );
+		RandomAccessibleInterval< FloatType > dfield = dfieldobj.getImg();
+		int nd = dfield.numDimensions();
 		
 		double[] resIn = new double[ 3 ];
-		resIn[ 0 ] = dfieldIp.getCalibration().pixelWidth;
-		resIn[ 1 ] = dfieldIp.getCalibration().pixelHeight;
-		resIn[ 2 ] = dfieldIp.getCalibration().pixelDepth;
+		resIn[ 0 ] = dfieldobj.getResolution()[ 0 ];
+		resIn[ 1 ] = dfieldobj.getResolution()[ 1 ];
+		resIn[ 2 ] = dfieldobj.getResolution()[ 2 ];
+
 
 		double[] resOut = new double[ 3 ];
 		resOut[ 0 ] = resIn[ 0 ] * factors[ 0 ];
 		resOut[ 1 ] = resIn[ 1 ] * factors[ 1 ];
 		resOut[ 2 ] = resIn[ 2 ] * factors[ 2 ];
 
-		long[] interval = Intervals.dimensionsAsLongArray( Views.subsample( dfield, factors ));
 
-		// this gymnastics ensures that z ends up as 'slices' in the ImagePlus
-		FloatImagePlus< FloatType > outIpImg= ImagePlusImgs.floats( 
-				interval[0], interval[1], interval[3], interval[2]);
-		
-		
-		RandomAccessibleInterval< FloatType > dfieldDownAvg = DownsampleDfieldErrors.downsampleAverage( dfield, factors, options.nThreads );
-		System.out.println( "ds size: " + Util.printInterval( dfieldDownAvg ));
 
-		if( options.estimateError )
+		RandomAccessibleInterval< FloatType > dfieldDown = null;
+		if ( downsampler.sample )
+			dfieldDown = Views.subsample( dfield, factors );
+		else
 		{
+			double[] sourceSigmas = DownsampleGaussian.checkAndFillArrays( downsampler.sourceSigmasIn, nd, "source sigmas" );
+			double[] targetSigmas = DownsampleGaussian.checkAndFillArrays( downsampler.targetSigmasIn, nd, "target sigmas" );
+
+			System.out.println( "source sigmas: " + Arrays.toString( sourceSigmas ) );
+			System.out.println( "target sigmas: " + Arrays.toString( targetSigmas ) );
+
+			double[] factorsD = Arrays.stream( factors ).mapToDouble( x -> ( double ) x ).toArray();
+			dfieldDown = downsampleDisplacementField( dfield, factorsD, sourceSigmas, targetSigmas, downsampler.nThreads );
+		}
+
+		if( downsampler.estimateError )
+		{
+			System.out.println( "estimating error" );
 			AffineTransform dfieldToPhysical = new AffineTransform( 4 );
 			dfieldToPhysical.set( factors[0], 0, 0 );
 			dfieldToPhysical.set( factors[1], 1, 1 );
@@ -161,28 +147,75 @@ public class DownsampleDfield
 			AffineRandomAccessible< FloatType, AffineGet > dfieldSubInterpReal = 
 					RealViews.affine(
 							Views.interpolate( 
-								Views.extendZero( dfieldDownAvg ),
+								Views.extendZero( dfieldDown ),
 								new NLinearInterpolatorFactory< FloatType >()),
 						dfieldToPhysical );
 			
 			IntervalView< FloatType > dfieldSubInterpRaster = Views.interval( Views.raster( dfieldSubInterpReal ), dfield );
-			DownsampleDfieldErrors.compare( dfield, dfieldSubInterpRaster, options.nThreads );
+			DownsampleDfieldErrors.compare( dfield, dfieldSubInterpRaster, downsampler.nThreads );
 		}
 
-		
+		DfieldIoHelper out = new DfieldIoHelper();
+		out.spacing = resOut;
 		try
 		{
-			ImagePlus ip = outIpImg.getImagePlus();
-			ip.getCalibration().pixelWidth = resOut[ 0 ];
-			ip.getCalibration().pixelHeight = resOut[ 1 ];
-			ip.getCalibration().pixelDepth = resOut[ 2 ];
-
-			IOHelper.write( ip, options.outputPath);
-		} catch ( ImgLibException e )
+			out.write( dfieldDown, downsampler.outputPath );
+		}
+		catch ( Exception e )
 		{
 			e.printStackTrace();
 		}
 	}
+
+	public static <T extends RealType<T> & NativeType<T>> RandomAccessibleInterval< T > downsampleDisplacementField(
+			final RandomAccessibleInterval< T > dfield, 
+			final double[] factors,
+			final double[] sourceSigmas, 
+			final double[] targetSigmas, 
+			int nThreads )
+	{
+		int vectorDim = dfield.numDimensions() - 1;
+		Interval outputIntervalTmp = DownsampleGaussian.inferOutputIntervalFromFactors( Views.hyperSlice( dfield, vectorDim, 0 ), factors );
+
+		long[] outdims = new long[ dfield.numDimensions() ];
+		outputIntervalTmp.dimensions( outdims );
+		outdims[ vectorDim ] = dfield.dimension( vectorDim );
+
+		ArrayImgFactory< T > factory = new ArrayImgFactory<>( Util.getTypeFromInterval( dfield ));
+		ArrayImg< T, ? > dfieldDown = factory.create( outdims );
+		downsampleDisplacementField( dfield, dfieldDown, factors, sourceSigmas, targetSigmas, nThreads );
+		return dfieldDown;
+	}
+	
+	public static <T extends RealType<T> & NativeType<T>> void downsampleDisplacementField(
+			final RandomAccessibleInterval< T > dfield, 
+			final RandomAccessibleInterval< T > dfieldDown, 
+			final double[] factors,
+			final double[] sourceSigmas, 
+			final double[] targetSigmas, 
+			int nThreads )
+	{
+		int vectorDim = dfield.numDimensions() - 1;
+		assert dfield.dimension( vectorDim ) == dfieldDown.dimension( vectorDim );
+
+		System.out.println( "src interval: " + Util.printInterval( dfield ));
+		System.out.println( "dst interval: " + Util.printInterval( dfieldDown ));
+
+		long nd = dfield.dimension( vectorDim );
+		final long[] offset = new long[]{ 0, 0, 0 };
+		NLinearInterpolatorFactory< T > interpFactory = new NLinearInterpolatorFactory<T>();
+		
+		for( int i = 0; i < nd; i++ )
+		{
+			System.out.println( "downsampling vector component " + i );
+			IntervalView< T > src = Views.hyperSlice( dfield, vectorDim, i );
+			IntervalView< T > dst = Views.hyperSlice( dfieldDown, vectorDim, i );
+
+			DownsampleGaussian.resampleGaussianInplace( 
+					src, dst, offset, interpFactory, factors, sourceSigmas, targetSigmas, nThreads, 1e-6 );
+		}
+	}
+	
 
 	public static <T extends RealType<T>> AffineRandomAccessible< T, AffineGet > upsampleDisplacementCoordinate( final RandomAccessibleInterval<T> dfield, final int coord, final AffineTransform3D xfm )
 	{
@@ -191,5 +224,6 @@ public class DownsampleDfield
 					new NLinearInterpolatorFactory< T >()),
 			xfm);
 	}
+	
 }
 

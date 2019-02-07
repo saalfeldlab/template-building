@@ -170,8 +170,6 @@ public class DownsampleGaussian
 	@SuppressWarnings( "unchecked" )
 	public <T extends RealType<T> & NativeType<T>, S extends RealType<S> & NativeType<S> > void process() throws ImgLibException
 	{
-//
-////		FloatImagePlus<FloatType> ipi = new FloatImagePlus<FloatType>( IJ.openImage( args[0] )  );
 		System.out.print( "Loading\n" + inputFilePath + "\n...");
 
 		ImagePlus ipin = null;
@@ -486,7 +484,7 @@ public class DownsampleGaussian
 		return out;
 	}
 
-	public double[] checkAndFillArrays( double[] in, int nd, String kind )
+	public static double[] checkAndFillArrays( double[] in, int nd, String kind )
 	{
 		if( in.length == 1 )
 			return fill( in, nd );
@@ -769,7 +767,7 @@ public class DownsampleGaussian
 				else
 				{
 					System.out.println( "using " + nThreads + " threads" );
-					Gauss3.gauss( sigs, Views.extendMirrorDouble( img ), img, nThreads );
+					Gauss3.gauss( sigs, Views.extendBorder( img ), img, nThreads );
 				}
 				System.out.println( "finished");
 			}
@@ -795,14 +793,14 @@ public class DownsampleGaussian
 			coordLUT[d] = new double[nd];
 			for( int i = 0; i<nd; i++)
 			{
-				coordLUT[d][i] =  ( min[ d ] +  i * downsampleFactors[d] ) + downsampleFactors[d] / 2;
+				coordLUT[d][i] =  ( min[ d ] +  i * downsampleFactors[d] );
 			}
 		}
 		
 //		RealRandomAccessible< T > rra = Views.interpolate( Views.extendZero( img ), interpFactory );
 //		RealRandomAccess< T > rrab = rra.realRandomAccess();
 
-		RealRandomAccess< S > rra = Views.interpolate( Views.extendMirrorDouble( img ), interpFactory ).realRandomAccess();
+		RealRandomAccess< S > rra = Views.interpolate( Views.extendBorder( img ), interpFactory ).realRandomAccess();
 
 
 		System.out.print( "Resampling..");
