@@ -1,0 +1,22 @@
+#!/bin/bash
+
+dfield="$1"
+out="$2"
+prefix="tmp_component"
+
+
+echo "WARNING: THIS SCRIPT PRODUCES BAD RESULTS IN MY EXPERIENCE"
+echo "splitting to components"
+ConvertImage 3 $dfield $prefix 10
+
+echo "resampling"
+ResampleImageBySpacing 3 ${prefix}xvec.nii.gz down_${prefix}xvec.nii.gz 0.88 0.88 0.88 1 0 0 
+ResampleImageBySpacing 3 ${prefix}yvec.nii.gz down_${prefix}yvec.nii.gz 0.88 0.88 0.88 1 0 0 
+ResampleImageBySpacing 3 ${prefix}zvec.nii.gz down_${prefix}zvec.nii.gz 0.88 0.88 0.88 1 0 0 
+
+echo "combining"
+ConvertImage 3 down_${prefix} $out 9
+
+echo "cleaning up"
+rm -v ${prefix}*vec.nii.gz 
+rm -v down_${prefix}*vec.nii.gz 
