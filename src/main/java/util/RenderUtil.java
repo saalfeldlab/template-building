@@ -1,16 +1,21 @@
 package util;
 
+import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+
+import com.google.common.collect.Streams;
 
 import ij.IJ;
 import net.imglib2.Cursor;
 import net.imglib2.FinalInterval;
 import net.imglib2.Interval;
+import net.imglib2.IterableInterval;
 import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessible;
 import net.imglib2.RandomAccessibleInterval;
@@ -116,13 +121,59 @@ public class RenderUtil
 		return splitPoints;
 	}
 
+	public static < T extends NumericType< T > > boolean copyToImageStackIterOrder( 
+			final RandomAccessible< T > ra, 
+			final IterableInterval< T > target, 
+			final int nCores ) throws InterruptedException, ExecutionException
+	{
+
+		int nThreads = nCores;
+		ExecutorService threadPool;
+		if ( nCores < 1 )
+			nThreads = Runtime.getRuntime().availableProcessors();
+
+		final int nTasks = nThreads;
+		threadPool = Executors.newFixedThreadPool( nThreads );
+		LinkedList< Callable< Boolean > > jobs = new LinkedList< Callable< Boolean > >();
+		for ( int i = 0; i < nThreads; i++ )
+		{
+
+			final int index = i;
+			jobs.add( new Callable< Boolean >()
+			{
+				public Boolean call()
+				{
+					// start by offset by this jobs' index
+					Cursor< T > c = target.cursor();
+					final RandomAccess< T > threadRa = ra.randomAccess().copyRandomAccess();
+					c.jumpFwd( index );
+
+					while ( c.hasNext() )
+					{
+						c.jumpFwd( nTasks );
+						threadRa.setPosition( c );
+						c.get().set( threadRa.get() );
+					}
+
+					return true;
+				}
+			} );
+		}
+
+		List< Future< Boolean > > futures = threadPool.invokeAll( jobs );
+		List< Boolean > results = new ArrayList< Boolean >();
+		for ( Future< Boolean > f : futures )
+			results.add( f.get() );
+
+		System.out.println( "done copying" );
+		return results.stream().reduce( true, ( a, b ) -> a && b );
+	}
+
 	public static < T extends NumericType<T> > RandomAccessibleInterval<T> copyToImageStack( 
 			final RandomAccessible< T > ra,
 			final RandomAccessibleInterval<T> target,
 			final int nThreads )
 	{
-		// TODO I wish I didn't have to do this inside this method
-//		MixedTransformView< T > raible = Views.permute( ra, 2, 3 );
 		RandomAccessible< T > raible = ra;
 
 		// what dimension should we split across?
