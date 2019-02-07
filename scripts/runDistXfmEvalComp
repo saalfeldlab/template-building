@@ -20,8 +20,30 @@ then
 fi
 echo "outputres: $outputres"
 
-res=$(templateResolution $template)
-echo "RESOLUTION: $res"
+toNormSpaceXfm=""
+if [[ $# -ge 4 ]];
+then
+    toNormSpaceXfm="$4"
+fi
+echo "toNormSpaceXfm: $toNormSpaceXfm"
+
+realInterval=""
+if [[ $# -ge 5 ]];
+then
+    realInterval="$5"
+fi
+echo "toNormSpaceXfm: $toNormSpaceXfm"
+
+destDirectory="evalCompWarpNorm"
+if [[ $# -ge 6 ]];
+then
+    destDirectory="$6"
+fi
+echo "destDirectory: $destDirectory"
+
+## This doesn't do anything anymore
+#res=$(templateResolution $template)
+#echo "RESOLUTION: $res"
 
 isCmtk=""
 if [[ -d Registration ]];
@@ -31,8 +53,8 @@ then
 fi
 
 regdir=`pwd`
-mkdir -p evalComp
-cd evalComp
+mkdir -p $destDirectory
+cd $destDirectory
 
 
 dstdir=`pwd`
@@ -48,14 +70,19 @@ function transform {
     #echo " "
 
     echo "template: $template"
-    interval=$(parseNiiSize $template)
-    echo "interval: $interval"
 
-    templateRes=$(parseNiiRes $template)
-    echo "template resolution: $templateRes"
+    if [[ -z $realInterval ]];
+    then
 
-    realInterval=$(changeIntervalRes $interval $templateRes $outputres) 
-    echo "real output resolution: $templateRes"
+        interval=$(parseNiiSize $template)
+        echo "interval: $interval"
+
+        templateRes=$(parseNiiRes $template)
+        echo "template resolution: $templateRes"
+
+        realInterval=$(changeIntervalRes $interval $templateRes $outputres) 
+    fi
+    echo "real output interval: $realInterval"
 
     i=0
     for img in $imglist
@@ -74,14 +101,30 @@ function transform {
 
         resXfm=$(findResolutionXfm $regdir)
 
+        midResXfm=""
+        tmp="$regdir/midResXfm.txt"
+        if [[ -f $tmp ]]; then
+            midResXfm="$tmp"
+        fi
+
         if [[ -n $isCmtk ]];
         then
             echo "really is CMTK"
             xfmList="-i `ls $IMGDIR/${prefix}*down.txt | grep -v Neuron`"
+
+            if [[ ! -z $midResXfm ]]; then
+                xfmList="$xfmList $midResXfm"
+            fi
             xfmList="$xfmList `matchEvalDataCmtk --conv $prefix $regdir`"
+
+            if [[ $toNormSpaceXfm ]]; then
+                xfmList="$xfmList $toNormSpaceXfm"
+            fi
+
             if [[ $resXfm ]]; then
                 xfmList="$xfmList -i $resXfm"
             fi
+
             echo " "
             echo "xfmList"
             echo "$xfmList"
@@ -92,15 +135,31 @@ function transform {
             renderTransformed $img $out $realInterval $xfmList -q 8 -r $outputres
         else
             xfmList="-i `ls $IMGDIR/${prefix}*down.txt | grep -v Neuron`"
+
+            if [[ ! -z $midResXfm ]]; then
+                xfmList="$xfmList $midResXfm"
+            fi
+
+            echo "PREFIX: $prefix"
+
             xfmList="$xfmList -i `matchEvalData $prefix $regdir`"
+
+            if [[ $toNormSpaceXfm ]]; then
+                xfmList="$xfmList $toNormSpaceXfm"
+            fi
+
             if [[ $resXfm ]]; then
                 xfmList="$xfmList -i $resXfm"
             fi
+
             echo "$xfmList"
 
             echo "transforming $img"
-            renderTransformed $img $out $realInterval $xfmList -q 8 -r $outputres
+            echo "renderTransformed $img $out $realInterval $xfmList -q 8 -r $outputres" > skel_xfm_$i.sh
+
+            #renderTransformed $img $out $realInterval $xfmList -q 8 -r $outputres
         fi
+        break
         ((i++))
     done
 }
@@ -185,7 +244,7 @@ pairwiseEval
 
 combineDataByLine "labelData"
 
-# Organize statistics by label
+## Organize statistics by label
 distXfmLabelStats
 
 
