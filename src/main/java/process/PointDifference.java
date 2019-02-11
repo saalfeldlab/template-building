@@ -5,6 +5,7 @@ import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.janelia.utility.parse.ParseUtils;
 
@@ -74,7 +75,9 @@ public class PointDifference
 			if( doMagnitude )
 				linesout.add( "" + mag( diff ));
 			else
-				linesout.add( Arrays.toString( diff ));
+				linesout.add( Arrays.stream( diff )
+						.mapToObj( Double::toString )
+						.collect( Collectors.joining( delimeter )));
 		}
 		Files.write( Paths.get( fout ), linesout );
 	}
