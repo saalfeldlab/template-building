@@ -15,6 +15,7 @@ import bigwarp.landmarks.LandmarkTableModel;
 import ij.IJ;
 import ij.ImagePlus;
 import io.AffineImglib2IO;
+import io.DfieldIoHelper;
 import io.IOHelper;
 import io.cmtk.CMTKLoadAffine;
 import io.nii.NiftiIo;
@@ -36,6 +37,7 @@ import net.imglib2.realtransform.AffineGet;
 import net.imglib2.realtransform.AffineTransform;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.realtransform.DeformationFieldTransform;
+import net.imglib2.realtransform.ExplicitInvertibleRealTransform;
 import net.imglib2.realtransform.RealTransformAsInverseRealTransform;
 import net.imglib2.realtransform.InverseRealTransform;
 import net.imglib2.realtransform.InvertibleRealTransform;
@@ -131,7 +133,7 @@ public class RenderTransformed
 			System.err.println( "WARNING: rx = 0 setting to 1.0" );
 		}
 		if( ry == 0 ){
-			ry = 1.0;
+		ry = 1.0;
 			System.err.println( "WARNING: ry = 0 setting to 1.0" );
 		}
 		if( rz == 0 ){
@@ -200,60 +202,113 @@ public class RenderTransformed
 		IOHelper.write( ipout, outF );
 	}
 	
-	public static final <T extends RealType<T> & NativeType<T>> InvertibleRealTransform openH5Xfm( 
-			final N5Reader n5,
-			final String dataset,
-			final boolean inverse,
-			final T defaultType,
-			final InterpolatorFactory< T, RandomAccessible<T> > interpolator ) throws Exception
+	
+	/**
+	 * Parses a string into parameters that can specify an h5 transformation.
+	 * Example:
+	 * 
+	 * Parse a non-invertible h5 transform
+	 * 		"<file path>:<forward dataset>  
+	 * 
+	 * Parse an invertible h5 transform
+	 * 		"<file path>:<forward dataset>:<inverse dataset>
+	 * 
+	 * Parse an non-invertible h5 transform ignoring the deformable part
+	 * 		"<file path>:<forward dataset>:AFFINE
+	 * 
+	 *
+	 */
+	public static class H5TransformParams
 	{
+		public final boolean isAffine;
+		public final String path;
+		public final String dataset;
+		public final String invdataset;
+		public final int level;
 
-		AffineGet affine = N5DisplacementField.openAffine( n5, dataset );
-
-		DeformationFieldTransform< T > dfield = new DeformationFieldTransform<>(
-				N5DisplacementField.openCalibratedField( n5, dataset, interpolator, defaultType ));
-		
-		if( affine != null )
+		public H5TransformParams( final String path, final String dataset, final String invdataset, final int level, final boolean isAffine )
 		{
-			InvertibleRealTransformSequence xfmSeq = new InvertibleRealTransformSequence();
-			if( inverse )
+			this.path = path;
+			this.dataset = dataset;
+			this.invdataset = invdataset;
+			this.level = level;
+			this.isAffine = isAffine;
+		}
+
+		public static H5TransformParams parse( String arg )
+		{
+			String path = arg;
+			boolean isAffine = false;
+			String dataset = "";
+			String invdataset = "";
+			int level = -1;
+
+			if( arg.contains( ":" ))
 			{
-				xfmSeq.add( new RealTransformAsInverseRealTransform( dfield ));
-				xfmSeq.add( affine.inverse() );
+				String[] split = arg.split( ":" );
+				path = split[ 0 ];
+				
+				for( int i = 1; i < split.length; i++ )
+				{
+					String tmp = split[ i ];
+					if( tmp.startsWith( "level=" ))
+					{
+						level = Integer.parseInt( tmp.replaceAll( "level=", "" ));
+					}
+					else if( tmp.startsWith( "affine" ) || tmp.startsWith( "AFFINE" )) 
+						isAffine = true;
+					else if( i == 1 )
+						dataset = tmp;
+					else if( i == 2 )
+						invdataset = tmp;
+				}
+			}
+	
+			return new H5TransformParams( path, dataset, invdataset, level, isAffine );
+		}
+	}
+	
+	public static InvertibleRealTransform loadTransform( String filePath, boolean invert ) throws Exception
+	{
+		if( filePath.contains( "h5" ))
+		{
+
+			String fwddataset =  N5DisplacementField.FORWARD_ATTR;
+			String invdataset =  N5DisplacementField.INVERSE_ATTR;
+			String path = filePath;
+			if( filePath.contains( ":" ))
+			{
+				String[] split = filePath.split( ":" );
+				path = split[ 0 ];
+				fwddataset = split[ 1 ];
+				invdataset = split[ 2 ];
+			}
+
+			System.out.println( "path " + path );
+			System.out.println( "fd " + fwddataset );
+			System.out.println( "id " + invdataset );
+
+			InvertibleRealTransform transform;
+			if( filePath.endsWith( "AFFINE" ))
+			{
+				System.out.println("affine only");
+				transform = N5DisplacementField.openAffine( 
+						new N5HDF5Reader( path, 32, 32, 32, 3 ),
+						fwddataset );
 			}
 			else
 			{
-				xfmSeq.add( affine.inverse() );
-				xfmSeq.add( new RealTransformAsInverseRealTransform( dfield ));
+				transform = N5DisplacementField.openInvertible( 
+						new N5HDF5Reader( path, 32, 32, 32, 3 ),
+						fwddataset, invdataset,
+						new FloatType(),
+						new NLinearInterpolatorFactory<>());
 			}
-			return xfmSeq;
-		}
-		else
-		{
-			return null;
-		}
-	}
-
-	public static InvertibleRealTransform loadTransform( String filePath, boolean invert ) throws Exception
-	{
-		if( filePath.endsWith( "h5" ))
-		{
-
-			String dataset = invert ? "invdfield" : "dfield";
-			N5HDF5Reader n5 = new N5HDF5Reader( filePath, 3, 32, 32, 32 );
-
-			// THIS DOES NOT WORK with multiple threads
-//			RealTransform xfm = N5DisplacementField.open( n5, dataset, invert,
-//					new FloatType(),
-//					new NLinearInterpolatorFactory<FloatType>());
-//			RealTransformAsInverseRealTransform ixfm = new RealTransformAsInverseRealTransform( xfm );
-//			return ixfm;
-
-			InvertibleRealTransform ixfm = openH5Xfm( n5, dataset, invert,
-					new FloatType(),
-					new NLinearInterpolatorFactory<FloatType>());
-			return ixfm;
-	
+		
+			if( invert )
+				return transform.inverse();
+			else 
+				return transform;
 		}
 		else if( filePath.endsWith( "csv" ))
 		{
@@ -382,7 +437,7 @@ public class RenderTransformed
 			}
 			return dfield;
 		}
-		return null;
+		return null;	
 	}
 
 	public static FinalInterval inferOutputInterval( String[] args, Interval pixelInterval, double[] resIn )
@@ -652,8 +707,8 @@ public class RenderTransformed
 		if ( outSz.contains( ":" ) )
 		{
 			String[] minMax = outSz.split( ":" );
-			System.out.println( " " + minMax[ 0 ] );
-			System.out.println( " " + minMax[ 1 ] );
+//			System.out.println( " " + minMax[ 0 ] );
+//			System.out.println( " " + minMax[ 1 ] );
 
 			long[] min = ParseUtils.parseLongArray( minMax[ 0 ] );
 			long[] max = ParseUtils.parseLongArray( minMax[ 1 ] );
