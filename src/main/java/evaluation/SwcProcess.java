@@ -5,27 +5,16 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.LocalTime;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.Callable;
-import java.util.concurrent.Executors;
 
 import org.janelia.utility.parse.ParseUtils;
 
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 
-import ch.qos.logback.core.util.ExecutorServiceUtil;
-import net.imglib2.realtransform.InvertibleRealTransform;
-import net.imglib2.realtransform.InvertibleRealTransformSequence;
-import process.RenderTransformed;
 import sc.fiji.skeleton.SwcIO;
 import sc.fiji.skeleton.SWCPoint;
-import tracing.SNT;
 
 
 public class SwcProcess
@@ -44,8 +33,10 @@ public class SwcProcess
 	@Parameter(names = {"-r"}, description = "Radius scaling" )
 	private double radiusScaling = 1.0;
 
-//	@Parameter(names = {"-q", "--nThreads"}, description = "Number of threads" )
-//	private int nThreads;
+	@Parameter(names = {"--set-radius"}, description = "Set radius. "
+			+ "The radius at every point will be set to this value. "
+			+ "This takes precedence over radius scaling." )
+	private double radiusValue = Double.NaN;
 
 	@Parameter(names = {"-h", "--help"}, description = "Print this help message" )
 	private boolean help;
@@ -101,11 +92,6 @@ public class SwcProcess
 			return;
 		}
 		
-		// parse Transform
-		// Concatenate all the transforms
-		InvertibleRealTransformSequence totalXfm = new InvertibleRealTransformSequence();
-
-	
 		int i = 0;
 		while( i < skeletonPaths.size())
 		{
@@ -114,17 +100,21 @@ public class SwcProcess
 			
 			ArrayList< SWCPoint > current = SwcIO.loadSWC( in );
 
-			ArrayList< SWCPoint > res; 
+			ArrayList< SWCPoint > res = current; 
 			if ( coordinateScaling != null )
-				res = scale( current, coordinateScaling );
-			else
-				res = current;
+				current = scale( current, coordinateScaling );
 
-			if ( radiusScaling != 1.0 )
-				res = scaleRadius( current, radiusScaling );
+			if( Double.isNaN( radiusValue ))
+			{
+				if ( radiusScaling != 1.0 )
+					res = scaleRadius( current, radiusScaling );
+				else
+					res = current;
+			}
 			else
-				res = current;
-
+			{
+				res = setRadius( current, radiusValue );
+			}
 
 			System.out.println( "Exporting to " + out );
 			try
@@ -139,6 +129,35 @@ public class SwcProcess
 
 			i++;
 		}
+	}
+
+	public static ArrayList<SWCPoint> setRadius( ArrayList<SWCPoint> pts, double value )
+	{
+		ArrayList<SWCPoint> out = new ArrayList<SWCPoint>();
+		pts.forEach( pt -> out.add( setRadius( pt, value )) );
+		return out;
+	}
+
+	public static SWCPoint setRadius( SWCPoint pt, double value )
+	{
+		SwcIO.StringPrintWriter spw = new SwcIO.StringPrintWriter();
+		//System.out.println( pt.toString() );
+		pt.println( spw );
+
+		String[] s = spw.toString().split( " " );
+		int id = Integer.parseInt( s[ 0 ] );
+		int type = Integer.parseInt( s[ 1 ] );
+		int previous = Integer.parseInt( s[ 6 ] );
+
+		double[] p = new double[] { 
+				pt.getPointInImage().x,
+				pt.getPointInImage().y,
+				pt.getPointInImage().z };
+
+		return new SWCPoint( 
+				id, type, 
+				p[0], p[1], p[2], 
+				value, previous );
 	}
 
 	public static ArrayList<SWCPoint> scaleRadius( ArrayList<SWCPoint> pts, double scale )
