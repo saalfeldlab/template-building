@@ -53,7 +53,7 @@ public class TransformReader
 	{
 		if( transform.contains( "?" ))
 		{
-			String[] parts = transform.split( "?" );
+			String[] parts = transform.split( "\\?" );
 			if( parts[ parts.length - 1 ].equals( INVFLAG ) )
 			{
 				return true;
@@ -145,6 +145,11 @@ public class TransformReader
 				e.printStackTrace();
 			}
 		}
+		else if( transformPath.contains( ".h5" ) || transformPath.contains( ".hdf5" )) 
+		{
+			System.out.println( "reading h5");
+			return readH5Invertible( transformPath );
+		}
 		
 		return null;
 	}
@@ -198,7 +203,7 @@ public class TransformReader
 
 		if( transformArg.contains( "?" ))
 		{
-			String[] split = transformArg.split( "?" );
+			String[] split = transformArg.split( "\\?" );
 			path = split[ 0 ];
 			baseDataset = split[ 1 ];
 			
@@ -208,8 +213,6 @@ public class TransformReader
 			if( split.length > 3 )
 				if( split[ 3 ].equals( AFFINEFLAG ) )
 					affineOnly = true;
-				else if( split[ 3 ].equals( DEFFLAG ) )
-					deformableOnly = true;
 		}
 
 		N5HDF5Reader n5;
@@ -224,27 +227,33 @@ public class TransformReader
 		}
 
 		// Check that relevant datasets exist in the specified base dataset
-		//String xfmDataset = inverse ? N5DisplacementField.INVERSE_ATTR : N5DisplacementField.FORWARD_ATTR;
-
 		String fwddataset = "";
 		String invdataset = "";
 		if( baseDataset.isEmpty() )
-			if( n5.datasetExists( baseDataset + "/" + N5DisplacementField.FORWARD_ATTR ) && 
-				n5.datasetExists( baseDataset + "/" + N5DisplacementField.INVERSE_ATTR ))
+		{
+			if( n5.datasetExists( "/" + N5DisplacementField.FORWARD_ATTR ) && 
+				n5.datasetExists( "/" + N5DisplacementField.INVERSE_ATTR ))
 			{
-				fwddataset = baseDataset + "/" + N5DisplacementField.FORWARD_ATTR;
-				invdataset = baseDataset + "/" + N5DisplacementField.INVERSE_ATTR;
+				fwddataset = "/" + N5DisplacementField.FORWARD_ATTR;
+				invdataset = "/" + N5DisplacementField.INVERSE_ATTR;
 			}
-			else if( n5.datasetExists( baseDataset + "/" + N5DisplacementField.FORWARD_ATTR ) && 
-					 n5.datasetExists( baseDataset + "/" + N5DisplacementField.INVERSE_ATTR ))
+			else if( n5.datasetExists( "/0/" + N5DisplacementField.FORWARD_ATTR ) && 
+					 n5.datasetExists( "/0/" + N5DisplacementField.INVERSE_ATTR ))
 			{
-				fwddataset = baseDataset + "/0/" + N5DisplacementField.FORWARD_ATTR;
-				invdataset = baseDataset + "/0/" + N5DisplacementField.INVERSE_ATTR;
+				fwddataset = "/0/" + N5DisplacementField.FORWARD_ATTR;
+				invdataset = "/0/" + N5DisplacementField.INVERSE_ATTR;
 			}
-		
-		
+		}
+		else if( n5.datasetExists( baseDataset + "/" + N5DisplacementField.FORWARD_ATTR ) && 
+				 n5.datasetExists( baseDataset + "/" + N5DisplacementField.INVERSE_ATTR ))
+		{
+			fwddataset = baseDataset + "/" + N5DisplacementField.FORWARD_ATTR;
+			invdataset = baseDataset + "/" + N5DisplacementField.INVERSE_ATTR;
+		}
+	
 		if ( affineOnly )
 		{
+			System.out.println("h5 transform affine only");
 			String dataset = inverse ? invdataset : fwddataset;
 			try
 			{
@@ -261,8 +270,7 @@ public class TransformReader
 			try
 			{
 				ExplicitInvertibleRealTransform xfm = N5DisplacementField.openInvertible(
-					n5,
-					fwddataset, invdataset,
+					n5, fwddataset, invdataset,
 					new FloatType(),
 					new NLinearInterpolatorFactory<FloatType>());
 	
@@ -289,7 +297,7 @@ public class TransformReader
 
 		if( transformArg.contains( "?" ))
 		{
-			String[] split = transformArg.split( "?" );
+			String[] split = transformArg.split( "\\?" );
 			path = split[ 0 ];
 			baseDataset = split[ 1 ];
 			
@@ -320,19 +328,32 @@ public class TransformReader
 		String fwddataset = "";
 		String invdataset = "";
 		if( baseDataset.isEmpty() )
-			if( n5.datasetExists( baseDataset + "/" + N5DisplacementField.FORWARD_ATTR ) && 
-				n5.datasetExists( baseDataset + "/" + N5DisplacementField.INVERSE_ATTR ))
+		{
+			if( n5.datasetExists( "/" + N5DisplacementField.FORWARD_ATTR ) && 
+				n5.datasetExists( "/" + N5DisplacementField.INVERSE_ATTR ))
 			{
-				fwddataset = baseDataset + "/" + N5DisplacementField.FORWARD_ATTR;
-				invdataset = baseDataset + "/" + N5DisplacementField.INVERSE_ATTR;
+				fwddataset = "/" + N5DisplacementField.FORWARD_ATTR;
+				invdataset = "/" + N5DisplacementField.INVERSE_ATTR;
 			}
-			else if( n5.datasetExists( baseDataset + "/" + N5DisplacementField.FORWARD_ATTR ) && 
-					 n5.datasetExists( baseDataset + "/" + N5DisplacementField.INVERSE_ATTR ))
+			else if( n5.datasetExists( "/0/" + N5DisplacementField.FORWARD_ATTR ) && 
+					 n5.datasetExists( "/0/" + N5DisplacementField.INVERSE_ATTR ))
 			{
-				fwddataset = baseDataset + "/0/" + N5DisplacementField.FORWARD_ATTR;
-				invdataset = baseDataset + "/0/" + N5DisplacementField.INVERSE_ATTR;
+				fwddataset = "/0/" + N5DisplacementField.FORWARD_ATTR;
+				invdataset = "/0/" + N5DisplacementField.INVERSE_ATTR;
 			}
-		
+		}
+		else if( n5.datasetExists( baseDataset + "/" + N5DisplacementField.FORWARD_ATTR ) && 
+				 n5.datasetExists( baseDataset + "/" + N5DisplacementField.INVERSE_ATTR ))
+		{
+			fwddataset = baseDataset + "/" + N5DisplacementField.FORWARD_ATTR;
+			invdataset = baseDataset + "/" + N5DisplacementField.INVERSE_ATTR;
+		}
+	
+		if( fwddataset.isEmpty() )
+		{
+			System.err.println( "could not find dataset" );
+			return null;
+		}
 		
 		if ( affineOnly )
 		{
