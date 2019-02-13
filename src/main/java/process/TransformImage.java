@@ -54,7 +54,7 @@ public class TransformImage implements Callable< Void >, BiConsumer< String, Str
 	@Option( names = { "--interpolation" }, required = false, description = "Interpolation {LINEAR, NEAREST, LANCZOS}" )
 	private String interpolation = "LINEAR";
 
-	@Option( names = { "-s", "--outputPixelSize" }, required = false, description = "Size of image output in pixels" )
+	@Option( names = { "-s", "--outputImageSize" }, required = false, description = "Size of image output in pixels" )
 	private String outputSize = "";
 
 	@Option( names = { "-r", "--output-resolution" }, required = false, split = ",", description = "The resolution at which to write the output" )
