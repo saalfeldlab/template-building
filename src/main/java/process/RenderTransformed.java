@@ -29,6 +29,7 @@ import net.imglib2.img.display.imagej.ImageJFunctions;
 import net.imglib2.img.imageplus.ImagePlusImg;
 import net.imglib2.img.imageplus.ImagePlusImgs;
 import net.imglib2.interpolation.InterpolatorFactory;
+import net.imglib2.interpolation.randomaccess.LanczosInterpolatorFactory;
 import net.imglib2.interpolation.randomaccess.NLinearInterpolatorFactory;
 import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
 import net.imglib2.realtransform.AffineGet;
@@ -71,8 +72,7 @@ import util.RenderUtil;
  */
 public class RenderTransformed
 {
-	
-	public enum INTERP_OPTIONS { LINEAR, NEAREST };
+	public enum INTERP_OPTIONS { LINEAR, NEAREST, LANCZOS };
 
 	public static void main( String[] args ) throws FormatException, Exception
 	{
@@ -445,7 +445,7 @@ public class RenderTransformed
 				(long)Math.round( ip.getNSlices() * resIn[ 2 ] / resOutXfm.get( 2, 2 )));
 	}
 	
-	public static <T extends NumericType<T> & NativeType<T> > InterpolatorFactory<T,RandomAccessible<T>> getInterpolator( String option,
+	public static <T extends RealType<T> & NativeType<T> > InterpolatorFactory<T,RandomAccessible<T>> getInterpolator( String option,
 			RandomAccessible<T> ra )
 	{
 		if( INTERP_OPTIONS.valueOf(option) == INTERP_OPTIONS.LINEAR )
@@ -455,6 +455,10 @@ public class RenderTransformed
 		else if( INTERP_OPTIONS.valueOf(option) == INTERP_OPTIONS.NEAREST )
 		{
 			return new NearestNeighborInterpolatorFactory<T>();
+		}
+		else if( INTERP_OPTIONS.valueOf(option) == INTERP_OPTIONS.LANCZOS )
+		{
+			return new LanczosInterpolatorFactory<T>();
 		}
 		else 
 			return null;
