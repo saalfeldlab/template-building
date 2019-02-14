@@ -1,0 +1,8 @@
+#!/bin/bash
+# Returns the resolution input nrrd 
+
+nrrdFile="$1"
+
+tag='space directions: '
+
+unu head $nrrdFile | grep "$tag" | sed -e "s/$tag//g" -e 's/ /,/g' -e 's/[()]//g' | awk -F, 'BEGIN {OFS=","}{print $1,$5,$9}'
