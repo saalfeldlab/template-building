@@ -27,6 +27,7 @@ import ij.io.FileOpener;
 import ij.io.OpenDialog;
 import ij.measure.Calibration;
 import ij.plugin.PlugIn;
+import net.imglib2.util.ValuePair;
 
 import java.io.File;
 import java.io.IOException;
@@ -91,6 +92,15 @@ public class Dfield_Nrrd_Reader extends ImagePlus implements PlugIn
 		
 		// if we weren't sent a filename but chose one, then show the image
 		if (arg.equals("")) show();
+	}
+
+	public ValuePair< long[], double[] > readSizeAndResolution( File f ) throws IOException
+	{
+
+		NrrdDfieldFileInfo fi = getHeaderInfo( f.getParent() + File.separator, f.getName() );
+		long[] size = new long[] { fi.sizes[ 0 ], fi.sizes[ 1 ], fi.sizes[ 2 ] };
+		double[] res = new double[] { fi.pixelWidth, fi.pixelHeight, fi.pixelDepth };
+		return new ValuePair<>( size, res );
 	}
 
 	public ImagePlus load(String directory, String fileName) {    

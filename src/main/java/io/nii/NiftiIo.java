@@ -7,6 +7,7 @@ import java.util.Hashtable;
 import loci.formats.FormatException;
 import loci.formats.in.DfieldNiftiReader;
 import loci.plugins.util.ImageProcessorReader;
+import net.imglib2.util.ValuePair;
 import ij.ImagePlus;
 import ij.ImageStack;
 import ij.process.ImageProcessor;
@@ -17,7 +18,35 @@ public class NiftiIo
 	public static final String KEY_YRES = "Voxel height";
 	public static final String KEY_ZRES = "Slice thickness";
 	
-	
+	public static ValuePair< long[], double[] > readSizeAndResolution( File f ) throws FormatException, IOException
+	{
+		DfieldNiftiReader reader = new DfieldNiftiReader();
+		reader.setId( f.getAbsolutePath() );
+
+		int width = reader.getSizeX();
+		int height = reader.getSizeY();
+		int depth = reader.getSizeZ();
+
+		double[] res = new double[] { 1.0, 1.0, 1.0 };
+		Hashtable< String, Object > meta = reader.getGlobalMetadata();
+
+		// Get image resolutions from file
+		if ( meta.keySet().contains( KEY_XRES ) )
+			res[ 0 ] = ( Double ) ( meta.get( KEY_XRES ) );
+
+		if ( meta.keySet().contains( KEY_YRES ) )
+			res[ 1 ] = ( Double ) ( meta.get( KEY_YRES ) );
+
+		if ( meta.keySet().contains( KEY_ZRES ) )
+			res[ 2 ] = ( Double ) ( meta.get( KEY_ZRES ) );
+
+		reader.close();
+
+		long[] size = new long[] { width, height, depth };
+
+		return new ValuePair<>( size, res );
+	}
+
 	public static ImagePlus readNifti( File f ) throws FormatException, IOException
 	{
 		DfieldNiftiReader reader = new DfieldNiftiReader();

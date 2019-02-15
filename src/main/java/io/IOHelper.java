@@ -20,6 +20,7 @@ import net.imglib2.img.display.imagej.ImageJFunctions;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.NumericType;
 import net.imglib2.type.numeric.RealType;
+import net.imglib2.util.ValuePair;
 import process.DownsampleGaussian;
 import sc.fiji.io.Dfield_Nrrd_Reader;
 import sc.fiji.io.Dfield_Nrrd_Writer;
@@ -70,6 +71,38 @@ public class IOHelper {
 
 		// write
 		IOHelper.write( ip, io.outputFilePath );
+	}
+
+	public ValuePair< long[], double[] > readSizeAndResolution( String filePath )
+	{
+		if ( filePath.endsWith( "nii" ) )
+		{
+			try
+			{
+				return NiftiIo.readSizeAndResolution( new File( filePath ) );
+			}
+			catch ( FormatException e )
+			{
+				e.printStackTrace();
+			}
+			catch ( IOException e )
+			{
+				e.printStackTrace();
+			}
+		}
+		else if ( filePath.endsWith( "nrrd" ) )
+		{
+			Dfield_Nrrd_Reader nr = new Dfield_Nrrd_Reader();
+			try
+			{
+				return nr.readSizeAndResolution( new File( filePath ) );
+			}
+			catch ( IOException e )
+			{
+				e.printStackTrace();
+			}
+		}
+		return null;
 	}
 
 	public ImagePlus readIp( String filePathAndDataset )
