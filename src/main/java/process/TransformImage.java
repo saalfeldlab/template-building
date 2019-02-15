@@ -1,6 +1,8 @@
 package process;
 
+import java.io.File;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.function.BiConsumer;
@@ -9,6 +11,7 @@ import org.janelia.saalfeldlab.transform.io.TransformReader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import ij.ImagePlus;
 import io.IOHelper;
 import net.imglib2.FinalInterval;
 import net.imglib2.RealRandomAccessible;
@@ -19,6 +22,8 @@ import net.imglib2.realtransform.RealTransformSequence;
 import net.imglib2.realtransform.Scale;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.RealType;
+import net.imglib2.util.Util;
+import net.imglib2.util.ValuePair;
 import net.imglib2.view.IntervalView;
 import net.imglib2.view.Views;
 import picocli.CommandLine;
@@ -54,11 +59,18 @@ public class TransformImage implements Callable< Void >, BiConsumer< String, Str
 	@Option( names = { "--interpolation" }, required = false, description = "Interpolation {LINEAR, NEAREST, LANCZOS}" )
 	private String interpolation = "LINEAR";
 
-	@Option( names = { "-s", "--outputImageSize" }, required = false, description = "Size of image output in pixels" )
-	private String outputSize = "";
+	@Option( names = { "-s", "--outputImageSize" }, required = false,
+			description = "Size / field of view of image output in pixels.  Comma separated, e.g. \"200,250,300\". "
+					+ "Overrides reference image."  )
+	private String outputSize;
 
-	@Option( names = { "-r", "--output-resolution" }, required = false, split = ",", description = "The resolution at which to write the output" )
+	@Option( names = { "-r", "--output-resolution" }, required = false, split = ",", 
+			description = "The resolution at which to write the output. Overrides reference image." )
 	private double[] outputResolution;
+
+	@Option( names = { "-f", "--reference" }, required = false, 
+			description = "A reference image specifying the output size and resolution." )
+	private String referenceImagePath;
 
 	@Option( names = { "-j", "--nThreads" }, required = false, description = "Number of rendering threads (default=1)" )
 	private int nThreads = 1;
@@ -78,9 +90,25 @@ public class TransformImage implements Callable< Void >, BiConsumer< String, Str
 		System.exit(0);
 	}
 
+	/**
+	 * Parses inputs to determine output size, resolution, etc.
+	 * 
+	 *  
+	 */
 	public void setup()
 	{
-		renderInterval = RenderTransformed.parseInterval( outputSize );
+		if( referenceImagePath != null && !referenceImagePath.isEmpty() && new File( referenceImagePath ).exists() )
+		{
+			IOHelper io = new IOHelper();
+			ValuePair< long[], double[] > sizeAndRes = io.readSizeAndResolution( referenceImagePath );
+			renderInterval = new FinalInterval( sizeAndRes.getA() );
+			
+			if ( outputResolution == null )
+				outputResolution = sizeAndRes.getB();
+		}
+		
+		if( outputSize != null && !outputSize.isEmpty() )
+			renderInterval = RenderTransformed.parseInterval( outputSize );
 
 		// contains the physical transformation
 		RealTransformSequence physicalTransform = TransformReader.readTransforms( transformFiles );
@@ -121,6 +149,9 @@ public class TransformImage implements Callable< Void >, BiConsumer< String, Str
 
 	public < T extends RealType< T > & NativeType< T > > void process( String input, String output )
 	{
+		logger.debug( "output resolution : " + Arrays.toString( outputResolution ));
+		logger.debug( "output size       : " + Util.printInterval( renderInterval ));
+
 		IOHelper io = new IOHelper();
 		//RandomAccessibleInterval<T> rai = io.getRai();
 		RealRandomAccessible< T > img = io.readPhysical( input, interpolation );
@@ -129,7 +160,6 @@ public class TransformImage implements Callable< Void >, BiConsumer< String, Str
 				renderInterval );
 
 		logger.info( "allocating" );
-		//ImagePlusImgFactory< T > factory = new ImagePlusImgFactory<>( Util.getTypeFromInterval( rai ) );
 		ImagePlusImgFactory< T > factory = new ImagePlusImgFactory<>( (T)io.getType() );
 		ImagePlusImg< T, ? > imgout = factory.create( renderInterval );
 
@@ -147,7 +177,14 @@ public class TransformImage implements Callable< Void >, BiConsumer< String, Str
 		}
 
 		logger.info( "writing to: " + output );
-		IOHelper.write( imgout.getImagePlus(), output );
+		ImagePlus ipout = imgout.getImagePlus();
+		ipout.getCalibration().pixelWidth = outputResolution[ 0 ];
+		ipout.getCalibration().pixelHeight = outputResolution[ 1 ];
+		ipout.getCalibration().pixelDepth = outputResolution[ 2 ];
+		if ( io.getIp() != null )
+			ipout.getCalibration().setUnit( io.getIp().getCalibration().getUnit() );
+
+		IOHelper.write( ipout, output );
 	}
 
 }
