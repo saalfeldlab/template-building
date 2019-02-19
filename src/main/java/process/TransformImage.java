@@ -44,7 +44,7 @@ import util.RenderUtil;
  *
  */
 @Command( version = "0.0.2-SNAPSHOT" )
-public class TransformImage implements Callable< Void >, BiConsumer< String, String >
+public class TransformImage implements Callable< Void >, BiConsumer< File, File >
 {
 
 	@Option( names = { "-i", "--input" }, required = true, description = "Image file to transform" )
@@ -100,7 +100,7 @@ public class TransformImage implements Callable< Void >, BiConsumer< String, Str
 		if( referenceImagePath != null && !referenceImagePath.isEmpty() && new File( referenceImagePath ).exists() )
 		{
 			IOHelper io = new IOHelper();
-			ValuePair< long[], double[] > sizeAndRes = io.readSizeAndResolution( referenceImagePath );
+			ValuePair< long[], double[] > sizeAndRes = io.readSizeAndResolution( new File( referenceImagePath ));
 			renderInterval = new FinalInterval( sizeAndRes.getA() );
 			
 			if ( outputResolution == null )
@@ -135,19 +135,19 @@ public class TransformImage implements Callable< Void >, BiConsumer< String, Str
 
 		for ( int i = 0; i < outputFiles.size(); i++ )
 		{
-			String input = inputFiles.get( i );
-			String output = outputFiles.get( i );
+			File input = new File( inputFiles.get( i ));
+			File output = new File( outputFiles.get( i ));
 			accept( input, output );
 		}
 		return null;
 	}
 
-	public void accept( String input, String output )
+	public void accept( File input, File output )
 	{
 		process( input, output );
 	}
 
-	public < T extends RealType< T > & NativeType< T > > void process( String input, String output )
+	public < T extends RealType< T > & NativeType< T > > void process( File input, File output )
 	{
 		logger.debug( "output resolution : " + Arrays.toString( outputResolution ));
 		logger.debug( "output size       : " + Util.printInterval( renderInterval ));

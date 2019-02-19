@@ -90,6 +90,19 @@ public class IOHelper {
 		IOHelper.write( ip, io.outputFilePath );
 	}
 
+	public ValuePair< long[], double[] > readSizeAndResolution( File file )
+	{
+		try
+		{
+			return readSizeAndResolution( file.getCanonicalPath() );
+		}
+		catch ( IOException e )
+		{
+			e.printStackTrace();
+		}
+		return null;
+	}
+
 	public ValuePair< long[], double[] > readSizeAndResolution( String filePath )
 	{
 		if ( filePath.endsWith( "nii" ) )
@@ -118,6 +131,19 @@ public class IOHelper {
 			{
 				e.printStackTrace();
 			}
+		}
+		return null;
+	}
+
+	public ImagePlus readIp( File file )
+	{
+		try
+		{
+			return readIp( file.getCanonicalPath() );
+		}
+		catch ( IOException e )
+		{
+			e.printStackTrace();
 		}
 		return null;
 	}
@@ -208,6 +234,19 @@ public class IOHelper {
 		return ipout;
 	}
 
+	public <T extends RealType<T> & NativeType<T>> RandomAccessibleInterval<T> readRai( File file )
+	{
+		try
+		{
+			return readRai( file.getCanonicalPath() );
+		}
+		catch ( IOException e )
+		{
+			e.printStackTrace();
+		}
+		return null;
+	}
+
 	/**
 	 * If the file  
 	 * The input string should contain both the absolute file path and dataset into the h5 file separated by a colon (":"),
@@ -269,6 +308,21 @@ public class IOHelper {
 	}
 
 	public < T extends RealType< T > & NativeType< T > > RealRandomAccessible< T > readPhysical( 
+			final File file,
+			final String interp )
+	{
+		try
+		{
+			return readPhysical( file.getCanonicalPath(), interp );
+		}
+		catch ( IOException e )
+		{
+			e.printStackTrace();
+		}
+		return null;
+	}
+
+	public < T extends RealType< T > & NativeType< T > > RealRandomAccessible< T > readPhysical( 
 			final String filePathAndDataset,
 			final String interp )
 	{
@@ -292,6 +346,18 @@ public class IOHelper {
 
 		Scale pixelToPhysical = new Scale( resolution );
 		return RealViews.affine( realimgpixel, pixelToPhysical );
+	}
+
+	public static void write( ImagePlus ip, File outputFile )
+	{
+		try
+		{
+			write( ip, outputFile.getCanonicalPath() );
+		}
+		catch ( IOException e )
+		{
+			e.printStackTrace();
+		}
 	}
 
 	public static void write( ImagePlus ip, String outputFilePath )
