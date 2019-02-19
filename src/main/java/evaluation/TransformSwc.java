@@ -10,62 +10,65 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.Callable;
 import java.util.regex.Pattern;
 
-import com.beust.jcommander.JCommander;
-import com.beust.jcommander.Parameter;
+import org.janelia.saalfeldlab.transform.io.TransformReader;
+
+import picocli.CommandLine;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
 
 import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.realtransform.InvertibleRealTransform;
-import net.imglib2.realtransform.InvertibleRealTransformSequence;
-import process.RenderTransformed;
+import net.imglib2.realtransform.RealTransform;
+import net.imglib2.realtransform.RealTransformSequence;
 import sc.fiji.skeleton.SwcIO;
 import sc.fiji.skeleton.SWCPoint;
 import tracing.SNT;
 
 
-public class TransformSwc
+@Command( version = "0.0.2-SNAPSHOT" )
+public class TransformSwc implements Callable< Void >
 {
 
-	@Parameter(names = {"-d", "--directory"}, description = "Directory containing skeletons", required = false )
+	@Option(names = {"-d", "--directory"}, description = "Directory containing skeletons", required = false )
 	private String skeletonDirectory;
 
-	@Parameter(names = {"--include"}, description = "Matching pattern: " +
+	@Option(names = {"--include"}, description = "Matching pattern: " +
 			"Files not matching the given regular expression will be ignored.  Only relevant when passing a directory",
 			required = false )
 	private String includeMatcher;
 
-	@Parameter(names = {"--exclude"}, description = "Exclusion pattern: "
+	@Option(names = {"--exclude"}, description = "Exclusion pattern: "
 			+ "Files matching the given regular expression will be ignored. Only relevant when pass a directory",
 			required = false )
 	private String excludeMatcher;
 
-	@Parameter(names = {"--suffix"}, description = "Suffix applied to output files when passing a directory.",
+	@Option(names = {"--suffix"}, description = "Suffix applied to output files when passing a directory.",
 			required = false )
 	private String suffix = "_transformed";
 
-	@Parameter(names = {"-s", "--skeleton"}, description = "Input skeletons. Can pass multiple skeletons",
+	@Option(names = {"-s", "--skeleton"}, description = "Input skeletons. Can pass multiple skeletons",
 		required = false )
 	private List<String> skeletonPaths;
 
-	@Parameter(names = {"-o", "--output"}, description = "Output skeleton file names. "
+	@Option(names = {"-o", "--output"}, description = "Output skeleton file names. "
 			+ "Must have one output for every input skeleton, and pass output"
 			+ "file paths in the same order as the input sketons.",
 			required = false )
 	private List<String> outputSkeletonPaths;
 
-	@Parameter(names = {"-t", "--transform"}, variableArity = true, description = "List of transforms.  "
+	@Option(names = {"-t", "--transform"},
+			description = "List of transforms.  "
 			+ "Every transform that is passed will be applied to the skeletons in the order they are passed. "
-			+ "-t 'inverse' <transform file path> applies the inverse of the given transform if possible." )
+			+ "-t <transform file path> applies the inverse of the given transform if possible." )
 	private List<String> transforms;
 
-//	@Parameter(names = {"-q", "--nThreads"}, description = "Number of threads" )
-//	private int nThreads;
+	@Option( names = { "-v", "--version" }, required = false, versionHelp = true, description = "Prints version information and exits." )
+	private boolean version;
 
-	@Parameter(names = {"-h", "--help"}, description = "Print this help message" )
+	@Option(names = {"-h", "--help"}, description = "Print this help message" )
 	private boolean help;
-	
-	private transient JCommander jCommander;
 	
 
 	/*
@@ -75,37 +78,11 @@ public class TransformSwc
 	 */
 	public static void main( String[] args )
 	{
-		TransformSwc transformer = parseCommandLineArgs( args );
-		if( args.length == 0 || transformer.help )
-		{
-			transformer.jCommander.usage();
-			return;
-		}
-		transformer.run();
+		CommandLine.call( new TransformSwc(), args );
+		System.exit(0);
 	}
 
-	public static TransformSwc parseCommandLineArgs( final String[] args )
-	{
-		TransformSwc ob = new TransformSwc();
-		ob.initCommander();
-		try
-		{
-			ob.jCommander.parse( args );
-		}
-		catch ( Exception e )
-		{
-			e.printStackTrace();
-		}
-		return ob;
-	}
-
-	private void initCommander()
-	{
-		jCommander = new JCommander( this );
-		jCommander.setProgramName( "input parser" );
-	}
-
-	public void run()
+	public Void call()
 	{
 
 		if ( skeletonDirectory != null && !skeletonDirectory.isEmpty() )
@@ -116,53 +93,18 @@ public class TransformSwc
 		if ( skeletonPaths.size() != outputSkeletonPaths.size() )
 		{
 			System.err.println( "Must have the same number of input and output skeleton arguments" );
-			return;
+			return null;
 		}
 
 		// parse Transform
 		// Concatenate all the transforms
-		InvertibleRealTransformSequence totalXfm = new InvertibleRealTransformSequence();
+		RealTransformSequence totalXfm = new RealTransformSequence();
 		if ( transforms == null )
-		{
 			totalXfm.add( new AffineTransform3D() );
-		}
+		else
+			totalXfm = TransformReader.readTransforms( transforms );
 
 		int i = 0;
-		while( transforms != null && i < transforms.size() )
-		{
-			boolean invert = false;
-			if( transforms.get( i ).toLowerCase().trim().equals( "inverse" ))
-			{
-				invert = true;
-				i++;
-			}
-			
-			if( invert )
-				System.out.println( "loading transform from " + transforms.get( i ) + " AND INVERTING" );
-			else
-				System.out.println( "loading transform from " + transforms.get( i ));
-			
-			InvertibleRealTransform xfm = null;
-			try
-			{
-				xfm = RenderTransformed.loadTransform( transforms.get( i ), invert );
-			} catch ( Exception e )
-			{
-				e.printStackTrace();
-			}
-			
-			if( xfm == null )
-			{
-				System.err.println("  failed to load transform ");
-				System.exit( 1 );
-			}
-
-			totalXfm.add( xfm );
-			i++;
-		}
-	
-
-		i = 0;
 		while ( i < skeletonPaths.size() )
 		{
 			final File in = new File( skeletonPaths.get( i ) );
@@ -198,6 +140,8 @@ public class TransformSwc
 
 			i++;
 		}
+
+		return null;
 	}
 
 	public void populateSkeletonListFromDirectory()
@@ -251,14 +195,14 @@ public class TransformSwc
 		pw.close();
 	}
 
-	public static ArrayList<SWCPoint> transformSWC( InvertibleRealTransform xfm, ArrayList<SWCPoint> pts )
+	public static ArrayList<SWCPoint> transformSWC( RealTransform xfm, ArrayList<SWCPoint> pts )
 	{
 		ArrayList<SWCPoint> out = new ArrayList<SWCPoint>();
 		pts.forEach( pt -> out.add( transform( xfm, pt )) );
 		return out;
 	}
 	
-	public static SWCPoint transform( InvertibleRealTransform xfm, SWCPoint pt )
+	public static SWCPoint transform( RealTransform xfm, SWCPoint pt )
 	{
 		SwcIO.StringPrintWriter spw = new SwcIO.StringPrintWriter();
 		//System.out.println( pt.toString() );
@@ -284,6 +228,5 @@ public class TransformSwc
 				pxfm[ 0 ], pxfm[ 1 ], pxfm[ 2 ], 
 				radius, previous );
 	}
-	
 
 }
