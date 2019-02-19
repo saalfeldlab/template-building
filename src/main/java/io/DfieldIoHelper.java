@@ -288,6 +288,7 @@ public class DfieldIoHelper
 
 			try
 			{
+				System.out.println("reading: " + filepath + " : " + dataset );
 				N5HDF5Reader n5 = new N5HDF5Reader( filepath, 32, 32, 32, 3 );
 				RandomAccessibleInterval<FloatType> dfield = N5DisplacementField.openField( n5, dataset, new FloatType() );
 				spacing = n5.getAttribute( dataset, N5DisplacementField.SPACING_ATTR, double[].class );
@@ -384,7 +385,7 @@ public class DfieldIoHelper
 
 		if( currentVectorDim < 0 )
 			throw new Exception( 
-					String.format( "Displacement fields must contain a dimension with a length of %d", n-1 ));
+					String.format( "Displacement fields must contain a dimension with a length of %d", dimLength ));
 
 		int j = 0;
 

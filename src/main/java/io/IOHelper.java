@@ -2,10 +2,13 @@ package io;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Arrays;
 
 import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Reader;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
 import org.janelia.utility.parse.ParseUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
@@ -15,18 +18,30 @@ import ij.ImagePlus;
 import io.nii.NiftiIo;
 import io.nii.Nifti_Writer;
 import loci.formats.FormatException;
+import net.imglib2.RandomAccessible;
 import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.RealRandomAccessible;
 import net.imglib2.img.display.imagej.ImageJFunctions;
+import net.imglib2.interpolation.InterpolatorFactory;
+import net.imglib2.realtransform.RealViews;
+import net.imglib2.realtransform.Scale;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.NumericType;
 import net.imglib2.type.numeric.RealType;
+import net.imglib2.type.numeric.integer.UnsignedByteType;
+import net.imglib2.type.numeric.integer.UnsignedShortType;
+import net.imglib2.type.numeric.real.FloatType;
+import net.imglib2.util.Util;
 import net.imglib2.util.ValuePair;
-import process.DownsampleGaussian;
+import net.imglib2.view.Views;
+import process.RenderTransformed;
 import sc.fiji.io.Dfield_Nrrd_Reader;
 import sc.fiji.io.Dfield_Nrrd_Writer;
 
 public class IOHelper {
 
+	ImagePlus ip;
+	RandomAccessibleInterval< ? > rai;
 	double[] resolution;
 
 	@Parameter(names = {"--input", "-i"}, description = "Input image file" )
@@ -42,6 +57,8 @@ public class IOHelper {
 	@Parameter(names = {"--unit", "-u"}, description = "Unit" )
 	private String unit = null;
 
+	final Logger logger = LoggerFactory.getLogger( IOHelper.class );
+	
 	public static void main( String[] args )
 	{
 		IOHelper io = new IOHelper();
@@ -107,12 +124,11 @@ public class IOHelper {
 
 	public ImagePlus readIp( String filePathAndDataset )
 	{
-		ImagePlus baseIp = null;
 		if( filePathAndDataset.endsWith( "nii" ))
 		{
 			try
 			{
-				baseIp =  NiftiIo.readNifti( new File( filePathAndDataset ) );
+				ip =  NiftiIo.readNifti( new File( filePathAndDataset ) );
 			} catch ( FormatException e )
 			{
 				e.printStackTrace();
@@ -126,19 +142,23 @@ public class IOHelper {
 			Dfield_Nrrd_Reader nr = new Dfield_Nrrd_Reader();
 			File imFile = new File( filePathAndDataset );
 
-			baseIp = nr.load( imFile.getParent(), imFile.getName());
-			System.out.println( "baseIp");
+			ip = nr.load( imFile.getParent(), imFile.getName());
 		}
 		else if( filePathAndDataset.endsWith( "h5" ))
 		{
-			baseIp = toImagePlus( readRai( filePathAndDataset ));
+			ip = toImagePlus( readRai( filePathAndDataset ));
 		}
 		else
 		{
-			baseIp = IJ.openImage( filePathAndDataset );
+			ip = IJ.openImage( filePathAndDataset );
 		}
+		
+		resolution = new double[ 3 ];
+		resolution[ 0 ] = ip.getCalibration().pixelWidth;
+		resolution[ 1 ] = ip.getCalibration().pixelHeight;
+		resolution[ 2 ] = ip.getCalibration().pixelDepth;
 
-		return baseIp;
+		return ip;
 	}
 	
 	public static void setResolution( ImagePlus ip, double[] res )
@@ -146,6 +166,37 @@ public class IOHelper {
 		ip.getCalibration().pixelWidth  = res[ 0 ];
 		ip.getCalibration().pixelHeight = res[ 1 ];
 		ip.getCalibration().pixelDepth  = res[ 2 ];
+	}
+	
+	public <T extends RealType<T> & NativeType<T>> T getType()
+	{
+		if( rai != null )
+			return ( T ) Util.getTypeFromInterval( rai );
+
+		else if( ip != null )
+		if( ip.getBitDepth() == 8 )
+		{
+			return ( T ) new UnsignedByteType();
+		}
+		else if( ip.getBitDepth() == 16 )
+		{
+			return ( T ) new UnsignedShortType();
+		}
+		else if( ip.getBitDepth() == 32 )
+		{
+			return ( T ) new FloatType();
+		}
+		return null;
+	}
+	
+	public ImagePlus getIp()
+	{
+		return ip;
+	}
+
+	public <T extends RealType<T> & NativeType<T>> RandomAccessibleInterval< T > getRai()
+	{
+		return ( RandomAccessibleInterval< T > ) rai;
 	}
 
 	//public <T extends RealType<T> & NativeType<T>> ImagePlus toImagePlus( RandomAccessibleInterval<T> img )
@@ -167,14 +218,14 @@ public class IOHelper {
 	 */
 	public <T extends RealType<T> & NativeType<T>> RandomAccessibleInterval<T> readRai( String filePathAndDataset )
 	{
-		if( filePathAndDataset.contains( ".h5:" ) )
+		if( filePathAndDataset.contains( ".h5?" ) )
 		{
-			String[] partList = filePathAndDataset.split( ":" );
+			String[] partList = filePathAndDataset.split( "?" );
 			String fpath = partList[ 0 ];
 			String dset = partList[ 1 ];
 			
-			System.out.println( "fpath: " + fpath );
-			System.out.println( "dset: " + dset );
+			logger.debug( "fpath: " + fpath );
+			logger.debug( "dset: " + dset );
 			
 			RandomAccessibleInterval<T> img = null;
 			N5HDF5Reader n5;
@@ -199,12 +250,48 @@ public class IOHelper {
 			{
 				e.printStackTrace();
 			}
+			rai = img;
 			return img;
 		}
 		else
 		{
-			return ImageJFunctions.wrap( readIp( filePathAndDataset ) );
+			rai = ImageJFunctions.wrap( readIp( filePathAndDataset ) );
+			return ( RandomAccessibleInterval< T > ) rai;
 		}
+	}
+	
+	public < T extends RealType< T > & NativeType< T > > RealRandomAccessible< T > interpolate( 
+			final RandomAccessible<T> img,
+			final String interp )
+	{
+		return Views.interpolate( img, 
+				RenderTransformed.getInterpolator( interp, img ));
+	}
+
+	public < T extends RealType< T > & NativeType< T > > RealRandomAccessible< T > readPhysical( 
+			final String filePathAndDataset,
+			final String interp )
+	{
+		RandomAccessibleInterval< T > rai = readRai( filePathAndDataset );
+		RealRandomAccessible< T > realimgpixel = interpolate( Views.extendZero( rai ), interp );
+		if( resolution == null )
+			return realimgpixel;
+
+		Scale pixelToPhysical = new Scale( resolution );
+		return RealViews.affine( realimgpixel, pixelToPhysical );
+	}
+
+	public < T extends RealType< T > & NativeType< T > > RealRandomAccessible< T > readPhysical( 
+			final String filePathAndDataset,
+			final InterpolatorFactory< T, RandomAccessible<T> > interp )
+	{
+		rai = readRai( filePathAndDataset );
+		RealRandomAccessible< T > realimgpixel = Views.interpolate( getRai(), interp );
+		if( resolution == null )
+			return realimgpixel;
+
+		Scale pixelToPhysical = new Scale( resolution );
+		return RealViews.affine( realimgpixel, pixelToPhysical );
 	}
 
 	public static void write( ImagePlus ip, String outputFilePath )
