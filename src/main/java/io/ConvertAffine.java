@@ -9,8 +9,10 @@ import java.nio.file.StandardOpenOption;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Reader;
 import org.janelia.saalfeldlab.n5.imglib2.N5DisplacementField;
+import org.janelia.saalfeldlab.transform.io.TransformReader;
 
 import io.cmtk.CMTKLoadAffine;
+import net.imglib2.realtransform.AffineGet;
 import net.imglib2.realtransform.AffineTransform;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.realtransform.ants.ANTSLoadAffine;
@@ -21,49 +23,43 @@ public class ConvertAffine {
 	{
 		String input = args[ 0 ];
 		String output = args[ 1 ];
-		
-		AffineTransform3D inaffine = load( input );
+
+		AffineGet inaffine = load( input );
 		System.out.println( inaffine );
 		write( inaffine, output );
 	}
 	
-	public static AffineTransform3D load( final String input ) throws IOException
+	public static AffineGet load( final String input ) throws IOException
 	{
-		if( input.endsWith("xform" ))
+		// force h5 files to read only the affine part 
+		if( input.contains("h5") || input.contains("hdf5") )
 		{
-			CMTKLoadAffine io = new CMTKLoadAffine();
-			return io.load( new File( input ));
+			String h5affineString = h5StringToh5AffineString( input );
+			System.out.println( h5affineString );
+			return (AffineGet)TransformReader.readH5Invertible( h5affineString );
 		}
-		else if( input.endsWith("txt"))
-		{
-			//imglib2 packed row copy
-			return as3d( AffineImglib2IO.readXfm(3, new File( input )));
-		}
-		else if( input.endsWith("mat"))
-		{
-			// text 
-			return ANTSLoadAffine.loadAffine( input );
-		}
-		else if( input.contains("h5"))
-		{
-			String fpath = input;
-			String dataset = "dfield";
-			if( input.contains(":"))
-			{
-				String[] pathAndDataset = input.split(":");
-				fpath = pathAndDataset[ 0 ];
-				dataset = pathAndDataset[ 1 ];
-			}
-
-			N5Reader n5 = new N5HDF5Reader( fpath, 32, 32, 32, 3 );
-			AffineTransform3D out = new AffineTransform3D();
-			out.set( n5.getAttribute( dataset, N5DisplacementField.AFFINE_ATTR, double[].class ));
-			return out;
-		}
-		return null;
+		else
+			return (AffineGet)TransformReader.readInvertible( input );
 	}
 
-	public static void write( final AffineTransform3D affine, final String output ) throws IOException
+	public static String h5StringToh5AffineString(final String input) {
+		String[] parts = input.split("\\?");
+		StringBuffer out = new StringBuffer();
+
+		for (int i = 0; i < 4; i++) {
+			if (i == 3)
+				out.append(TransformReader.AFFINEFLAG);
+			else if (i < parts.length)
+				out.append(parts[i]);
+
+			if (i < 3)
+				out.append('?');
+		}
+
+		return out.toString();
+	}
+
+	public static void write( final AffineGet affine, final String output ) throws IOException
 	{
 		
 		if( output.endsWith("xform" ))
@@ -77,16 +73,16 @@ public class ConvertAffine {
 		else if( output.endsWith("mat"))
 		{
 			Files.write( Paths.get(output), 
-					ANTSLoadAffine.toHomogeneousMatrixString(affine).getBytes(),
+					ANTSLoadAffine.toHomogeneousMatrixString( as3d( affine )).getBytes(),
 					StandardOpenOption.CREATE );
 		}
 		else if( output.contains("h5"))
-		{
 			System.err.println("Cannot write to h5 directly");
-		}
+		else
+			System.err.println("Did not recognize output extension.");
 	}
 	
-	public static AffineTransform3D as3d( AffineTransform in )
+	public static AffineTransform3D as3d( AffineGet in )
 	{
 		double[] data = new double[ 12 ];
 		int k = 0;
