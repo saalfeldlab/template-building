@@ -16,6 +16,8 @@ Associated template images and transformations can be downloaded [here](https://
 ## Documentation
 
 * [Usage and examples](https://github.com/saalfeldlab/template-building/wiki/Usage-examples)
+  * [Transforming images](https://github.com/saalfeldlab/template-building/wiki/Usage-examples#transforming-images) 
+  * [Transforming neuronal skeletons (swc)](https://github.com/saalfeldlab/template-building/wiki/Usage-examples#transforming-skeletons)
 * [Support for transformations](https://github.com/saalfeldlab/template-building/wiki/Transformations)
   * [Hdf5 / N5 transform format spec](https://github.com/saalfeldlab/template-building/wiki/Hdf5-Deformation-fields)
   * [Transforms available for download](https://github.com/saalfeldlab/template-building/wiki/Deformation-field-versions)
