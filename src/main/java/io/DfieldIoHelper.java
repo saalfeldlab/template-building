@@ -15,6 +15,8 @@ import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Reader;
 import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Writer;
 import org.janelia.saalfeldlab.n5.imglib2.N5DisplacementField;
+import org.janelia.saalfeldlab.transform.io.TransformReader;
+import org.janelia.saalfeldlab.transform.io.TransformReader.H5TransformParameters;
 
 import bdv.util.BdvFunctions;
 import ij.IJ;
@@ -276,20 +278,12 @@ public class DfieldIoHelper
 		}
 		else if ( fieldPath.contains( "h5" ) )
 		{
-			String dataset = "dfield";
-			String filepath = fieldPath;
-
-			if( fieldPath.contains( ":" ))
-			{
-				String[] split = fieldPath.split( ":" );
-				filepath = split[ 0 ];
-				dataset = split[ 1 ];
-			}
-
+			H5TransformParameters params = TransformReader.H5TransformParameters.parse(fieldPath);
+			String dataset = params.inverse ? params.invdataset : params.fwddataset;
 			try
 			{
-				System.out.println("reading: " + filepath + " : " + dataset );
-				N5HDF5Reader n5 = new N5HDF5Reader( filepath, 32, 32, 32, 3 );
+				System.out.println("reading: " + params.path + " : " + dataset );
+				N5HDF5Reader n5 = new N5HDF5Reader( params.path, 32, 32, 32, 3 );
 				RandomAccessibleInterval<FloatType> dfield = N5DisplacementField.openField( n5, dataset, new FloatType() );
 				spacing = n5.getAttribute( dataset, N5DisplacementField.SPACING_ATTR, double[].class );
 				return dfield;

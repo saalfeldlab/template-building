@@ -196,29 +196,12 @@ public class TransformReader
 	 */
 	public static InvertibleRealTransform readH5Invertible( String transformArg ) {
 
-		String path = transformArg;
-		String baseDataset = "";
-		boolean inverse = false;
-		boolean affineOnly = false;
-
-		if( transformArg.contains( "?" ))
-		{
-			String[] split = transformArg.split( "\\?" );
-			path = split[ 0 ];
-			baseDataset = split[ 1 ];
-			
-			if( split.length > 2  && split[ 2 ].equals( INVFLAG ))
-				inverse = true;
-
-			if( split.length > 3 )
-				if( split[ 3 ].equals( AFFINEFLAG ) )
-					affineOnly = true;
-		}
+		H5TransformParameters params = H5TransformParameters.parse( transformArg );
 
 		N5HDF5Reader n5;
 		try
 		{
-			n5 = new N5HDF5Reader( path, 32, 32, 32, 3 );
+			n5 = new N5HDF5Reader( params.path, 32, 32, 32, 3 );
 		}
 		catch ( IOException e )
 		{
@@ -226,35 +209,11 @@ public class TransformReader
 			return null;
 		}
 
-		// Check that relevant datasets exist in the specified base dataset
-		String fwddataset = "";
-		String invdataset = "";
-		if( baseDataset.isEmpty() )
-		{
-			if( n5.datasetExists( "/" + N5DisplacementField.FORWARD_ATTR ) && 
-				n5.datasetExists( "/" + N5DisplacementField.INVERSE_ATTR ))
-			{
-				fwddataset = "/" + N5DisplacementField.FORWARD_ATTR;
-				invdataset = "/" + N5DisplacementField.INVERSE_ATTR;
-			}
-			else if( n5.datasetExists( "/0/" + N5DisplacementField.FORWARD_ATTR ) && 
-					 n5.datasetExists( "/0/" + N5DisplacementField.INVERSE_ATTR ))
-			{
-				fwddataset = "/0/" + N5DisplacementField.FORWARD_ATTR;
-				invdataset = "/0/" + N5DisplacementField.INVERSE_ATTR;
-			}
-		}
-		else if( n5.datasetExists( baseDataset + "/" + N5DisplacementField.FORWARD_ATTR ) && 
-				 n5.datasetExists( baseDataset + "/" + N5DisplacementField.INVERSE_ATTR ))
-		{
-			fwddataset = baseDataset + "/" + N5DisplacementField.FORWARD_ATTR;
-			invdataset = baseDataset + "/" + N5DisplacementField.INVERSE_ATTR;
-		}
 	
-		if ( affineOnly )
+		if ( params.affineOnly )
 		{
 			System.out.println("h5 transform affine only");
-			String dataset = inverse ? invdataset : fwddataset;
+			String dataset = params.inverse ? params.invdataset : params.fwddataset;
 			try
 			{
 				return N5DisplacementField.openAffine( n5, dataset );
@@ -270,11 +229,11 @@ public class TransformReader
 			try
 			{
 				ExplicitInvertibleRealTransform xfm = N5DisplacementField.openInvertible(
-					n5, fwddataset, invdataset,
+					n5, params.fwddataset, params.invdataset,
 					new FloatType(),
 					new NLinearInterpolatorFactory<FloatType>());
 	
-				if( inverse )
+				if( params.inverse )
 					return xfm.inverse();
 				else
 					return xfm;
@@ -289,32 +248,12 @@ public class TransformReader
 
 	public static RealTransform readH5( String transformArg ) {
 
-		String path = transformArg;
-		String baseDataset = "";
-		boolean inverse = false;
-		boolean affineOnly = false;
-		boolean deformableOnly = false;
-
-		if( transformArg.contains( "?" ))
-		{
-			String[] split = transformArg.split( "\\?" );
-			path = split[ 0 ];
-			baseDataset = split[ 1 ];
-			
-			if( split.length > 2  && split[ 2 ].equals( INVFLAG ))
-				inverse = true;
-
-			if( split.length > 3 )
-				if( split[ 3 ].equals( AFFINEFLAG ) )
-					affineOnly = true;
-				else if( split[ 3 ].equals( DEFFLAG ) )
-					deformableOnly = true;
-		}
+		H5TransformParameters params = H5TransformParameters.parse( transformArg );
 
 		N5HDF5Reader n5;
 		try
 		{
-			n5 = new N5HDF5Reader( path, 32, 32, 32, 3 );
+			n5 = new N5HDF5Reader( params.path, 32, 32, 32, 3 );
 		}
 		catch ( IOException e )
 		{
@@ -323,41 +262,16 @@ public class TransformReader
 		}
 
 		// Check that relevant datasets exist in the specified base dataset
-		//String xfmDataset = inverse ? N5DisplacementField.INVERSE_ATTR : N5DisplacementField.FORWARD_ATTR;
-
-		String fwddataset = "";
-		String invdataset = "";
-		if( baseDataset.isEmpty() )
-		{
-			if( n5.datasetExists( "/" + N5DisplacementField.FORWARD_ATTR ) && 
-				n5.datasetExists( "/" + N5DisplacementField.INVERSE_ATTR ))
-			{
-				fwddataset = "/" + N5DisplacementField.FORWARD_ATTR;
-				invdataset = "/" + N5DisplacementField.INVERSE_ATTR;
-			}
-			else if( n5.datasetExists( "/0/" + N5DisplacementField.FORWARD_ATTR ) && 
-					 n5.datasetExists( "/0/" + N5DisplacementField.INVERSE_ATTR ))
-			{
-				fwddataset = "/0/" + N5DisplacementField.FORWARD_ATTR;
-				invdataset = "/0/" + N5DisplacementField.INVERSE_ATTR;
-			}
-		}
-		else if( n5.datasetExists( baseDataset + "/" + N5DisplacementField.FORWARD_ATTR ) && 
-				 n5.datasetExists( baseDataset + "/" + N5DisplacementField.INVERSE_ATTR ))
-		{
-			fwddataset = baseDataset + "/" + N5DisplacementField.FORWARD_ATTR;
-			invdataset = baseDataset + "/" + N5DisplacementField.INVERSE_ATTR;
-		}
 	
-		if( fwddataset.isEmpty() )
+		if( params.fwddataset.isEmpty() )
 		{
 			System.err.println( "could not find dataset" );
 			return null;
 		}
 		
-		if ( affineOnly )
+		if ( params.affineOnly )
 		{
-			String dataset = inverse ? invdataset : fwddataset;
+			String dataset = params.inverse ? params.invdataset : params.fwddataset;
 			try
 			{
 				return N5DisplacementField.openAffine( n5, dataset );
@@ -368,9 +282,9 @@ public class TransformReader
 				return null;
 			}
 		}	
-		else if( deformableOnly )
+		else if( params.deformationOnly )
 		{
-			String dataset = inverse ? invdataset : fwddataset;
+			String dataset = params.inverse ? params.invdataset : params.fwddataset;
 			try
 			{
 				return new DeformationFieldTransform<>( 
@@ -389,11 +303,11 @@ public class TransformReader
 			{
 				ExplicitInvertibleRealTransform xfm = N5DisplacementField.openInvertible(
 					n5,
-					fwddataset, invdataset,
+					params.fwddataset, params.invdataset,
 					new FloatType(),
 					new NLinearInterpolatorFactory<FloatType>());
 	
-				if( inverse )
+				if( params.inverse )
 					return xfm.inverse();
 				else
 					return xfm;
@@ -403,6 +317,94 @@ public class TransformReader
 				e.printStackTrace();
 				return null;
 			}	
+		}
+	}
+
+	public static class H5TransformParameters
+	{
+		public final String path;
+		public final String fwddataset;
+		public final String invdataset;
+		public final boolean inverse;
+		public final boolean affineOnly;
+		public final boolean deformationOnly;
+		
+		public H5TransformParameters(
+			String path,
+			String fwddataset,
+			String invdataset,
+			boolean inverse,
+			boolean affineOnly,
+			boolean deformationOnly )
+		{
+			this.path = path;
+			this.fwddataset = fwddataset;
+			this.invdataset = invdataset;
+			this.inverse = inverse;
+			this.affineOnly = affineOnly;
+			this.deformationOnly = deformationOnly;
+		}
+	
+		public static H5TransformParameters parse( final String transformArg )
+		{
+			String path = transformArg;
+			String baseDataset = "";
+			boolean inverse = false;
+			boolean affineOnly = false;
+			boolean deformationOnly = false;
+			
+			if( transformArg.contains( "?" ))
+			{
+				String[] split = transformArg.split( "\\?" );
+				path = split[ 0 ];
+				baseDataset = split[ 1 ];
+				
+				if( split.length > 2  && split[ 2 ].equals( INVFLAG ))
+					inverse = true;
+
+				if( split.length > 3 )
+					if( split[ 3 ].equals( AFFINEFLAG ) )
+						affineOnly = true;
+					else if( split[ 3 ].equals( DEFFLAG ) )
+						deformationOnly = true;
+			}
+
+			N5HDF5Reader n5;
+			try
+			{
+				n5 = new N5HDF5Reader( path, 32, 32, 32, 3 );
+			}
+			catch ( IOException e )
+			{
+				e.printStackTrace();
+				return null;
+			}
+			
+			String fwddataset = "";
+			String invdataset = "";
+			if( baseDataset.isEmpty() )
+			{
+				if( n5.datasetExists( "/" + N5DisplacementField.FORWARD_ATTR ) && 
+					n5.datasetExists( "/" + N5DisplacementField.INVERSE_ATTR ))
+				{
+					fwddataset = "/" + N5DisplacementField.FORWARD_ATTR;
+					invdataset = "/" + N5DisplacementField.INVERSE_ATTR;
+				}
+				else if( n5.datasetExists( "/0/" + N5DisplacementField.FORWARD_ATTR ) && 
+						 n5.datasetExists( "/0/" + N5DisplacementField.INVERSE_ATTR ))
+				{
+					fwddataset = "/0/" + N5DisplacementField.FORWARD_ATTR;
+					invdataset = "/0/" + N5DisplacementField.INVERSE_ATTR;
+				}
+			}
+			else if( n5.datasetExists( baseDataset + "/" + N5DisplacementField.FORWARD_ATTR ) && 
+					 n5.datasetExists( baseDataset + "/" + N5DisplacementField.INVERSE_ATTR ))
+			{
+				fwddataset = baseDataset + "/" + N5DisplacementField.FORWARD_ATTR;
+				invdataset = baseDataset + "/" + N5DisplacementField.INVERSE_ATTR;
+			}
+
+			return new H5TransformParameters( path, fwddataset, invdataset, inverse, affineOnly, deformationOnly );
 		}
 	}
 	
