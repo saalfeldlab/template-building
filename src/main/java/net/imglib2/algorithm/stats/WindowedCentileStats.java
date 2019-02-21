@@ -9,16 +9,10 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
-import org.janelia.utility.parse.ParseUtils;
-
-import com.beust.jcommander.JCommander;
-import com.beust.jcommander.Parameter;
-
 import ij.IJ;
 import ij.ImagePlus;
 import net.imglib2.Cursor;
 import net.imglib2.FinalInterval;
-import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.exception.ImgLibException;
 import net.imglib2.img.display.imagej.ImageJFunctions;
@@ -32,35 +26,34 @@ import net.imglib2.view.IntervalView;
 import net.imglib2.view.Views;
 import net.imglib2.view.composite.CompositeView;
 import net.imglib2.view.composite.RealComposite;
+import picocli.CommandLine;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
 import util.RenderUtil;
 
 /* *
  * Computes centiles over RandomAccessibleIntervals 
  */
-public class WindowedCentileStats
+@Command( version = "0.0.2-SNAPSHOT" )
+public class WindowedCentileStats implements Callable<Void>
 {
-	protected transient JCommander jCommander;
 
-	@Parameter(names =
-	{ "--help", "-h" }, description = "Help")
+	@Option(names = { "--help", "-h" }, description = "Help")
 	protected boolean help = false;
 
-	@Parameter(
-	names ={ "--centiles", "-c" }, description = "Centile list", required = true,
-			converter = ParseUtils.DoubleArrayConverter.class)
+	@Option( names ={ "--centiles", "-c" }, description = "Centile list", required = true, split=",")
 	protected double[] centiles;
 
-	@Parameter(names ={ "--output", "-o" }, description = "Output path", required = true)
+	@Option(names ={ "--output", "-o" }, description = "Output path", required = true)
 	protected String outputPath;
 
-	@Parameter(names ={ "--width", "-w" }, description = "Width of interval")
+	@Option(names ={ "--width", "-w" }, description = "Width of interval")
 	protected int width = 0;
 
-	@Parameter(names =
-	{ "--nThreads", "-q" }, description = "Number of threads")
+	@Option(names = { "--nThreads", "-q" }, description = "Number of threads")
 	protected int nThreads = 1;
 
-	@Parameter(description = "input images")
+	@Option(names={"-i"}, description = "input images")
 	protected List< String > imagePathList;
 
 	FloatImagePlus< FloatType > output;
@@ -200,11 +193,16 @@ public class WindowedCentileStats
 		return process( Views.stack( imgList ));
 	}
 
+	public double[] centiles( final double[] values, final double[] results )
+	{
+		return centiles( values, centiles, results );
+	}
+
 	/*
 	 * Computes the percentile as recommended by NIST
 	 * http://www.itl.nist.gov/div898/handbook/prc/section2/prc262.htm
 	 */
-	public double[] centiles( final double[] values, final double[] results )
+	public static double[] centiles( final double[] values, final double[] centiles, final double[] results )
 	{
 		// TODO unit tests - be sure to check case where all values are
 		// identical
@@ -270,28 +268,7 @@ public class WindowedCentileStats
 		return centiles( values, out );
 	}
 
-	protected void initCommander()
-	{
-		jCommander = new JCommander( this );
-		jCommander.setProgramName( "input parser" ); 
-	}
-
-	public static WindowedCentileStats parseCommandLineArgs( final String[] args )
-	{
-		WindowedCentileStats alg = new WindowedCentileStats();
-		alg.initCommander();
-		try 
-		{
-			alg.jCommander.parse( args );
-		}
-		catch( Exception e )
-		{
-			e.printStackTrace();
-		}
-		return alg;
-	}
-
-	public void process() throws ImgLibException
+	public Void call() throws ImgLibException
 	{
 		ArrayList<RandomAccessibleInterval<FloatType>> imglist = new ArrayList<RandomAccessibleInterval<FloatType>>();
 		for( String imgPath : imagePathList )
@@ -306,6 +283,8 @@ public class WindowedCentileStats
 		System.out.println( outputPath );
 		ImagePlus ip = output.getImagePlus();
 		IJ.save( ip, outputPath );
+
+		return null;
 	}
 
 	public FloatImagePlus< FloatType > getOutput()
@@ -315,21 +294,7 @@ public class WindowedCentileStats
 
 	public static void main( String[] args ) throws ImgLibException
 	{
-//		double[] vals = new double[]{ 15, 20, 35, 40, 50 };
-//		double[] vals = new double[]{ 1, 1, 1, 1 };
-//		double[] vals = new double[]{ 1 };
-//		WindowedCentileStats alg = new WindowedCentileStats( new double[]{ 0, 0.4, 1 });
-//		System.out.println( alg.centiles( vals )[ 0 ] );
-//		System.out.println( alg.centiles( vals )[ 1 ] );
-//		System.out.println( alg.centiles( vals )[ 2 ] );
-
-		WindowedCentileStats alg = WindowedCentileStats.parseCommandLineArgs( args );
-		if( alg.help )
-		{
-			alg.jCommander.usage();
-			return;
-		}
-		alg.process();
+		CommandLine.call( new WindowedCentileStats(), args );
 	}
 
 }

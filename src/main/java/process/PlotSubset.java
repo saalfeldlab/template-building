@@ -7,7 +7,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.Callable;
 
-import org.janelia.utility.parse.ParseUtils;
 import org.jfree.chart.ChartFactory;
 import org.jfree.chart.ChartFrame;
 import org.jfree.chart.ChartUtils;
@@ -15,9 +14,6 @@ import org.jfree.chart.JFreeChart;
 import org.jfree.chart.plot.XYPlot;
 import org.jfree.data.xy.XYSeries;
 import org.jfree.data.xy.XYSeriesCollection;
-
-import com.beust.jcommander.JCommander;
-import com.beust.jcommander.Parameter;
 
 import ij.IJ;
 import ij.ImagePlus;
