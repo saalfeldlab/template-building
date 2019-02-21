@@ -19,6 +19,7 @@ import net.imglib2.img.array.ArrayImgs;
 import net.imglib2.img.basictypeaccess.array.DoubleArray;
 import net.imglib2.type.numeric.integer.LongType;
 import net.imglib2.type.numeric.real.DoubleType;
+import picocli.CommandLine;
 
 
 /**
@@ -29,7 +30,7 @@ public class PlotSubsetWithRayleigh extends PlotSubset
 {
 	
 	@Override
-	public void process() throws IOException
+	public Void call() throws IOException
 	{
 
 		double[] vals = getData();
@@ -48,6 +49,7 @@ public class PlotSubsetWithRayleigh extends PlotSubset
 		{
 			ChartUtils.saveChartAsPNG( new File( outputPath ), chart, 800, 600 );
 		}
+		return null;
 	}
 	
 	public JFreeChart histPlotWithRayleigh( String title, String xAxisLabel, String valueAxisLabel,
@@ -90,21 +92,6 @@ public class PlotSubsetWithRayleigh extends PlotSubset
 		return chart;
 	}
 
-	public static PlotSubsetWithRayleigh parseCommandLineArgs( final String[] args )
-	{
-		PlotSubsetWithRayleigh ds = new PlotSubsetWithRayleigh();
-		ds.initCommander();
-		try 
-		{
-			ds.jCommander.parse( args );
-		}
-		catch( Exception e )
-		{
-			e.printStackTrace();
-		}
-		return ds;
-	}
-
 	/**
 	 * Makes 
 	 * @param args
@@ -112,7 +99,6 @@ public class PlotSubsetWithRayleigh extends PlotSubset
 	 */
 	public static void main( String[] args ) throws IOException
 	{
-		PlotSubsetWithRayleigh plotter = PlotSubsetWithRayleigh.parseCommandLineArgs( args );
-		plotter.process();
+		CommandLine.call( new PlotSubsetWithRayleigh(), args );
 	}
 }

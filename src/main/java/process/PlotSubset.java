@@ -5,16 +5,14 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.Callable;
 
 import org.janelia.utility.parse.ParseUtils;
 import org.jfree.chart.ChartFactory;
 import org.jfree.chart.ChartFrame;
 import org.jfree.chart.ChartUtils;
 import org.jfree.chart.JFreeChart;
-import org.jfree.chart.plot.PlotOrientation;
 import org.jfree.chart.plot.XYPlot;
-import org.jfree.chart.renderer.xy.XYBarRenderer;
-import org.jfree.data.statistics.HistogramDataset;
 import org.jfree.data.xy.XYSeries;
 import org.jfree.data.xy.XYSeriesCollection;
 
@@ -39,50 +37,48 @@ import net.imglib2.type.numeric.real.FloatType;
 import net.imglib2.util.Intervals;
 import net.imglib2.util.Util;
 import net.imglib2.view.Views;
+import picocli.CommandLine;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
 
 
 /**
  * Makes a sorted plot of image intensities in the given interval
  *
  */
-public class PlotSubset
+@Command( version = "0.0.2-SNAPSHOT" )
+public class PlotSubset implements Callable<Void>
 {
 
-	protected transient JCommander jCommander;
-
-	@Parameter(names = {"--start", "-s"}, description = "Start (min) of interval", required = true, 
-			converter = ParseUtils.LongArrayConverter.class )
+	@Option(names = {"--start", "-s"}, description = "Start (min) of interval", required = true, split=",")
 	protected long[] start;
 	
-	@Parameter(names = {"--width", "-w"}, description = "Width of interval", 
-			converter = ParseUtils.LongArrayConverter.class )
+	@Option(names = {"--width", "-w"}, description = "Width of interval", split=",")
 	protected long[] widthIn = new long[]{ 1 };
 	
-	@Parameter(names = {"--end", "-e"}, description = "End (max) of interval", 
-			converter = ParseUtils.LongArrayConverter.class )
+	@Option(names = {"--end", "-e"}, description = "End (max) of interval",  split=",")
 	protected long[] endIn;
 	
-	@Parameter(names = {"--output", "-o"}, description = "Output png/json file" )
+	@Option(names = {"--output", "-o"}, description = "Output png/json file" )
 	protected String outputPath;
 	
-	@Parameter(names = {"--histMin"}, description = "Center of lowest histogram bin" )
+	@Option(names = {"--histMin"}, description = "Center of lowest histogram bin" )
 	protected double histMin = 0.0;
 
-	@Parameter(names = {"--histMax"}, description = "Center of highest histogram bin" )
+	@Option(names = {"--histMax"}, description = "Center of highest histogram bin" )
 	protected double histMax = 255.0;
 	
-	@Parameter(names = {"--numBins", "-n"}, description = "Number of histogram bins" )
+	@Option(names = {"--numBins", "-n"}, description = "Number of histogram bins" )
 	protected long nBins = 256;
 	
-	@Parameter(names = "--show", description = "Show the chart")
+	@Option(names = "--show", description = "Show the chart")
 	protected boolean show = false;
 
-	@Parameter(names = {"--hist", "--histogram", "-h"}, description = "Plot a histogram instead of the raw data")
+	@Option(names = {"--hist", "--histogram", "-h"}, description = "Plot a histogram instead of the raw data")
 	protected boolean doHistogram = false;
 	
-	@Parameter( description="input images")
+	@Option( names={"-i"}, description="input images")
 	protected List<String> imagePathList;
-	
 
 	protected long[] end;
 	protected long[] width;
@@ -132,7 +128,7 @@ public class PlotSubset
 		return vals;
 	}
 
-	public void process() throws IOException
+	public Void call() throws IOException 
 	{
 
 		double[] vals = getData();
@@ -162,6 +158,7 @@ public class PlotSubset
 		{
 			ChartUtils.saveChartAsPNG( new File( outputPath ), chart, 800, 600 );
 		}
+		return null;
 	}
 
 	public JFreeChart histPlot( String title, String xAxisLabel, String valueAxisLabel,
@@ -258,26 +255,6 @@ public class PlotSubset
 		return null;
 	}
 
-	protected void initCommander()
-	{
-		jCommander = new JCommander( this );
-		jCommander.setProgramName( "input parser" ); 
-	}
-
-	public static PlotSubset parseCommandLineArgs( final String[] args )
-	{
-		PlotSubset ds = new PlotSubset();
-		ds.initCommander();
-		try 
-		{
-			ds.jCommander.parse( args );
-		}
-		catch( Exception e )
-		{
-			e.printStackTrace();
-		}
-		return ds;
-	}
 	/**
 	 * Makes 
 	 * @param args
@@ -285,8 +262,7 @@ public class PlotSubset
 	 */
 	public static void main( String[] args ) throws IOException
 	{
-		PlotSubset plotter = PlotSubset.parseCommandLineArgs( args );
-		plotter.process();
+		CommandLine.call( new PlotSubset(), args );
 	}
 
 }
