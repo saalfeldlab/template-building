@@ -7,41 +7,38 @@ import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.Callable;
 
-import org.janelia.utility.parse.ParseUtils;
-
-import com.beust.jcommander.JCommander;
-import com.beust.jcommander.Parameter;
+import picocli.CommandLine;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
 
 import sc.fiji.skeleton.SwcIO;
 import sc.fiji.skeleton.SWCPoint;
 
-
-public class SwcProcess
+@Command( version = "0.0.2-SNAPSHOT" )
+public class SwcProcess implements Callable<Void>
 {
 
-	@Parameter(names = {"-s"}, description = "Input skeletons. You can provide multiple -s options" )
+	@Option(names = {"-s"}, description = "Input skeletons. You can provide multiple -s options" )
 	private List<String> skeletonPaths;
 
-	@Parameter(names = {"-o"}, description = "Output skeletons. You can  " )
+	@Option(names = {"-o"}, description = "Output skeletons. You can  " )
 	private List<String> outputSkeletonPaths;
 
-	@Parameter(names = {"-c"}, description = "Coordinate scaling",
-			converter = ParseUtils.DoubleArrayConverter.class )
+	@Option(names = {"-c"}, description = "Coordinate scaling", split=",")
 	private double[] coordinateScaling;
 
-	@Parameter(names = {"-r"}, description = "Radius scaling" )
+	@Option(names = {"-r"}, description = "Radius scaling", split="," )
 	private double radiusScaling = 1.0;
 
-	@Parameter(names = {"--set-radius"}, description = "Set radius. "
+	@Option(names = {"--set-radius"}, description = "Set radius. "
 			+ "The radius at every point will be set to this value. "
 			+ "This takes precedence over radius scaling." )
 	private double radiusValue = Double.NaN;
 
-	@Parameter(names = {"-h", "--help"}, description = "Print this help message" )
+	@Option(names = {"-h", "--help"}, description = "Print this help message" )
 	private boolean help;
-	
-	private transient JCommander jCommander;
 	
 
 	/*
@@ -51,45 +48,15 @@ public class SwcProcess
 	 */
 	public static void main( String[] args )
 	{
-		SwcProcess transformer = parseCommandLineArgs( args );
-		
-		if( args.length == 0 || transformer.help )
-		{
-			transformer.jCommander.usage();
-			return;
-		}
-
-		transformer.run();
+		CommandLine.call( new SwcProcess(), args );
 	}
 
-	public static SwcProcess parseCommandLineArgs( final String[] args )
+	public Void call()
 	{
-		SwcProcess ob = new SwcProcess();
-		ob.initCommander();
-		try 
-		{
-			ob.jCommander.parse( args );
-		}
-		catch( Exception e )
-		{
-			e.printStackTrace();
-		}
-		return ob;
-	}
-
-	private void initCommander()
-	{
-		jCommander = new JCommander( this );
-		jCommander.setProgramName( "input parser" ); 
-	}
-
-	public void run()
-	{
-		
 		if( skeletonPaths.size() != outputSkeletonPaths.size() )
 		{
 			System.err.println("Must have the same number of input and output skeleton arguments");
-			return;
+			return null;
 		}
 		
 		int i = 0;
@@ -129,6 +96,7 @@ public class SwcProcess
 
 			i++;
 		}
+		return null;
 	}
 
 	public static ArrayList<SWCPoint> setRadius( ArrayList<SWCPoint> pts, double value )

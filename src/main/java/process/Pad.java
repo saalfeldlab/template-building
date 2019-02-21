@@ -3,8 +3,7 @@ package process;
 import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
-
-import javax.print.attribute.standard.Compression;
+import java.util.concurrent.Callable;
 
 import org.janelia.saalfeldlab.n5.GzipCompression;
 import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Reader;
@@ -12,43 +11,23 @@ import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Writer;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
 import org.janelia.utility.parse.ParseUtils;
 
-import com.beust.jcommander.JCommander;
-import com.beust.jcommander.Parameter;
-
 import ij.IJ;
 import ij.ImagePlus;
 import io.IOHelper;
 import io.nii.NiftiIo;
-import io.nii.Nifti_Writer;
-import jitk.spline.XfmUtils;
 import loci.formats.FormatException;
-import net.imglib2.Cursor;
 import net.imglib2.FinalInterval;
 import net.imglib2.Interval;
-import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessible;
 import net.imglib2.RandomAccessibleInterval;
-import net.imglib2.RealPositionable;
-import net.imglib2.RealRandomAccess;
-import net.imglib2.RealRandomAccessible;
-import net.imglib2.algorithm.gauss3.Gauss3;
 import net.imglib2.converter.Converter;
 import net.imglib2.converter.Converters;
 import net.imglib2.exception.ImgLibException;
-import net.imglib2.exception.IncompatibleTypeException;
-import net.imglib2.img.Img;
-import net.imglib2.img.ImgFactory;
 import net.imglib2.img.display.imagej.ImageJFunctions;
-import net.imglib2.img.imageplus.ImagePlusImg;
-import net.imglib2.img.imageplus.ImagePlusImgFactory;
 import net.imglib2.interpolation.InterpolatorFactory;
 import net.imglib2.interpolation.randomaccess.NLinearInterpolatorFactory;
 import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
-import net.imglib2.realtransform.AffineGet;
-import net.imglib2.realtransform.AffineRandomAccessible;
-import net.imglib2.realtransform.RealViews;
 import net.imglib2.type.NativeType;
-import net.imglib2.type.Type;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.numeric.integer.ByteType;
 import net.imglib2.type.numeric.integer.IntType;
@@ -60,44 +39,39 @@ import net.imglib2.type.numeric.integer.UnsignedLongType;
 import net.imglib2.type.numeric.integer.UnsignedShortType;
 import net.imglib2.type.numeric.real.DoubleType;
 import net.imglib2.type.numeric.real.FloatType;
-import net.imglib2.util.Intervals;
 import net.imglib2.util.Util;
 import net.imglib2.view.IntervalView;
-import net.imglib2.view.RandomAccessibleOnRealRandomAccessible;
 import net.imglib2.view.Views;
-import util.RenderUtil;
+import picocli.CommandLine;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
 
-public class Pad
+@Command( version = "0.0.2-SNAPSHOT" )
+public class Pad implements Callable<Void>
 {
 	public static final String LINEAR_INTERPOLATION = "LINEAR";
 	public static final String NEAREST_INTERPOLATION = "NEAREST";
 
-	private transient JCommander jCommander;
 
-	@Parameter(names = {"--input", "-i"}, description = "Input image file" )
+	@Option(names = {"--input", "-i"}, description = "Input image file" )
 	private String inputFilePath;
 
-	@Parameter(names = {"--output", "-o"}, description = "Output image file" )
+	@Option(names = {"--output", "-o"}, description = "Output image file" )
 	private String outputFilePath;
 
-	@Parameter(names = {"--pad", "-p"}, description = "Pad amount in physical units", 
-			converter = ParseUtils.DoubleArrayConverter.class )
+	@Option(names = {"--pad", "-p"}, description = "Pad amount in physical units",  split="," )
 	private double[] padAmountIn;
 
-	@Parameter(names = {"--padpixels", "-x"}, description = "Pad amount in pixels", 
-			converter = ParseUtils.IntArrayConverter.class )
+	@Option(names = {"--padpixels", "-x"}, description = "Pad amount in pixels", split="," )
 	private int[] padAmountPixelsIn;
-	
-//	@Parameter(names = {"--threads", "-j"}, description = "Number of threads" )
-//	private int nThreads = -1;
 
-	@Parameter(names = {"--interval", "-n"}, description = "Output interval at the output resolution" )
+	@Option(names = {"--interval", "-n"}, description = "Output interval at the output resolution" )
 	private String intervalString;
 
-	@Parameter(names = {"--convert", "-c"}, description = "Convert type" )
+	@Option(names = {"--convert", "-c"}, description = "Convert type" )
 	private String outputType;
 
-	@Parameter(names = {"--n5dataset"}, description = "N5 output dataset" )
+	@Option(names = {"--n5dataset"}, description = "N5 output dataset" )
 	private String n5dataset = "data";
 	
 	private double[] padAmount;
@@ -105,13 +79,10 @@ public class Pad
 
 	public static void main( String[] args ) throws ImgLibException
 	{
-		Pad dg = Pad.parseCommandLineArgs( args );
-		dg.process();
+		CommandLine.call( new Pad(), args );
 	}
 	
 	public static <T extends RealType<T> & NativeType<T>> Converter< T, ? > 
-	//public static <? extends RealType<?> & NativeType<?>> Converter< ?, ? > 
-	//public static <T extends RealType<T> & NativeType<T>> Converter< T, ? > 
 		getConverter( T inputType, String outputType )
 	{
 		String typeString = outputType.toLowerCase();
@@ -150,6 +121,12 @@ public class Pad
 			O o)
 	{
 		return Converters.convert( img, conv, o );
+	}
+	
+	public Void call()
+	{
+		process();
+		return null;
 	}
 
 	@SuppressWarnings( "unchecked" )
@@ -431,27 +408,6 @@ public class Pad
 					".  Expected length 1 or " + nd );
 		}
 		return null;
-	}
-
-	public static Pad parseCommandLineArgs( final String[] args )
-	{
-		Pad ds = new Pad();
-		ds.initCommander();
-		try 
-		{
-			ds.jCommander.parse( args );
-		}
-		catch( Exception e )
-		{
-			e.printStackTrace();
-		}
-		return ds;
-	}
-
-	private void initCommander()
-	{
-		jCommander = new JCommander( this );
-		jCommander.setProgramName( "input parser" ); 
 	}
 
 	public static int[] fill( int[] in, int ndim )

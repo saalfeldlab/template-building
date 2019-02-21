@@ -9,11 +9,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
-import org.janelia.utility.parse.ParseUtils;
-
-import com.beust.jcommander.JCommander;
-import com.beust.jcommander.Parameter;
-
 import ij.IJ;
 import net.imglib2.Cursor;
 import net.imglib2.FinalInterval;
@@ -35,6 +30,9 @@ import net.imglib2.type.numeric.real.FloatType;
 import net.imglib2.util.Intervals;
 import net.imglib2.view.IntervalView;
 import net.imglib2.view.Views;
+import picocli.CommandLine;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
 import util.RenderUtil;
 
 
@@ -42,26 +40,24 @@ import util.RenderUtil;
  * Makes a sorted plot of image intensities in the given interval
  *
  */
-public class PerWindowRayleigh
+@Command( version = "0.0.2-SNAPSHOT" )
+public class PerWindowRayleigh implements Callable<Void>
 {
-	protected transient JCommander jCommander;
-
-	@Parameter(names = {"--width", "-w"}, description = "Width of interval", 
-			converter = ParseUtils.LongArrayConverter.class )
+	@Option(names = {"--width", "-w"}, description = "Width of interval", split="," )
 	protected long[] widthIn = new long[]{ 1 };
 	
-	@Parameter(names = {"--output", "-o"}, description = "Outputfile", required=true)
+	@Option(names = {"--output", "-o"}, description = "Outputfile", required=true)
 	protected String outputPath;
 
-	@Parameter(names = {"--nThreads", "-q"}, description = "Number of threads" )
-	protected int nThreads;
+	@Option(names = {"--nThreads", "-q"}, required=false, description = "Number of threads" )
+	protected int nThreads = 1;
 
-	@Parameter( description="input images")
+	@Option( names={"-i"}, required=true, description="Input images (list)")
 	protected List<String> imagePathList;
 
 	protected Interval window;
 
-	public void process() throws IOException, ImgLibException
+	public Void call() throws IOException, ImgLibException
 	{
 		System.out.println( "inputs: " + imagePathList );
 		System.out.println( "output: " + outputPath );
@@ -91,6 +87,8 @@ public class PerWindowRayleigh
 		getSigmaField( distImg, ipImgOut );
 		System.out.println( "writing" );
 		IJ.save( ipImgOut.getImagePlus(), outputPath );
+
+		return null;
 	}
 	
 	/**
@@ -229,36 +227,8 @@ public class PerWindowRayleigh
 		}
 	}
 
-	protected void initCommander()
-	{
-		jCommander = new JCommander( this );
-		jCommander.setProgramName( "input parser" ); 
-	}
-
-	public static PerWindowRayleigh parseCommandLineArgs( final String[] args )
-	{
-		PerWindowRayleigh ds = new PerWindowRayleigh();
-		ds.initCommander();
-		try 
-		{
-			ds.jCommander.parse( args );
-		}
-		catch( Exception e )
-		{
-			e.printStackTrace();
-		}
-		return ds;
-	}
-
-	/**
-	 * Makes 
-	 * @param args
-	 * @throws IOException 
-	 * @throws ImgLibException 
-	 */
 	public static void main( String[] args ) throws IOException, ImgLibException
 	{
-		PerWindowRayleigh plotter = PerWindowRayleigh.parseCommandLineArgs( args );
-		plotter.process();
+		CommandLine.call( new PerWindowRayleigh(), args );
 	}
 }
