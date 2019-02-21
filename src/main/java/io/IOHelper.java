@@ -2,16 +2,12 @@ package io;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.Arrays;
+import java.util.concurrent.Callable;
 
 import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Reader;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
-import org.janelia.utility.parse.ParseUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.beust.jcommander.JCommander;
-import com.beust.jcommander.Parameter;
 
 import ij.IJ;
 import ij.ImagePlus;
@@ -34,60 +30,57 @@ import net.imglib2.type.numeric.real.FloatType;
 import net.imglib2.util.Util;
 import net.imglib2.util.ValuePair;
 import net.imglib2.view.Views;
+import picocli.CommandLine;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
 import process.RenderTransformed;
 import sc.fiji.io.Dfield_Nrrd_Reader;
 import sc.fiji.io.Dfield_Nrrd_Writer;
 
-public class IOHelper {
+@Command( version = "0.0.2-SNAPSHOT" )
+public class IOHelper implements Callable<Void>
+{
 
 	ImagePlus ip;
 	RandomAccessibleInterval< ? > rai;
 	double[] resolution;
 
-	@Parameter(names = {"--input", "-i"}, description = "Input image file" )
+	@Option(names = {"--input", "-i"}, description = "Input image file" )
 	private String inputFilePath;
 
-	@Parameter(names = {"--output", "-o"}, description = "Output image file" )
+	@Option(names = {"--output", "-o"}, description = "Output image file" )
 	private String outputFilePath;
 	
-	@Parameter(names = {"--resolution", "-r"}, description = "Force output resolution", 
-			converter = ParseUtils.DoubleArrayConverter.class )
-	private double[] resIn = null;
+	@Option(names = {"--resolution", "-r"}, description = "Force output resolution", split=",")
+	private double[] resIn;
 
-	@Parameter(names = {"--unit", "-u"}, description = "Unit" )
+	@Option(names = {"--unit", "-u"}, description = "Unit" )
 	private String unit = null;
 
 	final Logger logger = LoggerFactory.getLogger( IOHelper.class );
 	
 	public static void main( String[] args )
 	{
-		IOHelper io = new IOHelper();
+		CommandLine.call( new IOHelper(), args );
+	}
 
-		// parse inputs
-		JCommander jCommander = new JCommander( io );
-		jCommander.setProgramName( "input parser" ); 
-		try 
-		{
-			jCommander.parse( args );
-		}
-		catch( Exception e )
-		{
-			e.printStackTrace();
-		}
-
+	public Void call()
+	{
 		// read
-		ImagePlus ip = io.readIp( io.inputFilePath );
+		ImagePlus ip = readIp( inputFilePath );
 		
 		// resolution
-		if( io.resIn != null )
-			setResolution( ip, io.resIn );
+		if( resIn != null )
+			setResolution( ip, resIn );
 	
 		// units
-		if( io.unit != null)
-			ip.getCalibration().setUnit( io.unit );
+		if( unit != null)
+			ip.getCalibration().setUnit( unit );
 
 		// write
-		IOHelper.write( ip, io.outputFilePath );
+		IOHelper.write( ip, outputFilePath );
+
+		return null;
 	}
 
 	public ValuePair< long[], double[] > readSizeAndResolution( File file )

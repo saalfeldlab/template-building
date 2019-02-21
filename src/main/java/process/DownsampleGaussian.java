@@ -3,16 +3,13 @@ package process;
 import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
-
+import java.util.concurrent.Callable;
 
 import org.janelia.saalfeldlab.n5.GzipCompression;
 import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Reader;
 import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Writer;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
 import org.janelia.utility.parse.ParseUtils;
-
-import com.beust.jcommander.JCommander;
-import com.beust.jcommander.Parameter;
 
 import ij.IJ;
 import ij.ImagePlus;
@@ -60,50 +57,48 @@ import net.imglib2.type.numeric.real.FloatType;
 import net.imglib2.util.Util;
 import net.imglib2.view.RandomAccessibleOnRealRandomAccessible;
 import net.imglib2.view.Views;
+import picocli.CommandLine;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
 import util.RenderUtil;
 
-public class DownsampleGaussian
+@Command( version = "0.0.2-SNAPSHOT" )
+public class DownsampleGaussian implements Callable<Void>
 {
 	public static final String LINEAR_INTERPOLATION = "LINEAR";
 	public static final String NEAREST_INTERPOLATION = "NEAREST";
 
-	private transient JCommander jCommander;
-
-	@Parameter(names = {"--input", "-i"}, description = "Input image file" )
+	@Option( names = { "--input", "-i" }, description = "Input image file" )
 	private String inputFilePath;
 
-	@Parameter(names = {"--output", "-o"}, description = "Output image file" )
+	@Option( names = { "--output", "-o" }, description = "Output image file" )
 	private String outputFilePath;
 
-	@Parameter(names = {"--factors", "-f"}, description = "Downsample factors", 
-			converter = ParseUtils.DoubleArrayConverter.class )
+	@Option( names = { "--factors", "-f" }, description = "Downsample factors", split=",")
 	private double[] downsampleFactorsIn;
 
-	@Parameter(names = {"--resolutions", "-r"}, description = "Resolution of output", 
-			converter = ParseUtils.DoubleArrayConverter.class )
+	@Option( names = { "--resolutions", "-r" }, description = "Resolution of output")
 	private double[] resultResolutionsIn;
-	
-	@Parameter(names = {"--threads", "-j"}, description = "Number of threads" )
+
+	@Option( names = { "--threads", "-j" }, description = "Number of threads" )
 	private int nThreads = -1;
 
-	@Parameter(names = {"--interp", "-p"}, description = "Interpolation type" )
+	@Option( names = { "--interp", "-p" }, description = "Interpolation type" )
 	private String interpType = "LINEAR";
 
-	@Parameter(names = {"--sourceSigma", "-s"}, description = "Sigma for source image", 
-			converter = ParseUtils.DoubleArrayConverter.class )
-	private double[] sourceSigmasIn = new double[]{ 0.5 };
+	@Option( names = { "--sourceSigma", "-s" }, description = "Sigma for source image", split="," )
+	private double[] sourceSigmasIn = new double[] { 0.5 };
 
-	@Parameter(names = {"--targetSigma", "-t"}, description = "Sigma for target image", 
-			converter = ParseUtils.DoubleArrayConverter.class )
-	private double[] targetSigmasIn = new double[]{ 0.5 };
+	@Option( names = { "--targetSigma", "-t" }, description = "Sigma for target image", split="," )
+	private double[] targetSigmasIn = new double[] { 0.5 };
 
-	@Parameter(names = {"--interval", "-n"}, description = "Output interval at the output resolution" )
+	@Option( names = { "--interval", "-n" }, description = "Output interval at the output resolution" )
 	private String intervalString;
 
-	@Parameter(names = {"--convert", "-c"}, description = "Convert type" )
+	@Option( names = { "--convert", "-c" }, description = "Convert type" )
 	private String outputType;
 
-	@Parameter(names = {"--n5dataset"}, description = "N5 output dataset" )
+	@Option( names = { "--n5dataset" }, description = "N5 output dataset" )
 	private String n5dataset = "data";
 	
 	private double[] resultResolutions;
@@ -115,8 +110,7 @@ public class DownsampleGaussian
 
 	public static void main( String[] args ) throws ImgLibException
 	{
-		DownsampleGaussian dg = DownsampleGaussian.parseCommandLineArgs( args );
-		dg.process();
+		CommandLine.call( new DownsampleGaussian(), args );
 	}
 	
 	public static <T extends RealType<T> & NativeType<T>> Converter< T, ? > 
@@ -166,6 +160,12 @@ public class DownsampleGaussian
 	{
 		this.epsilon = eps;
 	}
+	
+	public Void call()
+	{
+		process();
+		return null;
+	}
 
 	@SuppressWarnings( "unchecked" )
 	public <T extends RealType<T> & NativeType<T>, S extends RealType<S> & NativeType<S> > void process() throws ImgLibException
@@ -187,6 +187,11 @@ public class DownsampleGaussian
 			{
 				e.printStackTrace();
 			}
+		}
+		else if( inputFilePath.endsWith( ".nrrd" ))
+		{
+			IOHelper io = new IOHelper();
+			ipin = io.readIp( inputFilePath );
 		}
 		else if( inputFilePath.contains( ".h5:" ))
 		{
@@ -497,27 +502,6 @@ public class DownsampleGaussian
 					".  Expected length 1 or " + nd );
 		}
 		return null;
-	}
-
-	public static DownsampleGaussian parseCommandLineArgs( final String[] args )
-	{
-		DownsampleGaussian ds = new DownsampleGaussian();
-		ds.initCommander();
-		try 
-		{
-			ds.jCommander.parse( args );
-		}
-		catch( Exception e )
-		{
-			e.printStackTrace();
-		}
-		return ds;
-	}
-
-	private void initCommander()
-	{
-		jCommander = new JCommander( this );
-		jCommander.setProgramName( "input parser" ); 
 	}
 
 	/**

@@ -1,13 +1,7 @@
 package transforms;
 
 import java.util.Arrays;
-import java.util.stream.LongStream;
-
-import org.janelia.utility.parse.ParseUtils;
-
-import com.beust.jcommander.JCommander;
-import com.beust.jcommander.Parameter;
-import com.google.common.collect.Streams;
+import java.util.concurrent.Callable;
 
 import io.DfieldIoHelper;
 import net.imglib2.Interval;
@@ -27,83 +21,70 @@ import net.imglib2.type.numeric.real.FloatType;
 import net.imglib2.util.Util;
 import net.imglib2.view.IntervalView;
 import net.imglib2.view.Views;
+import picocli.CommandLine;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
 import process.DownsampleGaussian;
 
-public class DownsampleDfield
+@Command( version = "0.0.2-SNAPSHOT" )
+public class DownsampleDfield implements Callable<Void>
 {
 
-	@Parameter( names = { "-d", "--dfield" }, required = true, description = "Displacement field path" )
+	@Option( names = { "-d", "--dfield" }, required = true, description = "Displacement field path" )
 	private String fieldPath;
 
-	@Parameter( names = { "-o", "--output" }, required = true, description = "Output path" )
+	@Option( names = { "-o", "--output" }, required = true, description = "Output path" )
 	private String outputPath;
 
-	@Parameter( names = { "-f", "--factors" }, required = false, description = "Downsampling factors" )
-	private String factors = "";
+	@Option( names = { "-f", "--factors" }, required = true, description = "Downsampling factors", split=",")
+	private long[] factorsArg;
 
-//	@Parameter( names = {"-r", "--resolution"}, required = false, 
+//	@Option( names = {"-r", "--resolution"}, required = false, 
 //			description = "Res" )
 //	private double[] targetResolution;
 
-	@Parameter( names = { "-j", "--nThreads" }, required = false, description = "Number of threads for downsampling" )
+	@Option( names = { "-j", "--nThreads" }, required = false, description = "Number of threads for downsampling" )
 	private int nThreads = 8;
 
-	@Parameter( names = "--sample", required = false, description = "Sample for downsampling instead of averaging" )
+	@Option( names = "--sample", required = false, description = "Sample for downsampling instead of averaging" )
 	private boolean sample = false;
 
-	@Parameter( names = "--estimateError", required = false, description = "Estimate errors for downsampling" )
+	@Option( names = "--estimateError", required = false, description = "Estimate errors for downsampling" )
 	private boolean estimateError = false;
 
-	@Parameter( names = { "--sourceSigma", "-s" }, description = "Sigma for source image (default = 0.5)", converter = ParseUtils.DoubleArrayConverter.class )
+	@Option( names = { "--sourceSigma", "-s" }, description = "Sigma for source image (default = 0.5)", split=",")
 	private double[] sourceSigmasIn = new double[] { 0.5 };
 
-	@Parameter( names = { "--targetSigma", "-t" }, description = "Sigma for target image (default = 0.5)", converter = ParseUtils.DoubleArrayConverter.class )
+	@Option( names = { "--targetSigma", "-t" }, description = "Sigma for target image (default = 0.5)", split=",")
 	private double[] targetSigmasIn = new double[] { 0.5 };
 
-	final private JCommander jCommander;
-
-	public DownsampleDfield( final String[] args )
-	{
-		jCommander = new JCommander( this );
-		jCommander.setProgramName( "input parser" );
-
-		try
-		{
-			jCommander.parse( args );
-		}
-		catch ( Exception e )
-		{
-			e.printStackTrace();
-		}
-	}
 
 	public static void main( String[] args )
 	{
-		DownsampleDfield downsampler = new DownsampleDfield( args ); 
+		CommandLine.call( new DownsampleDfield(), args );
+	}
 
-		String[] factorArrays = downsampler.factors.split( "," );
-		
-		System.out.println( downsampler.factors );
-		System.out.println( Arrays.toString( factorArrays ));
-		
-		long[] factors;
-		if( factorArrays.length >= 4 )
-			factors = Arrays.stream( factorArrays ).mapToLong( Long::parseLong ).toArray();
+	public Void call()
+	{
+		long[] factors = new long[ 4 ];
+		if( factorsArg.length >= 4 )
+			factors = factorsArg;
 		else
-			factors = Streams.concat(
-					Arrays.stream( factorArrays ).mapToLong( Long::parseLong ), 
-					LongStream.of( 1 ) ).toArray();
-		
+		{
+			System.arraycopy( factorsArg, 0, factors, 0, factorsArg.length );
+			factors[ 3 ] = 1;
+		}
+
 		DfieldIoHelper io = new DfieldIoHelper();
 		ANTSDeformationField dfieldobj;
 		try
 		{
-			dfieldobj = io.readAsDeformationField( downsampler.fieldPath );
+			dfieldobj = io.readAsDeformationField( fieldPath );
 		}
 		catch ( Exception e1 )
 		{
 			e1.printStackTrace();
-			return;
+			return null;
 		}
 		RandomAccessibleInterval< FloatType > dfield = dfieldobj.getImg();
 		int nd = dfield.numDimensions();
@@ -120,23 +101,22 @@ public class DownsampleDfield
 		resOut[ 2 ] = resIn[ 2 ] * factors[ 2 ];
 
 
-
 		RandomAccessibleInterval< FloatType > dfieldDown = null;
-		if ( downsampler.sample )
+		if ( sample )
 			dfieldDown = Views.subsample( dfield, factors );
 		else
 		{
-			double[] sourceSigmas = DownsampleGaussian.checkAndFillArrays( downsampler.sourceSigmasIn, nd, "source sigmas" );
-			double[] targetSigmas = DownsampleGaussian.checkAndFillArrays( downsampler.targetSigmasIn, nd, "target sigmas" );
+			double[] sourceSigmas = DownsampleGaussian.checkAndFillArrays( sourceSigmasIn, nd, "source sigmas" );
+			double[] targetSigmas = DownsampleGaussian.checkAndFillArrays( targetSigmasIn, nd, "target sigmas" );
 
 			System.out.println( "source sigmas: " + Arrays.toString( sourceSigmas ) );
 			System.out.println( "target sigmas: " + Arrays.toString( targetSigmas ) );
 
 			double[] factorsD = Arrays.stream( factors ).mapToDouble( x -> ( double ) x ).toArray();
-			dfieldDown = downsampleDisplacementField( dfield, factorsD, sourceSigmas, targetSigmas, downsampler.nThreads );
+			dfieldDown = downsampleDisplacementField( dfield, factorsD, sourceSigmas, targetSigmas, nThreads );
 		}
 
-		if( downsampler.estimateError )
+		if( estimateError )
 		{
 			System.out.println( "estimating error" );
 			AffineTransform dfieldToPhysical = new AffineTransform( 4 );
@@ -152,19 +132,21 @@ public class DownsampleDfield
 						dfieldToPhysical );
 			
 			IntervalView< FloatType > dfieldSubInterpRaster = Views.interval( Views.raster( dfieldSubInterpReal ), dfield );
-			DownsampleDfieldErrors.compare( dfield, dfieldSubInterpRaster, downsampler.nThreads );
+			DownsampleDfieldErrors.compare( dfield, dfieldSubInterpRaster, nThreads );
 		}
 
 		DfieldIoHelper out = new DfieldIoHelper();
 		out.spacing = resOut;
 		try
 		{
-			out.write( dfieldDown, downsampler.outputPath );
+			out.write( dfieldDown, outputPath );
 		}
 		catch ( Exception e )
 		{
 			e.printStackTrace();
 		}
+
+		return null;
 	}
 
 	public static <T extends RealType<T> & NativeType<T>> RandomAccessibleInterval< T > downsampleDisplacementField(
