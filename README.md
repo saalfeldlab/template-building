@@ -11,7 +11,7 @@ Associated template images and transformations can be downloaded [here](https://
 * Run the build script: 
   * Linux: `./template-building/build.sh`
   * Mac: `./template-building/build_macosx.sh`
-* To install into your Fiji: `mvn -Dimagej.app.directory=<path to your Fiji> -Denforcer.skip=true`
+* To install into your Fiji: `mvn -Dimagej.app.directory=<path to your Fiji>`
 
 ## Documentation
 
