@@ -1,0 +1,3 @@
+#!/bin/bash
+
+jgo.sh org.scijava:saalfeldlab-template-building:process.DownsampleGaussian "$@"

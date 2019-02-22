@@ -191,11 +191,12 @@ public class DownsampleGaussian implements Callable<Void>
 		else if( inputFilePath.endsWith( ".nrrd" ))
 		{
 			IOHelper io = new IOHelper();
-			ipin = io.readIp( inputFilePath );
+			ipin = io.readIp( new File( inputFilePath ));
 		}
 		else if( inputFilePath.contains( ".h5:" ))
 		{
-			String[] partList = inputFilePath.split( ":" );
+			String inPath = new File( inputFilePath ).getAbsolutePath();
+			String[] partList = inPath.split( ":" );
 			String fpath = partList[ 0 ];
 			String dset = partList[ 1 ];
 			
