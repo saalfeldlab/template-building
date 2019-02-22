@@ -23,6 +23,7 @@ Associated template images and transformations can be downloaded [here](https://
   * [Transforms available for download](https://github.com/saalfeldlab/template-building/wiki/Deformation-field-versions)
 * [Registration algorithms and parameter settings](https://github.com/saalfeldlab/template-building/wiki/Registration-algorithms-and-parameter-settings)
 * [Software for evaluating registration](https://github.com/saalfeldlab/template-building/wiki/Evaluation-Documentation)
+* See [transform-helpers](https://github.com/saalfeldlab/transform-helpers) for lightweight utility for transforming points using [H5 transforms](https://github.com/saalfeldlab/template-building/wiki/Hdf5-Deformation-fields)
 
 ## Notes
 
