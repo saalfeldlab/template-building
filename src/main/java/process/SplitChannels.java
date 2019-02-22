@@ -27,8 +27,10 @@ public class SplitChannels {
 		}
 		else if( imF.endsWith("lsm"))
 		{
-			org.imagearchive.lsm.reader.Reader reader = new org.imagearchive.lsm.reader.Reader();
-			ip = reader.open( imF );
+			System.err.println( "convert to tif or another format with ImageJ before using this.");
+			// needs LSM_Reader
+//			org.imagearchive.lsm.reader.Reader reader = new org.imagearchive.lsm.reader.Reader();
+//			ip = reader.open( imF );
 		}
 		else
 		{
