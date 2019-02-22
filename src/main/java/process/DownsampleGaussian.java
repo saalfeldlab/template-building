@@ -77,7 +77,7 @@ public class DownsampleGaussian implements Callable<Void>
 	@Option( names = { "--factors", "-f" }, description = "Downsample factors", split=",")
 	private double[] downsampleFactorsIn;
 
-	@Option( names = { "--resolutions", "-r" }, description = "Resolution of output")
+	@Option( names = { "--resolutions", "-r" }, description = "Resolution of output", split=",")
 	private double[] resultResolutionsIn;
 
 	@Option( names = { "--threads", "-j" }, description = "Number of threads" )
