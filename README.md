@@ -25,6 +25,5 @@ Associated template images and transformations can be downloaded [here](https://
 * [Software for evaluating registration](https://github.com/saalfeldlab/template-building/wiki/Evaluation-Documentation)
 
 ## Notes
-### Dependencies
-* Currently as of `2018-Dec-14` depends on [this branch](https://github.com/saalfeldlab/n5-imglib2/pull/6/commits/3c915776891c6175cd1af959c5c02bb5b6c4901c) of n5-imglib2
-* As of `2019-Jan-21` it also depends on [this branch](https://github.com/bogovicj/imglib2-realtransform/tree/explicitInv) of imglib2-realtransform
+
+
