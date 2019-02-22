@@ -51,7 +51,8 @@ public class IOHelper implements Callable<Void>
 	@Option(names = {"--output", "-o"}, description = "Output image file" )
 	private String outputFilePath;
 	
-	@Option(names = {"--resolution", "-r"}, description = "Force output resolution", split=",")
+	@Option(names = {"--resolution", "-r"}, description = "Force output resolution. "
+			+ "Does not resample the image, or change image data in any way", split=",")
 	private double[] resIn;
 
 	@Option(names = {"--unit", "-u"}, description = "Unit" )
