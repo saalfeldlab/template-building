@@ -67,7 +67,7 @@ public class TransformSwc implements Callable< Void >
 	@Option( names = { "-v", "--version" }, required = false, versionHelp = true, description = "Prints version information and exits." )
 	private boolean version;
 
-	@Option(names = {"-h", "--help"}, description = "Print this help message" )
+	@Option(names = {"-h", "--help"}, usageHelp = true, description = "Print this help message" )
 	private boolean help;
 	
 

@@ -37,7 +37,7 @@ public class SwcProcess implements Callable<Void>
 			+ "This takes precedence over radius scaling." )
 	private double radiusValue = Double.NaN;
 
-	@Option(names = {"-h", "--help"}, description = "Print this help message" )
+	@Option(names = {"-h", "--help"}, usageHelp = true, description = "Print this help message" )
 	private boolean help;
 	
 
