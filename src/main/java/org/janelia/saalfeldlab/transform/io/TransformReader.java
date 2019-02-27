@@ -13,6 +13,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.AffineImglib2IO;
+import io.DfieldIoHelper;
 import io.cmtk.CMTKLoadAffine;
 import net.imglib2.interpolation.randomaccess.NLinearInterpolatorFactory;
 import net.imglib2.realtransform.AffineTransform;
@@ -23,6 +24,7 @@ import net.imglib2.realtransform.InvertibleRealTransform;
 import net.imglib2.realtransform.InvertibleRealTransformSequence;
 import net.imglib2.realtransform.RealTransform;
 import net.imglib2.realtransform.RealTransformSequence;
+import net.imglib2.realtransform.ants.ANTSDeformationField;
 import net.imglib2.realtransform.ants.ANTSLoadAffine;
 import net.imglib2.type.numeric.real.FloatType;
 
@@ -62,17 +64,30 @@ public class TransformReader
 		return false;
 	}
 
+	private static String pathFromInversePath( final String transform )
+	{
+		if( transform.contains( "?" ))
+		{
+			String[] parts = transform.split( "\\?" );
+			return parts[ 0 ];
+		}	
+		else
+			return transform;
+	}
+
 	/**
 	 * Reads an {@link InvertibleRealTransform}, and returns the forward transform.
 	 * 
 	 * @param transformPath
 	 * @return the transform
 	 */
-	public static InvertibleRealTransform readInvertible( String transformPath )
+	public static InvertibleRealTransform readInvertible( String transformPathFull )
 	{
-		boolean invert = isInverse( transformPath );
+
+		boolean invert = isInverse( transformPathFull );
+		String transformPath = pathFromInversePath( transformPathFull );
 	
-		if( transformPath.endsWith( "mat" ))
+		if( transformPath.contains( ".mat" ))
 		{
 			try
 			{
@@ -88,7 +103,7 @@ public class TransformReader
 				e.printStackTrace();
 			}
 		}	
-		else if( transformPath.endsWith( "xform" ))
+		else if( transformPath.contains( ".xform" ))
 		{
 			try
 			{
@@ -106,7 +121,7 @@ public class TransformReader
 				e.printStackTrace();
 			}
 		}
-		else if( transformPath.endsWith( "txt" ))
+		else if( transformPath.contains( ".txt" ))
 		{
 			try
 			{
@@ -147,7 +162,6 @@ public class TransformReader
 		}
 		else if( transformPath.contains( ".h5" ) || transformPath.contains( ".hdf5" )) 
 		{
-			System.out.println( "reading h5");
 			return readH5Invertible( transformPath );
 		}
 		
@@ -156,10 +170,23 @@ public class TransformReader
 
 	public static RealTransform read( String transformPath )
 	{
-		if( transformPath.contains( ".h5" ))
+
+		InvertibleRealTransform result = readInvertible( transformPath );
+		if( result != null )
+			return result;
+
+		// try reading as dfield
+		DfieldIoHelper dfieldIo = new DfieldIoHelper();
+		try
 		{
-			return readH5( transformPath );
+			ANTSDeformationField dfieldResult = dfieldIo.readAsDeformationField( transformPath );
+			return dfieldResult;
 		}
+		catch ( Exception e )
+		{
+			e.printStackTrace();
+		}
+
 
 		return null;
 	}
