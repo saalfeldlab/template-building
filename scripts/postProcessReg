@@ -10,6 +10,15 @@ then
     isCmtk="1"
 fi
 
+isElastix="0"
+numElastix=$(ls */elastix.log | wc -l)
+if [[ $numElastix > 0 ]];
+then
+    isElastix="1"
+fi
+
+echo "is elastix: $isElastix"
+
 useNrrd=""
 if [[ -d images ]];
 then
@@ -24,6 +33,7 @@ fi
 if [[ -n $isCmtk ]];
 then
     #CMTK
+    echo "cmtk"
 
     # Skip if we've done this already
     Nreg=`ls Registration/warp/*/registration* | wc -l`
@@ -45,8 +55,31 @@ then
       echo "CONVERT CMTK WARPS"
       bsub -n 4 -o cmtkConv.o%J -e cmtkConv.e%J "runConvertCmtkWarps -w -r $TEMPLATE -i $INTERVAL $useNrrd"
     fi
+elif [[ -n $isElastix ]];
+then
+
+    # Elastix
+    echo "elastix"
+
+    for t in `ls */TransformParameters.0.txt`
+    do
+        echo $t
+        out=$(echo $t | sed 's/.0.txt/_def.nrrd/g')
+        echo $out
+
+        if [ -f $out ];
+        then
+            echo "$out exists, skipping..."
+        else
+            elastix2Dfield $t $out
+        fi
+        echo " "
+    done
+
 else
-    # ANTS
+
+    echo "ants"
+    ## ANTS
     warpFiles=`ls *Warp.nii.gz | grep -v Inverse`
     if [[ ! -z "$warpFiles" ]];
     then
