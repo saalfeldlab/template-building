@@ -1,0 +1,23 @@
+#!/bin/bash
+# Convert an elastix transformation to a deformation field
+# Usage:
+#  elatix2Dfield <elastix-transformation-parameters> <output-file> 
+
+tp="$1" #input transform parameters
+outfile="$2"
+
+dir="${outfile%/*}"
+echo $dir
+
+if [[ ! -d $dir ]];
+then
+    dir=$(pwd)
+fi
+
+# Work in a temp directory
+tmpdir=$(mktemp -d -p $dir)
+transformix -def all -out $tmpdir -tp $tp
+
+# Move the result and remove the tmpdir
+mv $tmpdir/deformationField.nrrd $outfile
+rm -r $tmpdir
