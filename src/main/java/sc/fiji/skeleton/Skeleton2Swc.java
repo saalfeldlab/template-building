@@ -2,15 +2,14 @@ package sc.fiji.skeleton;
 
 import java.io.File;
 import java.io.FileOutputStream;
-import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+
+import org.janelia.saalfeldlab.swc.Swc;
+import org.janelia.saalfeldlab.swc.SwcPoint;
 
 import ij.IJ;
 import ij.ImagePlus;
@@ -22,9 +21,6 @@ import sc.fiji.analyzeSkeleton.Point;
 import sc.fiji.skeleton.ShapeMeasure.DistancePair;
 import sc.fiji.analyzeSkeleton.SkeletonResult;
 import sc.fiji.analyzeSkeleton.Vertex;
-import tracing.Path;
-import tracing.SNT;
-import tracing.SWCPoint;
 
 public class Skeleton2Swc {
 	
@@ -94,47 +90,18 @@ public class Skeleton2Swc {
 
 				}
 
-				ArrayList<SWCPoint> swcPts = graphToSwc( g );
-				System.out.println( "  num points of output : "  + swcPts.size());
+				Swc swcPts = graphToSwc( g );
+				System.out.println( "  num points of output : "  + swcPts.getPoints().size());
 				
 				String outname = baseoutputname + "_" + i + ".swc";
 				System.out.println( "Exporting to " + outname );
-				try
-				{
-					final PrintWriter pw = new PrintWriter(new OutputStreamWriter(new FileOutputStream(outname), "UTF-8"));
-					flushSWCPoints(swcPts, pw);
-				}
-				catch (final IOException ioe)
-				{
-					System.err.println("Saving to " + outname + " failed");
-					continue;
-				}
+				Swc.write( swcPts, new File( outname ));
 				i++;
 			}
 			//j++;
 		}
 	}
 	
-	/*
-	 * Taken from Simple Neurite Tracer
-	 */
-	public static void flushSWCPoints(final ArrayList<SWCPoint> swcPoints, final PrintWriter pw) {
-		pw.println("# Exported from \"Simple Neurite Tracer\" version " + SNT.VERSION + " on "
-				+ LocalDateTime.of(LocalDate.now(), LocalTime.now()));
-		pw.println("# https://imagej.net/Simple_Neurite_Tracer");
-		pw.println("#");
-//		pw.println("# All positions and radii in " + spacing_units);
-//		if (usingNonPhysicalUnits())
-//			pw.println("# WARNING: Usage of pixel coordinates does not respect the SWC specification");
-//		else
-//			pw.println("# Voxel separation (x,y,z): " + x_spacing + ", " + y_spacing + ", " + z_spacing);
-		pw.println("#");
-		
-		for (final SWCPoint p : swcPoints)
-			p.println(pw);
-		pw.close();
-	}
-
 	/**
 	 * Converts a Graph to an SWCPoint tree.
 	 * 
@@ -143,13 +110,13 @@ public class Skeleton2Swc {
 	 * @param graph the AnalyzeSkeleton graph
 	 * @return list of swc points
 	 */
-	public static ArrayList< SWCPoint > graphToSwc( Graph graph )
+	public static Swc graphToSwc( Graph graph )
 	{
 		HashMap<Vertex, ArrayList<Edge>> v2e = verticesToEdges( graph );
 		HashMap<Point,Integer> ptSet = new HashMap<Point,Integer>();
 		ArrayList<Vertex> processUs = new ArrayList<Vertex>();
 
-		final ArrayList< SWCPoint > result = new ArrayList< SWCPoint >();
+		final Swc result = new Swc();
 		
 		int i = 0; 
 		Vertex root = graph.getRoot();
@@ -193,8 +160,7 @@ public class Skeleton2Swc {
 			HashMap<Vertex,ArrayList<Edge>> v2e,
 			HashMap<Point,Integer> ptSet,
 			ArrayList<Vertex> processUs,
-			ArrayList< SWCPoint > result
-			)
+			Swc result )
 	{
 		//System.out.println( "addDownstream " + v.getPoints().get(0));
 		for( Edge e : v2e.get( v ))
@@ -240,26 +206,17 @@ public class Skeleton2Swc {
 		}
 	}
 
-	/**
-	 * Add a point
-	 * @param i index of this vertex 
-	 * @param v the vertex 
-	 * @param previous index of the vertex's parent 
-	 * @param result result list to add to 
-	 */
 	public static boolean add( 
 			int i,
 			Point p,
 			int parentIndex,
 			final HashMap< Point, Integer > pt2idx,
-			final ArrayList< SWCPoint > result )
+			final Swc result )
 	{
-		
 		if( pt2idx.containsKey( p ))
 			return false;
 
-		//System.out.println( "adding " );
-		SWCPoint pt = new SWCPoint( i, Path.SWC_UNDEFINED, 
+		SwcPoint pt = new SwcPoint( i, Swc.UNDEFINED_TYPE,
 				p.x, p.y, p.z, 1.0, parentIndex );
 
 		result.add( pt );		

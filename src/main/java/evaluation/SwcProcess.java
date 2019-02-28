@@ -1,20 +1,16 @@
 package evaluation;
 
 import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.OutputStreamWriter;
-import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Callable;
 
+import org.janelia.saalfeldlab.swc.Swc;
+import org.janelia.saalfeldlab.swc.SwcPoint;
+
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
-
-import sc.fiji.skeleton.SwcIO;
-import sc.fiji.skeleton.SWCPoint;
 
 @Command( version = "0.0.2-SNAPSHOT" )
 public class SwcProcess implements Callable<Void>
@@ -65,9 +61,9 @@ public class SwcProcess implements Callable<Void>
 			final File in = new File( skeletonPaths.get( i ));
 			final File out = new File( outputSkeletonPaths.get( i ));
 			
-			ArrayList< SWCPoint > current = SwcIO.loadSWC( in );
+			Swc current = Swc.read( in );
 
-			ArrayList< SWCPoint > res = current; 
+			Swc res = current; 
 			if ( coordinateScaling != null )
 				current = scale( current, coordinateScaling );
 
@@ -84,111 +80,51 @@ public class SwcProcess implements Callable<Void>
 			}
 
 			System.out.println( "Exporting to " + out );
-			try
-			{
-				final PrintWriter pw = new PrintWriter(new OutputStreamWriter(new FileOutputStream( out ), "UTF-8"));
-				TransformSwc.flushSWCPoints( res, pw);
-			}
-			catch (final IOException ioe)
-			{
-				System.err.println("Saving to " + out + " failed");
-			}
+			Swc.write( res, out );
 
 			i++;
 		}
 		return null;
 	}
 
-	public static ArrayList<SWCPoint> setRadius( ArrayList<SWCPoint> pts, double value )
+	public static Swc setRadius( Swc pts, double value )
 	{
-		ArrayList<SWCPoint> out = new ArrayList<SWCPoint>();
-		pts.forEach( pt -> out.add( setRadius( pt, value )) );
-		return out;
+		ArrayList<SwcPoint> out = new ArrayList<SwcPoint>();
+		pts.getPoints().forEach( pt -> out.add( setRadius( pt, value )) );
+		return new Swc( out );
 	}
 
-	public static SWCPoint setRadius( SWCPoint pt, double value )
+	public static SwcPoint setRadius( SwcPoint pt, double value )
 	{
-		SwcIO.StringPrintWriter spw = new SwcIO.StringPrintWriter();
-		//System.out.println( pt.toString() );
-		pt.println( spw );
-
-		String[] s = spw.toString().split( " " );
-		int id = Integer.parseInt( s[ 0 ] );
-		int type = Integer.parseInt( s[ 1 ] );
-		int previous = Integer.parseInt( s[ 6 ] );
-
-		double[] p = new double[] { 
-				pt.getPointInImage().x,
-				pt.getPointInImage().y,
-				pt.getPointInImage().z };
-
-		return new SWCPoint( 
-				id, type, 
-				p[0], p[1], p[2], 
-				value, previous );
+		return pt.setRadius( value );
 	}
 
-	public static ArrayList<SWCPoint> scaleRadius( ArrayList<SWCPoint> pts, double scale )
+	public static Swc scaleRadius( Swc pts, double scale )
 	{
-		ArrayList<SWCPoint> out = new ArrayList<SWCPoint>();
-		pts.forEach( pt -> out.add( scaleRadius( pt, scale )) );
-		return out;
+		ArrayList<SwcPoint> out = new ArrayList<SwcPoint>();
+		pts.getPoints().forEach( pt -> out.add( scaleRadius( pt, scale )) );
+		return new Swc( out );
 	}
 
-	public static SWCPoint scaleRadius( SWCPoint pt, double scale )
+	public static SwcPoint scaleRadius( SwcPoint pt, double scale )
 	{
-		SwcIO.StringPrintWriter spw = new SwcIO.StringPrintWriter();
-		//System.out.println( pt.toString() );
-		pt.println( spw );
-		
-		
-		String[] s = spw.toString().split( " " );
-		int id = Integer.parseInt( s[ 0 ] );
-		int type = Integer.parseInt( s[ 1 ] );
-		double radius = Double.parseDouble( s[ 5 ] );
-		int previous = Integer.parseInt( s[ 6 ] );
-		
-		double[] p = new double[] { 
-				pt.getPointInImage().x,
-				pt.getPointInImage().y,
-				pt.getPointInImage().z };
-
-		return new SWCPoint( 
-				id, type, 
-				p[0], p[1], p[2], 
-				scale * radius, previous );
+		return pt.setRadius( pt.radius * scale );
 	}
 
-	public static ArrayList<SWCPoint> scale( ArrayList<SWCPoint> pts, double[] scale )
+	public static Swc scale( Swc pts, double[] scale )
 	{
-		ArrayList<SWCPoint> out = new ArrayList<SWCPoint>();
-		pts.forEach( pt -> out.add( scale( pt, scale )) );
-		return out;
+		ArrayList<SwcPoint> out = new ArrayList<SwcPoint>();
+		pts.getPoints().forEach( pt -> out.add( scale( pt, scale )) );
+		return new Swc( out );
 	}
 	
-	public static SWCPoint scale( SWCPoint pt, double[] scale )
+	public static SwcPoint scale( SwcPoint pt, double[] scale )
 	{
-		SwcIO.StringPrintWriter spw = new SwcIO.StringPrintWriter();
-		//System.out.println( pt.toString() );
-		pt.println( spw );
-		
-		
-		String[] s = spw.toString().split( " " );
-		int id = Integer.parseInt( s[ 0 ] );
-		int type = Integer.parseInt( s[ 1 ] );
-		double radius = Double.parseDouble( s[ 5 ] );
-		int previous = Integer.parseInt( s[ 6 ] );
-		
 		double[] p = new double[] { 
-				scale[0] * pt.getPointInImage().x,
-				scale[1] * pt.getPointInImage().y,
-				scale[2] * pt.getPointInImage().z };
+				scale[0] * pt.x,
+				scale[1] * pt.y,
+				scale[2] * pt.z };
 
-		return new SWCPoint( 
-				id, type, 
-				p[0], p[1], p[2], 
-				radius, previous );
+		return pt.setPosition( p[0], p[1], p[2] );
 	}
-	
-
 }

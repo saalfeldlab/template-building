@@ -1,18 +1,13 @@
 package evaluation;
 
 import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.OutputStreamWriter;
-import java.io.PrintWriter;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.regex.Pattern;
 
+import org.janelia.saalfeldlab.swc.Swc;
+import org.janelia.saalfeldlab.swc.SwcPoint;
 import org.janelia.saalfeldlab.transform.io.TransformReader;
 
 import picocli.CommandLine;
@@ -22,9 +17,6 @@ import picocli.CommandLine.Option;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.realtransform.RealTransform;
 import net.imglib2.realtransform.RealTransformSequence;
-import sc.fiji.skeleton.SwcIO;
-import sc.fiji.skeleton.SWCPoint;
-import tracing.SNT;
 
 
 @Command( version = "0.0.2-SNAPSHOT" )
@@ -124,18 +116,10 @@ public class TransformSwc implements Callable< Void >
 				continue;
 			}
 
-			ArrayList< SWCPoint > res = transformSWC( totalXfm, SwcIO.loadSWC( in ) );
+			Swc res = transformSWC( totalXfm, Swc.read( in ));
 			System.out.println( "Reading from: " + in );
 			System.out.println( "Exporting to " + out );
-			try
-			{
-				final PrintWriter pw = new PrintWriter(new OutputStreamWriter(new FileOutputStream( out ), "UTF-8"));
-				flushSWCPoints( res, pw);
-			}
-			catch (final IOException ioe)
-			{
-				System.err.println("Saving to " + out + " failed");
-			}
+			Swc.write( res, out );
 			System.out.println( " " );
 
 			i++;
@@ -177,56 +161,21 @@ public class TransformSwc implements Callable< Void >
 		}
 	}
 
-	public static void flushSWCPoints(final List<SWCPoint> swcPoints, final PrintWriter pw) {
-		pw.println("# Exported from \"Simple Neurite Tracer\" version " + SNT.VERSION + " on "
-				+ LocalDateTime.of(LocalDate.now(), LocalTime.now()));
-		pw.println("# https://imagej.net/Simple_Neurite_Tracer");
-		pw.println("#");
-//		pw.println("# All positions and radii in " + spacing_units);
-//		if (usingNonPhysicalUnits())
-//			pw.println("# WARNING: Usage of pixel coordinates does not respect the SWC specification");
-//		else
-//			pw.println("# Voxel separation (x,y,z): " + x_spacing + ", " + y_spacing + ", " + z_spacing);
-		pw.println("#");
-
-		for (final SWCPoint p : swcPoints)
-			p.println(pw);
-
-		pw.close();
-	}
-
-	public static ArrayList<SWCPoint> transformSWC( RealTransform xfm, ArrayList<SWCPoint> pts )
+	public static Swc transformSWC( final RealTransform xfm, final Swc swc )
 	{
-		ArrayList<SWCPoint> out = new ArrayList<SWCPoint>();
-		pts.forEach( pt -> out.add( transform( xfm, pt )) );
-		return out;
+		ArrayList<SwcPoint> out = new ArrayList<>();
+		swc.getPoints().forEach( pt -> out.add( transform( xfm, pt )) );
+		return new Swc( out );
 	}
 	
-	public static SWCPoint transform( RealTransform xfm, SWCPoint pt )
+	public static SwcPoint transform( RealTransform xfm, SwcPoint pt )
 	{
-		SwcIO.StringPrintWriter spw = new SwcIO.StringPrintWriter();
-		//System.out.println( pt.toString() );
-		pt.println( spw );
-		
-		
-		String[] s = spw.toString().split( " " );
-		int id = Integer.parseInt( s[ 0 ] );
-		int type = Integer.parseInt( s[ 1 ] );
-		double radius = Double.parseDouble( s[ 5 ] );
-		int previous = Integer.parseInt( s[ 6 ] );
-		
-		double[] p = new double[] { 
-				pt.getPointInImage().x,
-				pt.getPointInImage().y,
-				pt.getPointInImage().z };
-
+		double[] p = new double[] { pt.x, pt.y, pt.z }; 
 		double[] pxfm = new double[ 3 ];
 		xfm.apply( p, pxfm );
 
-		return new SWCPoint( 
-				id, type, 
-				pxfm[ 0 ], pxfm[ 1 ], pxfm[ 2 ], 
-				radius, previous );
+		// a copy of pt with the new position
+		return pt.setPosition( pxfm[ 0 ], pxfm[ 1 ], pxfm[ 2 ] );
 	}
 
 }

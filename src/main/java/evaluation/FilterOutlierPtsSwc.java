@@ -11,8 +11,9 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
-import sc.fiji.skeleton.SwcIO;
-import sc.fiji.skeleton.SWCPoint;
+import org.janelia.saalfeldlab.swc.Swc;
+import org.janelia.saalfeldlab.swc.SwcPoint;
+
 
 public class FilterOutlierPtsSwc
 {
@@ -34,52 +35,43 @@ public class FilterOutlierPtsSwc
 			File fileOut = new File( fileIn.getAbsolutePath()
 					.replaceAll( ".swc", "_filt.swc" ));
 
-			ArrayList< SWCPoint > swcIn = SwcIO.loadSWC( fileIn );
-			Map< Integer, SWCPoint > idPtMap = pointFromId( swcIn );
-			Map< Integer, List< SWCPoint > > childrenMap = childrenFromId( swcIn );
+			Swc swcIn = Swc.read( fileIn );
+			Map< Integer, SwcPoint > idPtMap = pointFromId( swcIn );
+			Map< Integer, List< SwcPoint > > childrenMap = childrenFromId( swcIn );
 
-			List< SWCPoint > swcOut = filterPoints( swcIn, idPtMap, childrenMap, distanceThreshold );
+			Swc swcOut = filterPoints( swcIn, idPtMap, childrenMap, distanceThreshold );
 			
 			System.out.println( "Exporting to " + fileOut );
-			try
-			{
-				final PrintWriter pw = new PrintWriter(new OutputStreamWriter(new FileOutputStream(fileOut), "UTF-8"));
-				TransformSwc.flushSWCPoints( swcOut, pw );
-			}
-			catch (final IOException ioe)
-			{
-				System.err.println("Saving to " + fileOut + " failed");
-			}
+			Swc.write( swcOut, fileOut );
 			i++;
 		}
 
 	}
 	
-	public static Map<Integer,SWCPoint> pointFromId( 
-			ArrayList<SWCPoint> swc )
+	public static Map<Integer,SwcPoint> pointFromId( Swc swc )
 	{
-		HashMap<Integer,SWCPoint> map = new HashMap<>();
-		for( SWCPoint p : swc )
-			map.put( p.getId(), p );
+		HashMap<Integer,SwcPoint> map = new HashMap<>();
+		for( SwcPoint p : swc.getPoints() )
+			map.put( p.id, p );
 
 		return map;
 	}
 	
-	public static Map<Integer,List<SWCPoint>> childrenFromId( 
-			ArrayList<SWCPoint> swc )
+	public static Map<Integer,List<SwcPoint>> childrenFromId( 
+			Swc swc )
 	{
-		HashMap<Integer,List<SWCPoint>> map = new HashMap<>();
+		HashMap<Integer,List<SwcPoint>> map = new HashMap<>();
 		
 		// Initialize
-		for( SWCPoint p : swc )
+		for( SwcPoint p : swc.getPoints() )
 		{
-			map.put( p.getId(), new ArrayList<>());
+			map.put( p.id, new ArrayList<>());
 		}
 		
 		// build the list
-		for( SWCPoint p : swc )
+		for( SwcPoint p : swc.getPoints() )
 		{
-			int parentId =  p.getPrevious();
+			int parentId =  p.previous;
 			if( map.containsKey( parentId ))
 				map.get( parentId ).add( p );
 		}
@@ -87,19 +79,18 @@ public class FilterOutlierPtsSwc
 		return map;
 	}
 	
-	public static List< SWCPoint > filterPoints( 
-			final List< SWCPoint > ptList,
-			final Map< Integer, SWCPoint > idPtMap,
-			final Map< Integer, List< SWCPoint > > childrenMap,
+	public static Swc filterPoints( 
+			Swc swc,
+			final Map< Integer, SwcPoint > idPtMap,
+			final Map< Integer, List< SwcPoint > > childrenMap,
 			final double distanceThreshold ) 
 	{
-		ArrayList<SWCPoint> swcOut = new ArrayList<>();
-		ArrayList<SWCPoint> naughtyPoints = new ArrayList<>(); 
+		ArrayList<SwcPoint> swcOut = new ArrayList<>();
+		ArrayList<SwcPoint> naughtyPoints = new ArrayList<>(); 
 
-//		Iterator< Integer > it = idPtMap.keySet().iterator();
-		for( SWCPoint p : ptList )
+		for( SwcPoint p : swc.getPoints() )
 		{
-			SWCPoint parent = idPtMap.get( p.getPrevious());
+			SwcPoint parent = idPtMap.get( p.previous );
 
 			// don't bother if the parent has been excluded
 			if( parent == null || naughtyPoints.contains( parent ))
@@ -109,14 +100,11 @@ public class FilterOutlierPtsSwc
 			}
 
 			double distance = distance( p, parent );
-//			System.out.println( "distance : " + distance );
 
 			if( distance > distanceThreshold )
 			{
-				System.out.println( "distance : " + distance );
-//				System.out.println( "filtering point: " + p );
 
-				List< SWCPoint > children = childrenMap.get( p.getId() );
+				List< SwcPoint > children = childrenMap.get( p.id );
 				
 				// this point (p) is bad if all p's children are closer
 				// to p's parent than p
@@ -139,67 +127,50 @@ public class FilterOutlierPtsSwc
 			}
 		}
 		
-		return swcOut;
+		return new Swc( swcOut );
 	}
 	
-	public static SWCPoint convexCombination(
-			final SWCPoint base,
-			final SWCPoint parent,
-			final List<SWCPoint> children )
+	public static SwcPoint convexCombination(
+			final SwcPoint base,
+			final SwcPoint parent,
+			final List<SwcPoint> children )
 	{
 		double t = 1.0 / ( 1 + children.size() );
-		double x = t * parent.getPointInImage().x;
-		double y = t * parent.getPointInImage().y;
-		double z = t * parent.getPointInImage().z;
-		
-		for( SWCPoint c : children )
+		double x = t * parent.x;
+		double y = t * parent.y;
+		double z = t * parent.z;
+	
+		for( SwcPoint c : children )
 		{
-			x += t * c.getPointInImage().x;
-			y += t * c.getPointInImage().y;
-			z += t * c.getPointInImage().z;
+			x += t * c.x;
+			y += t * c.y;
+			z += t * c.z;
 		}
-		
-		System.out.println( "parent : " + parent );
-		System.out.println( "base   : " + base );
-		System.out.println( "c0     : " + children.get( 0 ) );
-		System.out.println( "xyz : " + x + " " + y + " " + z );
-		System.out.println( " " );
-		
-		return new SWCPoint(
-				base.getId(), base.getType(), 
-				x, y, z,
-				base.getRadius(), base.getPrevious());
+	
+		return base.setPosition( x, y, z );
 	}
 
-	public static SWCPoint linearInterpolate(
-			final SWCPoint prev, 
-			final SWCPoint base,
-			final SWCPoint next,
+	public static SwcPoint linearInterpolate(
+			final SwcPoint prev, 
+			final SwcPoint base,
+			final SwcPoint next,
 			final double t )
 	{
 		
-		double x = ( 1 - t ) * prev.getPointInImage().x + t * next.getPointInImage().x;
-		double y = ( 1 - t ) * prev.getPointInImage().y + t * next.getPointInImage().y;
-		double z = ( 1 - t ) * prev.getPointInImage().z + t * next.getPointInImage().z;
+		double x = ( 1 - t ) * prev.x + t * next.x;
+		double y = ( 1 - t ) * prev.y + t * next.y;
+		double z = ( 1 - t ) * prev.z + t * next.z;
 
-		System.out.println( "prev : " + prev );
-		System.out.println( "base : " + base );
-		System.out.println( "xyz : " + x + " " + y + " " + z );
-		System.out.println( " " );
-
-		return new SWCPoint(
-				base.getId(), base.getType(), 
-				x, y, z,
-				base.getRadius(), base.getPrevious());
+		return base.setPosition( x, y, z );
 	}
 	
 	public static double distance( 
-			final SWCPoint p, 
-			final SWCPoint q )
+			final SwcPoint p, 
+			final SwcPoint q )
 	{
-		double dx = p.getPointInImage().x - q.getPointInImage().x;
-		double dy = p.getPointInImage().y - q.getPointInImage().y;
-		double dz = p.getPointInImage().z - q.getPointInImage().z;
+		double dx = p.x - q.x;
+		double dy = p.y - q.y;
+		double dz = p.z - q.z;
 		return Math.sqrt( dx*dx + dy*dy + dz*dz );
 	}
 
