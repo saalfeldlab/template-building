@@ -1,0 +1,8 @@
+#!/bin/bash
+#
+# Run like this:
+#   parseRunTimesElastix > times.csv 
+
+# Converts XmYs to seconds
+grep -h 'Total time elapsed:' */elastix.log | awk -F: '{print $2}' | sed -e 's/[hm]/,/g' -e 's/s//g' | awk -F, '{print 60*$1 + $2}'
+
