@@ -30,7 +30,6 @@ import net.imglib2.view.Views;
  * Because Dataset's don't (currently) have metadata - specifically resolution
  */
 
-
 nd = 3; // only 3d for now
 
 epsilon = 1e-6 as double
@@ -84,6 +83,6 @@ ipout.getCalibration().pixelWidth  = resultResolutions[ 0 ]
 ipout.getCalibration().pixelHeight = resultResolutions[ 1 ]
 ipout.getCalibration().pixelDepth  = resultResolutions[ 2 ]
 
-ipout.setDimensions( 1, outputInterval.dimension( 2 ), 1 )
+ipout.setDimensions( (int)1, (int)outputInterval.dimension( 2 ), (int)1 )
 
 ipout.show()
