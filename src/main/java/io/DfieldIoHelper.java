@@ -51,7 +51,6 @@ public class DfieldIoHelper
 		DfieldIoHelper io = new DfieldIoHelper();
 
 		RandomAccessibleInterval< FloatType > dfield = io.read( dfieldIn );
-		System.out.println( "dfield: " + Util.printInterval( dfield ));
 
 
 		io.write( dfield, dfieldOut );
@@ -65,7 +64,6 @@ public class DfieldIoHelper
 		if ( outputPath.contains( "h5" ) )
 		{
 			RandomAccessibleInterval<T> dfield = vectorAxisPermute( dfieldIn, 3, 3 );
-			System.out.println( "dfield out sz: " + Util.printInterval( dfield ) );
 
 			String dataset =  N5DisplacementField.FORWARD_ATTR;
 			String path = outputPath;
@@ -76,7 +74,6 @@ public class DfieldIoHelper
 				dataset = split[ 1 ];
 			}
 					
-			System.out.println( "saving displacement field hdf5" );
 			try
 			{
 				//WriteH5DisplacementField.write( dfield, outputPath, new int[] { 3, 32, 32, 32 }, spacing, null );
@@ -93,14 +90,12 @@ public class DfieldIoHelper
 		}
 		else if ( outputPath.endsWith( "nii" ) )
 		{
-			System.out.println( "saving displacement field nifti" );
 			File outFile = new File( outputPath );
 			Nifti_Writer writer = new Nifti_Writer( true );
 			writer.save( dfieldIn, outFile.getParent(), outFile.getName(), spacing );
 		}
 		else if ( outputPath.endsWith( "nrrd" ) )
 		{
-			System.out.println( "saving displacement field nrrd" );
 
 			File outFile = new File( outputPath );
 			long[] subFactors = new long[] { 1, 1, 1, 1 };
@@ -144,12 +139,8 @@ public class DfieldIoHelper
 		}
 		else
 		{
-			System.out.println( "saving displacement other" );
 			//RandomAccessibleInterval< T > dfield = vectorAxisThird( dfieldIn );
 			RandomAccessibleInterval<T> dfield = vectorAxisPermute( dfieldIn, 3, 2 );
-			System.out.println( "size: " + Util.printInterval( dfield ));
-
-			System.out.println( "size perm: " + Util.printInterval( dfield ));
 
 			ImagePlus dfieldip = ImageJFunctions.wrapFloat( dfield, "dfield" );
 			dfieldip.getCalibration().pixelWidth = spacing[ 0 ];
@@ -175,7 +166,6 @@ public class DfieldIoHelper
 		{
 			try
 			{
-				System.out.println( "loading nii" );
 				dfieldIp = NiftiIo.readNifti( new File( fieldPath ) );
 
 				spacing = new double[] { dfieldIp.getCalibration().pixelWidth, dfieldIp.getCalibration().pixelHeight, dfieldIp.getCalibration().pixelDepth };
