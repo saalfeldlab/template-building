@@ -79,8 +79,6 @@ public class Dfield_Nrrd_Writer implements PlugIn {
 		Dfield_Nrrd_Reader reader = new Dfield_Nrrd_Reader();
 		ImagePlus ip = reader.load( in.getParent(), in.getName() );
 
-		System.out.println( out.getParent() );
-		System.out.println( out.getName() );
 		
 		ip.setDisplayRange( 0 , 3600 );
 		// Convert to 16-bit
@@ -235,7 +233,6 @@ public class Dfield_Nrrd_Writer implements PlugIn {
 		
 	public static String makeDisplacementFieldHeader( ImagePlus ip )
 	{
-		System.out.println("Nrrd_Writer makeDisplacementFieldHeader");
 		
 		FileInfo fi = ip.getFileInfo();
 		Calibration cal = ip.getCalibration();
@@ -307,7 +304,6 @@ public class Dfield_Nrrd_Writer implements PlugIn {
 		 */
 		StringWriter out=new StringWriter();
 		
-		System.out.println("Nrrd_Writer makeHeader");
 		
 		out.write("NRRD000"+NRRD_VERSION+"\n");
 		out.write("# Created by Nrrd_Writer at "+(new Date())+"\n");

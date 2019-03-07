@@ -404,6 +404,14 @@ public class WriteNrrdDisplacementField {
 		return null;
 	}
 	
+	/**
+	 * Expects a 
+	 * @param img
+	 * @param subsample_factors
+	 * @param permute
+	 * @param out
+	 * @throws IOException
+	 */
 	public static void dumpFloatImg(
 			final RandomAccessibleInterval<FloatType> img,
 			final long[] subsample_factors,
@@ -422,19 +430,12 @@ public class WriteNrrdDisplacementField {
 			imgToPermute = img;
 		}
 		
-		System.out.println("img size: " + Util.printInterval(img));
-		System.out.println("imgToPermute size: " + Util.printInterval(imgToPermute));
-		
 		RandomAccessibleInterval<FloatType> img_perm;
 		if( permute )
 			img_perm = Views.permute( Views.permute( Views.permute( imgToPermute, 0, 3 ), 1, 3 ), 2, 3 );
 		else
 			img_perm = imgToPermute;
 			
-		System.out.println("img size: " + Util.printInterval(img));
-		System.out.println("imgToPermute size: " + Util.printInterval(imgToPermute));
-		System.out.println("img_perm size: " + Util.printInterval(img_perm));
-		
 		Cursor<FloatType> c = Views.flatIterable( img_perm ).cursor();
 		while( c.hasNext() )
 		{
@@ -444,8 +445,6 @@ public class WriteNrrdDisplacementField {
 		}
 		dout.flush();
 		dout.close();
-
-		System.out.println( "Wrote  " + dout.size() + " bytes." );
 	}
 
 	public static void dumpFloatImg(
