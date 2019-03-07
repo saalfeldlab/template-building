@@ -19,7 +19,7 @@ import net.imglib2.realtransform.RealTransform;
 import net.imglib2.realtransform.RealTransformSequence;
 
 
-@Command( version = "0.0.2-SNAPSHOT" )
+@Command( version = "0.1.1-SNAPSHOT" )
 public class TransformSwc implements Callable< Void >
 {
 
@@ -56,6 +56,9 @@ public class TransformSwc implements Callable< Void >
 			+ "-t <transform file path> applies the inverse of the given transform if possible." )
 	private List<String> transforms;
 
+	@Option( names = { "--dry-run" }, required = false, description = "Prints files to work on, but does nothing." )
+	private boolean dryRun;
+
 	@Option( names = { "-v", "--version" }, required = false, versionHelp = true, description = "Prints version information and exits." )
 	private boolean version;
 
@@ -91,10 +94,13 @@ public class TransformSwc implements Callable< Void >
 		// parse Transform
 		// Concatenate all the transforms
 		RealTransformSequence totalXfm = new RealTransformSequence();
-		if ( transforms == null )
-			totalXfm.add( new AffineTransform3D() );
-		else
-			totalXfm = TransformReader.readTransforms( transforms );
+		if( !dryRun )
+		{
+			if ( transforms == null )
+				totalXfm.add( new AffineTransform3D() );
+			else
+				totalXfm = TransformReader.readTransforms( transforms );
+		}
 
 		int i = 0;
 		while ( i < skeletonPaths.size() )
@@ -116,10 +122,15 @@ public class TransformSwc implements Callable< Void >
 				continue;
 			}
 
-			Swc res = transformSWC( totalXfm, Swc.read( in ));
 			System.out.println( "Reading from: " + in );
 			System.out.println( "Exporting to " + out );
-			Swc.write( res, out );
+
+			if( ! dryRun )
+			{
+				Swc res = transformSWC( totalXfm, Swc.read( in ));
+				Swc.write( res, out );
+			}
+
 			System.out.println( " " );
 
 			i++;
