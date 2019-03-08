@@ -1,0 +1,25 @@
+#!/bin/bash
+
+startdir=$(pwd)
+
+BASEDIR=$(dirname "$0")
+cd ${BASEDIR}
+cd ..
+
+#version=$(mvn org.apache.maven.plugins:maven-help-plugin:2.1.1:evaluate -Dexpression=project.version | grep -v '^\[INFO\]')
+version=$(mvn -q -Dexec.executable="echo" -Dexec.args='${project.version}' --non-recursive exec:exec)
+echo $version
+
+
+filesToEdit=$(grep -l '@Command' `find -name '*java' -type f`)
+
+for f in $filesToEdit
+do
+    echo $f
+    bakfile=$(dtbk $f)
+    sed "s/@Command( version = \".*\" )/@Command( version = \"$version\" )/g" $bakfile > $f
+done
+
+
+cd $startdir
+
