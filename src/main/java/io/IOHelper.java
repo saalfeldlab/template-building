@@ -164,7 +164,7 @@ public class IOHelper implements Callable<Void>
 
 			ip = nr.load( imFile.getParent(), imFile.getName());
 		}
-		else if( filePathAndDataset.endsWith( "h5" ))
+		else if( filePathAndDataset.contains( ".h5" ))
 		{
 			ip = toImagePlus( readRai( filePathAndDataset ));
 		}
@@ -253,7 +253,7 @@ public class IOHelper implements Callable<Void>
 	{
 		if( filePathAndDataset.contains( ".h5?" ) )
 		{
-			String[] partList = filePathAndDataset.split( "?" );
+			String[] partList = filePathAndDataset.split( "\\?" );
 			String fpath = partList[ 0 ];
 			String dset = partList[ 1 ];
 			
