@@ -14,6 +14,7 @@ import org.slf4j.LoggerFactory;
 import ij.ImagePlus;
 import io.IOHelper;
 import net.imglib2.FinalInterval;
+import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.RealRandomAccessible;
 import net.imglib2.img.imageplus.ImagePlusImg;
 import net.imglib2.img.imageplus.ImagePlusImgFactory;
@@ -41,10 +42,11 @@ import util.RenderUtil;
  * 
  * 
  * @author John Bogovic
+ * @param <T>
  *
  */
 @Command( version = "0.1.1-SNAPSHOT" )
-public class TransformImage implements Callable< Void >, BiConsumer< File, File >
+public class TransformImage<T extends RealType<T> & NativeType<T>> implements Callable< Void >, BiConsumer< File, File >
 {
 
 	@Option( names = { "-i", "--input" }, required = true, description = "Image file to transform" )

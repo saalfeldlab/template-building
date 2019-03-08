@@ -99,13 +99,25 @@ public class TransformPoints implements Callable<Void>
 
 			j++;
 		}
-		try
+		
+		// write to file if output file is supplied
+		if( output != null )
 		{
-			Files.write( Paths.get( output ), linesout );
+			try
+			{
+				Files.write( Paths.get( output ), linesout );
+			}
+			catch ( IOException e )
+			{
+				e.printStackTrace();
+			}
 		}
-		catch ( IOException e )
+		else
 		{
-			e.printStackTrace();
+			for( String s : linesout )
+			{
+				System.out.println( s );
+			}
 		}
 
 		return null;
