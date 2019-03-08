@@ -32,7 +32,7 @@ import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import process.RenderTransformed;
 
-@Command( version = "0.0.2-SNAPSHOT" )
+@Command( version = "0.1.1-SNAPSHOT" )
 public class TransformToDeformationField implements Callable<Void>
 {
 	@Option( names = { "-t", "--transform" }, required = false, description = "Transformation file." )

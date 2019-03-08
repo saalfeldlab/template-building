@@ -62,7 +62,7 @@ import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import util.RenderUtil;
 
-@Command( version = "0.0.2-SNAPSHOT" )
+@Command( version = "0.1.1-SNAPSHOT" )
 public class DownsampleGaussian implements Callable<Void>
 {
 	public static final String LINEAR_INTERPOLATION = "LINEAR";
