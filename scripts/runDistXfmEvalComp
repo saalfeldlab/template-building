@@ -52,6 +52,13 @@ then
     isCmtk="1"
 fi
 
+isElastix=""
+numElastix=$(ls */elastix.log | wc -l)
+if [[ $numElastix > 0 ]];
+then
+    isElastix="1"
+fi
+
 regdir=`pwd`
 mkdir -p $destDirectory
 cd $destDirectory
@@ -60,11 +67,9 @@ cd $destDirectory
 dstdir=`pwd`
 #echo "now in dir: $dstdir"
 
-line="face"
-
 # Transform
 function transform {
-# TODO detect whether this is cmtk or ants, and transform appropriately
+# TODO detect whether this is cmtk, ants, or elastix, and transform appropriately
 
     imglist=`ls $IMGDIR/*C2*Skeleton.tif`
     #echo " "
@@ -133,6 +138,34 @@ function transform {
             echo "transforming $img"
             echo "renderTransformed $img $out $realInterval $xfmList -q 8 -r $outputres" > skel_xfm_$i.sh
             renderTransformed $img $out $realInterval $xfmList -q 8 -r $outputres
+            
+        elif [[ -n $isElastix ]];
+        then
+
+            # Elastix
+            echo "elastix"
+
+            xfmList="-i `ls $IMGDIR/${prefix}*down.txt | grep -v Neuron`"
+
+            if [[ ! -z $midResXfm ]]; then
+                xfmList="$xfmList $midResXfm"
+            fi
+
+            if [[ $resXfm ]]; then
+                xfmList="$xfmList -i $resXfm"
+            fi
+
+            xfmList="$xfmList `matchEvalDataElastix $prefix $regdir`"
+
+            if [[ $toNormSpaceXfm ]]; then
+                xfmList="$xfmList $toNormSpaceXfm"
+            fi
+
+
+            echo "transforming $img"
+            echo "renderTransformed $img $out $realInterval $xfmList -q 8 -r $outputres" > skel_xfm_$i.sh
+            renderTransformed $img $out $realInterval $xfmList -q 8 -r $outputres
+
         else
             xfmList="-i `ls $IMGDIR/${prefix}*down.txt | grep -v Neuron`"
 
@@ -142,26 +175,29 @@ function transform {
 
             echo "PREFIX: $prefix"
 
+            if [[ $resXfm ]]; then
+                xfmList="$xfmList -i $resXfm"
+            fi
+
             xfmList="$xfmList -i `matchEvalData $prefix $regdir`"
 
             if [[ $toNormSpaceXfm ]]; then
                 xfmList="$xfmList $toNormSpaceXfm"
             fi
 
-            if [[ $resXfm ]]; then
-                xfmList="$xfmList -i $resXfm"
-            fi
 
             echo "$xfmList"
 
             echo "transforming $img"
             echo "renderTransformed $img $out $realInterval $xfmList -q 8 -r $outputres" > skel_xfm_$i.sh
+            chmod +x skel_xfm_$i.sh
 
-            #renderTransformed $img $out $realInterval $xfmList -q 8 -r $outputres
+            renderTransformed $img $out $realInterval $xfmList -q 8 -r $outputres
         fi
-        break
         ((i++))
     done
+
+
 }
 
 function distanceTransforms {
