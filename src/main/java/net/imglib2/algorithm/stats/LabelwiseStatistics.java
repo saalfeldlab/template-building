@@ -45,6 +45,9 @@ public class LabelwiseStatistics< L extends IntegerType< L >, T extends RealType
 	@Option( names = { "-v", "--version" }, required = false, versionHelp = true, description = "Prints version information and exits." )
 	private boolean version;
 
+	@Option(names = {"-h", "--help"}, usageHelp = true, description = "Print this help message" )
+	private boolean help;
+
 	HashMap< Long, Double > means = new HashMap<>();
 
 	HashMap< Long, Double > vars = new HashMap<>();

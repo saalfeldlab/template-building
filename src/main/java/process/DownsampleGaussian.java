@@ -100,6 +100,9 @@ public class DownsampleGaussian implements Callable<Void>
 
 	@Option( names = { "--n5dataset" }, description = "N5 output dataset" )
 	private String n5dataset = "data";
+
+	@Option(names = {"-h", "--help"}, usageHelp = true, description = "Print this help message" )
+	private boolean help;
 	
 	private double[] resultResolutions;
 	private double[] downsampleFactors;
