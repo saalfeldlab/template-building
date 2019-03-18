@@ -130,14 +130,7 @@ public class LabelwiseStatistics< L extends IntegerType< L >, T extends RealType
 			strings.add( String.format( format, Math.sqrt( vars.get( l ) ) ) );
 
 			out.println( strings.stream().collect( Collectors.joining( delimeter ) ) );
-
-//			out.println( "" + l + "," 
-//					+ counts.get( l ) + "," 
-//					+ means.get( l ) + "," 
-//					+ vars.get( l ) + ","
-//					+ Math.sqrt(vars.get( l )));
-			// out.println( String.)
-
+			strings.clear();
 		}
 		out.flush();
 	}
