@@ -94,19 +94,18 @@ def mode_from_ray( ray_params ):
     return ray_params[ 1 ]
 
 
-def process_gamma_params( df_in, params_col=('DISTANCE', 'gam_params_fl') ):
-    df_in[ ('DISTANCE', 'gam_mean') ] = df_in.apply( lambda x: mean_from_gamma( x[ params_col ] ), axis=1 )
-    df_in[ ('DISTANCE', 'gam_var') ] = df_in.apply( lambda x: var_from_gamma( x[ params_col ] ), axis=1 )
-    df_in[ ('DISTANCE', 'gam_mode') ] = df_in.apply( lambda x: mode_from_gamma( x[ params_col ] ), axis=1 )
+def main( dest_file, base_dir, template_list, alg_list, eval_arg, line_list, datapattern, measure ):
+
+    def process_gamma_params( df_in, params_col=(measure, 'gam_params_fl') ):
+        df_in[ (measure, 'gam_mean') ] = df_in.apply( lambda x: mean_from_gamma( x[ params_col ] ), axis=1 )
+        df_in[ (measure, 'gam_var') ] = df_in.apply( lambda x: var_from_gamma( x[ params_col ] ), axis=1 )
+        df_in[ (measure, 'gam_mode') ] = df_in.apply( lambda x: mode_from_gamma( x[ params_col ] ), axis=1 )
 
 
-def process_ray_params( df_in, params_col=('DISTANCE', 'ray_params_fl') ):
-    df_in[ ('DISTANCE', 'ray_mean') ] = df_in.apply( lambda x: mean_from_ray( x[ params_col ] ), axis=1 )
-    df_in[ ('DISTANCE', 'ray_var') ] = df_in.apply( lambda x: var_from_ray( x[ params_col ] ), axis=1 )
-    df_in[ ('DISTANCE', 'ray_mode') ] = df_in.apply( lambda x: mode_from_ray( x[ params_col ] ), axis=1 )
-
-
-def main( dest_file, base_dir, template_list, alg_list, eval_arg, line_list, datapattern ):
+    def process_ray_params( df_in, params_col=(measure, 'ray_params_fl') ):
+        df_in[ (measure, 'ray_mean') ] = df_in.apply( lambda x: mean_from_ray( x[ params_col ] ), axis=1 )
+        df_in[ (measure, 'ray_var') ] = df_in.apply( lambda x: var_from_ray( x[ params_col ] ), axis=1 )
+        df_in[ (measure, 'ray_mode') ] = df_in.apply( lambda x: mode_from_ray( x[ params_col ] ), axis=1 )
 
     df_tot = pd.DataFrame( columns=['TEMPLATE','ALG','LINE','LABEL','DISTANCE'])
 
@@ -116,7 +115,7 @@ def main( dest_file, base_dir, template_list, alg_list, eval_arg, line_list, dat
         datFile = os.path.join( base_dir, template, alg, eval_arg, datapattern.format(line) )
         print( 'loading ', datFile )
 
-        df_line = pd.read_csv( datFile, header=None, names=['LABEL','DISTANCE'] )
+        df_line = pd.read_csv( datFile, header=None, names=['LABEL', measure ] )
         df_line['LINE'] = line
         df_line['TEMPLATE'] = template
         df_line['ALG'] = alg
@@ -134,7 +133,7 @@ def main( dest_file, base_dir, template_list, alg_list, eval_arg, line_list, dat
     df_l = df.groupby(['TEMPLATE','LABEL'],as_index=False)
     df_t = df.groupby(['TEMPLATE'],as_index=False)
 
-    agg_dict = { 'DISTANCE' : ['count', 'median', 'mean', 'var', gam_params_fl, ray_params_fl, p10, p90]}
+    agg_dict = { measure : ['count', 'median', 'mean', 'var', gam_params_fl, ray_params_fl, p10, p90]}
     print( agg_dict )
 
     # Compute statistics over labels
@@ -187,6 +186,7 @@ if __name__ == "__main__":
     parser.add_argument('--datapattern', help='The pattern used to match data files.',
                         default='combined_labelData_line{}.csv')
     parser.add_argument('--lines', help='The drosophila cell lines', default=[0, 1, 2, 3])
+    parser.add_argument('-m', '--measure', help='The measure represented by the second column of the data.', default='DISTANCE')
 
     args = parser.parse_args()
 
@@ -194,4 +194,4 @@ if __name__ == "__main__":
         parser.print_help(sys.stderr)
         sys.exit(1)
 
-    main(args.output, args.dir, args.template, args.alg, args.evaldir, args.lines, args.datapattern)
+    main(args.output, args.dir, args.template, args.alg, args.evaldir, args.lines, args.datapattern, args.measure )
