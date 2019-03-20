@@ -54,7 +54,7 @@ else
     affine=`ls ${REGDIR}/$prefix*Affine"$affineSuffix" | grep -v Generic`
 fi
 
-deformation=`ls ${REGDIR}/$prefix*Warp.nii | grep -v 'InverseWarp'`
+deformation=`ls ${REGDIR}/$prefix*Warp.nii* | grep -v 'InverseWarp'`
 
 
 if [[ $isForAnts == "1" ]];

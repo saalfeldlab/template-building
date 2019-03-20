@@ -12,6 +12,7 @@ import org.janelia.saalfeldlab.n5.imglib2.N5DisplacementField;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import bigwarp.landmarks.LandmarkTableModel;
 import io.AffineImglib2IO;
 import io.DfieldIoHelper;
 import io.cmtk.CMTKLoadAffine;
@@ -20,12 +21,15 @@ import net.imglib2.realtransform.AffineTransform;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.realtransform.DeformationFieldTransform;
 import net.imglib2.realtransform.ExplicitInvertibleRealTransform;
+import net.imglib2.realtransform.InvertibleDeformationFieldTransform;
 import net.imglib2.realtransform.InvertibleRealTransform;
-import net.imglib2.realtransform.InvertibleRealTransformSequence;
 import net.imglib2.realtransform.RealTransform;
 import net.imglib2.realtransform.RealTransformSequence;
+import net.imglib2.realtransform.ThinplateSplineTransform;
 import net.imglib2.realtransform.ants.ANTSDeformationField;
 import net.imglib2.realtransform.ants.ANTSLoadAffine;
+import net.imglib2.realtransform.inverse.InverseRealTransformGradientDescent;
+import net.imglib2.realtransform.inverse.WrappedIterativeInvertibleRealTransform;
 import net.imglib2.type.numeric.real.FloatType;
 
 public class TransformReader
@@ -34,8 +38,14 @@ public class TransformReader
 	public static final String AFFINEFLAG = "affine";
 	public static final String DEFFLAG = "def";
 
-	final static Logger logger = LoggerFactory.getLogger( TransformReader.class );
+	// string flags for iterative inverse optimization
+	public static final String INVOPT_FLAG = "invopt";
+	public static final String BETA_FLAG = "beta";
+	public static final String C_FLAG = "c";
+	public static final String MAXITERS_FLAG = "maxIters";
+	public static final String TOLERANCE_FLAG = "tolerance";
 
+	final static Logger logger = LoggerFactory.getLogger( TransformReader.class );
 
 	public static RealTransformSequence readTransforms( List<String> transformList )
 	{
@@ -73,6 +83,50 @@ public class TransformReader
 		}	
 		else
 			return transform;
+	}
+
+	public static void setIterativeInverseParameters( InverseRealTransformGradientDescent inverseOptimizer, String transformString )
+	{
+		String[] parts = transformString.split( "\\?" );
+		for( String part: parts )
+		{
+			if( part.startsWith( INVOPT_FLAG ))
+			{
+				String[] paramParts = part.split(";");
+				for( String param : paramParts )
+				{
+					System.out.println( param );
+					if( param.startsWith( INVOPT_FLAG ))
+					{
+						continue;
+					}
+					else if( param.startsWith( TOLERANCE_FLAG ))
+					{
+						inverseOptimizer.setTolerance( 
+								Double.parseDouble( param.substring( param.indexOf( "=" ) + 1 )));
+					}
+					else if( param.startsWith( C_FLAG ))
+					{
+						inverseOptimizer.setC( 
+								Double.parseDouble( param.substring( param.indexOf( "=" ) + 1 )));
+					}
+					else if( param.startsWith( BETA_FLAG ))
+					{
+						inverseOptimizer.setBeta( 
+								Double.parseDouble( param.substring( param.indexOf( "=" ) + 1 )));
+					}
+					else if( param.startsWith( MAXITERS_FLAG ))
+					{
+						inverseOptimizer.setMaxIters( 
+								Integer.parseInt( param.substring( param.indexOf( "=" ) + 1 )));
+					}
+					else
+					{
+						System.out.println( "param part : (" + param + ") not parse-able.");
+					}
+				}
+			}
+		}
 	}
 
 	/**
@@ -163,6 +217,46 @@ public class TransformReader
 		else if( transformPath.contains( ".h5" ) || transformPath.contains( ".hdf5" )) 
 		{
 			return readH5Invertible( transformPath );
+		}
+		else if( transformPath.contains( ".csv" ) )
+		{
+			LandmarkTableModel ltm = new LandmarkTableModel( 3 );
+			try
+			{
+				ltm.load( new File( transformPath ));
+			}
+			catch ( IOException e )
+			{
+				e.printStackTrace();
+				return null;
+			}
+			ThinplateSplineTransform tps = new ThinplateSplineTransform( ltm.getTransform() );
+			WrappedIterativeInvertibleRealTransform< ThinplateSplineTransform > invtps = new WrappedIterativeInvertibleRealTransform<>( tps );
+			setIterativeInverseParameters( invtps.getOptimzer(), transformPathFull );
+
+			if( invert )
+				return invtps.inverse();
+			else
+				return invtps;
+		}
+		else
+		{
+			// other formats are displacement fields
+			try
+			{
+				DfieldIoHelper dfieldIo = new DfieldIoHelper();
+				// keep meta data
+				ANTSDeformationField dfieldResult = dfieldIo.readAsDeformationField( transformPath );
+				InvertibleDeformationFieldTransform< FloatType > invdef = new InvertibleDeformationFieldTransform< FloatType >( new DeformationFieldTransform< FloatType >( dfieldResult.getDefField() ) );
+				setIterativeInverseParameters( invdef.getOptimzer(), transformPathFull );
+
+				return invdef;
+			}
+			catch( Exception e )
+			{
+				e.printStackTrace();
+				return null;
+			}
 		}
 		
 		return null;
