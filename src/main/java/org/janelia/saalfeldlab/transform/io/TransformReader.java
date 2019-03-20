@@ -16,6 +16,10 @@ import bigwarp.landmarks.LandmarkTableModel;
 import io.AffineImglib2IO;
 import io.DfieldIoHelper;
 import io.cmtk.CMTKLoadAffine;
+import io.nii.NiftiIo;
+import loci.formats.FormatException;
+import net.imglib2.FinalRealInterval;
+import net.imglib2.RealInterval;
 import net.imglib2.interpolation.randomaccess.NLinearInterpolatorFactory;
 import net.imglib2.realtransform.AffineTransform;
 import net.imglib2.realtransform.AffineTransform3D;
@@ -25,12 +29,16 @@ import net.imglib2.realtransform.InvertibleDeformationFieldTransform;
 import net.imglib2.realtransform.InvertibleRealTransform;
 import net.imglib2.realtransform.RealTransform;
 import net.imglib2.realtransform.RealTransformSequence;
+import net.imglib2.realtransform.Scale3D;
 import net.imglib2.realtransform.ThinplateSplineTransform;
 import net.imglib2.realtransform.ants.ANTSDeformationField;
 import net.imglib2.realtransform.ants.ANTSLoadAffine;
 import net.imglib2.realtransform.inverse.InverseRealTransformGradientDescent;
 import net.imglib2.realtransform.inverse.WrappedIterativeInvertibleRealTransform;
 import net.imglib2.type.numeric.real.FloatType;
+import net.imglib2.util.ValuePair;
+import sc.fiji.io.Dfield_Nrrd_Reader;
+import sc.fiji.io.NrrdDfieldFileInfo;
 
 public class TransformReader
 {
@@ -44,6 +52,8 @@ public class TransformReader
 	public static final String C_FLAG = "c";
 	public static final String MAXITERS_FLAG = "maxIters";
 	public static final String TOLERANCE_FLAG = "tolerance";
+
+	public static final String IDENTITY = "id";
 
 	final static Logger logger = LoggerFactory.getLogger( TransformReader.class );
 
@@ -141,7 +151,11 @@ public class TransformReader
 		boolean invert = isInverse( transformPathFull );
 		String transformPath = pathFromInversePath( transformPathFull );
 	
-		if( transformPath.contains( ".mat" ))
+		if( transformPath.equals( IDENTITY ))
+		{
+			return new Scale3D( 1, 1, 1 );
+		}
+		else if( transformPath.contains( ".mat" ))
 		{
 			try
 			{
@@ -439,6 +453,73 @@ public class TransformReader
 				return null;
 			}	
 		}
+	}
+	
+	/**
+	 * Returns the spatial field of view over which the transform given by the
+	 * input string is defined.
+	 * 
+	 * The output interval will have [-inf, inf] if the transformation is
+	 * defined everywhere.
+	 * 
+	 * @param s
+	 *            a string representing the transform (usually a file path_
+	 * @return the interval
+	 * @throws IOException
+	 * @throws FormatException
+	 */
+	public static RealInterval transformFieldOfView( String transformArg ) throws IOException, FormatException
+	{
+		boolean invert = isInverse( transformArg );
+		String transformPath = pathFromInversePath( transformArg );
+
+		double[] min = new double[ 3 ];
+		double[] max = new double[ 3 ];
+
+		long[] dims = null;
+		double[] spacing = null;
+		if ( transformArg.contains( ".nrrd" ) )
+		{
+
+			Dfield_Nrrd_Reader reader = new Dfield_Nrrd_Reader();
+			File tmp = new File( transformPath );
+
+			NrrdDfieldFileInfo hdr = reader.getHeaderInfo( tmp.getParent(), tmp.getName() );
+			spacing = new double[] { hdr.pixelWidth, hdr.pixelHeight, hdr.pixelDepth };
+			dims = new long[] { hdr.sizes[ 0 ], hdr.sizes[ 1 ], hdr.sizes[ 2 ] };
+		}
+		else if ( transformArg.contains( ".nii" ) )
+		{
+			ValuePair< long[], double[] > sizeAndRes = NiftiIo.readSizeAndResolution( new File( transformPath ) );
+			dims = sizeAndRes.a;
+			spacing = sizeAndRes.b;
+		}
+		else if ( transformArg.contains( ".h5" ) )
+		{
+
+			H5TransformParameters params = H5TransformParameters.parse( transformArg );
+			String dataset = params.inverse ? params.invdataset : params.fwddataset;
+
+			N5HDF5Reader n5 = new N5HDF5Reader( params.path, 32, 32, 32, 3 );
+			dims = n5.getDatasetAttributes( dataset ).getDimensions();
+			spacing = n5.getAttribute( dataset, N5DisplacementField.SPACING_ATTR, double[].class );
+			if ( spacing == null )
+				spacing = new double[] { 1, 1, 1 };
+		}
+		else
+		{
+			Arrays.fill( min, Double.NEGATIVE_INFINITY );
+			Arrays.fill( min, Double.POSITIVE_INFINITY );
+		}
+
+		if ( dims != null && spacing != null )
+		{
+			// min is always going to be zero
+			for ( int d = 0; d < 3; d++ )
+				max[ d ] = dims[ d ] * spacing[ d ];
+		}
+
+		return new FinalRealInterval( min, max );
 	}
 
 	public static class H5TransformParameters
