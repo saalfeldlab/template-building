@@ -5,4 +5,13 @@ nrrdFile="$1"
 
 tag='space directions: '
 
-unu head $nrrdFile | grep "$tag" | sed -e "s/$tag//g" -e 's/ /,/g' -e 's/[()]//g' | awk -F, 'BEGIN {OFS=","}{print $1,$5,$9}'
+dim=$(unu head $nrrdFile | grep dimension | sed 's/dimension: //g')
+
+if [[ $dim == 4 ]];
+then
+    unu head $nrrdFile | grep "$tag" | sed -e "s/$tag//g" -e 's/ /,/g' -e 's/[()]//g' | awk -F, 'BEGIN {OFS=","}{print $2,$6,$10}'
+else
+    unu head $nrrdFile | grep "$tag" | sed -e "s/$tag//g" -e 's/ /,/g' -e 's/[()]//g' | awk -F, 'BEGIN {OFS=","}{print $1,$5,$9}'
+fi
+
+
