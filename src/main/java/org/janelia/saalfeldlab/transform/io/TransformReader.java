@@ -264,7 +264,14 @@ public class TransformReader
 				InvertibleDeformationFieldTransform< FloatType > invdef = new InvertibleDeformationFieldTransform< FloatType >( new DeformationFieldTransform< FloatType >( dfieldResult.getDefField() ) );
 				setIterativeInverseParameters( invdef.getOptimzer(), transformPathFull );
 
+			if( invert )
+			{
+				System.out.println("INVERSE DEF FIELD");
+				return invdef.inverse();
+			}
+			else
 				return invdef;
+
 			}
 			catch( Exception e )
 			{
