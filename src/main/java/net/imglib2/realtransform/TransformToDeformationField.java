@@ -76,6 +76,9 @@ public class TransformToDeformationField implements Callable<Void>
 	
 	public void setup()
 	{
+		// use size / resolution if the only input transform is a dfield
+		// ( and size / resolution is not given )
+
 		if ( referenceImagePath != null && !referenceImagePath.isEmpty() && new File( referenceImagePath ).exists() )
 		{
 			IOHelper io = new IOHelper();
@@ -85,11 +88,34 @@ public class TransformToDeformationField implements Callable<Void>
 			if ( outputResolution == null )
 				outputResolution = sizeAndRes.getB();
 		}
+		else if( transformFiles.size() == 1 )
+		{
+			String transformFile = transformFiles.get( 0 );
+			if( transformFile.contains( ".nrrd" ) || transformFile.contains( ".nii" ) || transformFile.contains( ".h5" ))
+			{
+				try
+				{
+					ValuePair< long[], double[] > sizeAndRes = TransformReader.transformSizeAndRes( transformFile );
+					renderInterval = new FinalInterval( sizeAndRes.a );
+					pixelToPhysical = new Scale( sizeAndRes.b );
 
-		logger.info( "render interval: " + Util.printInterval( renderInterval ) );
+					if( outputResolution == null )
+					{
+						// this can happen if the pixelToPhysical 
+						outputResolution = sizeAndRes.b;
+					}
+				}
+				catch ( Exception e )
+				{
+					e.printStackTrace();
+				}
+
+			}
+		}
 
 		if ( outputSize != null && !outputSize.isEmpty() )
 			renderInterval = RenderTransformed.parseInterval( outputSize );
+
 
 		// contains the physical transformation
 		RealTransformSequence physicalTransform = TransformReader.readTransforms( transformFiles );
@@ -104,6 +130,9 @@ public class TransformToDeformationField implements Callable<Void>
 			Arrays.fill( ones, 1.0 );
 			pixelToPhysical = new Scale( ones );
 		}
+
+		logger.info( "render interval: " + Util.printInterval( renderInterval ) );
+		logger.info( "pixelToPhysical: " + pixelToPhysical );
 
 		totalTransform = physicalTransform;
 	}
@@ -160,6 +189,7 @@ public class TransformToDeformationField implements Callable<Void>
 
 		logger.info( "writing" );
 		DfieldIoHelper dfieldIo = new DfieldIoHelper();
+
 		dfieldIo.spacing = outputResolution; // naughty
 		try
 		{
