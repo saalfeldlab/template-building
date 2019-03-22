@@ -25,6 +25,7 @@ import net.imglib2.iterator.IntervalIterator;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.numeric.real.FloatType;
+import net.imglib2.util.Util;
 import net.imglib2.util.ValuePair;
 import net.imglib2.view.Views;
 import picocli.CommandLine;
@@ -75,17 +76,19 @@ public class TransformToDeformationField implements Callable<Void>
 	
 	public void setup()
 	{
-		if( referenceImagePath != null && !referenceImagePath.isEmpty() && new File( referenceImagePath ).exists() )
+		if ( referenceImagePath != null && !referenceImagePath.isEmpty() && new File( referenceImagePath ).exists() )
 		{
 			IOHelper io = new IOHelper();
-			ValuePair< long[], double[] > sizeAndRes = io.readSizeAndResolution( new File( referenceImagePath ));
+			ValuePair< long[], double[] > sizeAndRes = io.readSizeAndResolution( new File( referenceImagePath ) );
 			renderInterval = new FinalInterval( sizeAndRes.getA() );
-			
+
 			if ( outputResolution == null )
 				outputResolution = sizeAndRes.getB();
 		}
-		
-		if( outputSize != null && !outputSize.isEmpty() )
+
+		logger.info( "render interval: " + Util.printInterval( renderInterval ) );
+
+		if ( outputSize != null && !outputSize.isEmpty() )
 			renderInterval = RenderTransformed.parseInterval( outputSize );
 
 		// contains the physical transformation
@@ -105,7 +108,7 @@ public class TransformToDeformationField implements Callable<Void>
 		totalTransform = physicalTransform;
 	}
 	
-	public Void call()
+	public Void call() throws Exception
 	{
 		setup();
 		process( totalTransform, new FloatType() );
@@ -113,29 +116,45 @@ public class TransformToDeformationField implements Callable<Void>
 		return null;
 	}
 
-	public <T extends RealType<T> & NativeType<T>> void process( RealTransform transform, T t )
+	public < T extends RealType< T > & NativeType< T > > void process( RealTransform transform, T t ) throws Exception
 	{
-		assert renderInterval.numDimensions() == transform.numTargetDimensions() || 
-				renderInterval.numDimensions() == transform.numTargetDimensions() + 1 ;
-		
-		// make sure the output interval has an extra dimension 
-		if( renderInterval.numDimensions() == transform.numTargetDimensions() )
+		assert renderInterval.numDimensions() == transform.numTargetDimensions() || renderInterval.numDimensions() == transform.numTargetDimensions() + 1;
+
+		// make sure the output interval has an extra dimension
+		// and if its a nrrd, the vector dimension has to be first,
+		// otherwise it goes last
+		if ( renderInterval.numDimensions() == transform.numTargetDimensions() )
 		{
+
 			long[] dims = new long[ transform.numTargetDimensions() + 1 ];
-			for( int d = 0; d < transform.numTargetDimensions(); d++ )
+
+			if ( outputFile.endsWith( "nrrd" ) )
 			{
-				dims[ d ] = renderInterval.dimension( d );
+				dims[ 0 ] = transform.numTargetDimensions();
+				for ( int d = 0; d < transform.numTargetDimensions(); d++ )
+				{
+					dims[ d + 1 ] = renderInterval.dimension( d );
+				}
 			}
-			dims[ transform.numTargetDimensions() ] = transform.numTargetDimensions();
-					
+			else
+			{
+				for ( int d = 0; d < transform.numTargetDimensions(); d++ )
+				{
+					dims[ d ] = renderInterval.dimension( d );
+				}
+				dims[ transform.numTargetDimensions() ] = transform.numTargetDimensions();
+			}
+
 			FinalInterval renderIntervalNew = new FinalInterval( dims );
 			renderInterval = renderIntervalNew;
 		}
 
 		logger.info( "allocating" );
 		ImagePlusImgFactory< T > factory = new ImagePlusImgFactory<>( t );
-		ImagePlusImg< T, ? > dfield = factory.create( renderInterval );
-		
+		ImagePlusImg< T, ? > dfieldraw = factory.create( renderInterval );
+
+		RandomAccessibleInterval< T > dfield = DfieldIoHelper.vectorAxisPermute( dfieldraw, 3, 3 );
+
 		logger.info( "processing" );
 		transformToDeformationField( transform, dfield, pixelToPhysical );
 
