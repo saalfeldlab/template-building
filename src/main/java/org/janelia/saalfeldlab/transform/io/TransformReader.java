@@ -477,14 +477,30 @@ public class TransformReader
 	 */
 	public static RealInterval transformFieldOfView( String transformArg ) throws IOException, FormatException
 	{
-		boolean invert = isInverse( transformArg );
-		String transformPath = pathFromInversePath( transformArg );
-
 		double[] min = new double[ 3 ];
 		double[] max = new double[ 3 ];
 
+		ValuePair< long[], double[] > pair = transformSizeAndRes( transformArg );
+		long[] dims = pair.a;
+		double[] spacing = pair.b;
+
+		if ( dims != null && spacing != null )
+		{
+			// min is always going to be zero
+			for ( int d = 0; d < 3; d++ )
+				max[ d ] = dims[ d ] * spacing[ d ];
+		}
+
+		return new FinalRealInterval( min, max );
+	}
+
+	public static ValuePair< long[], double[] > transformSizeAndRes( String transformArg ) throws FormatException, IOException
+	{
+		String transformPath = pathFromInversePath( transformArg );
+
 		long[] dims = null;
 		double[] spacing = null;
+
 		if ( transformArg.contains( ".nrrd" ) )
 		{
 
@@ -493,13 +509,12 @@ public class TransformReader
 
 			NrrdDfieldFileInfo hdr = reader.getHeaderInfo( tmp.getParent(), tmp.getName() );
 			spacing = new double[] { hdr.pixelWidth, hdr.pixelHeight, hdr.pixelDepth };
-			dims = new long[] { hdr.sizes[ 0 ], hdr.sizes[ 1 ], hdr.sizes[ 2 ] };
+			dims = new long[] { hdr.sizes[ 1 ], hdr.sizes[ 2 ], hdr.sizes[ 3 ], hdr.sizes[0] };
+			return new ValuePair<>( dims, spacing );
 		}
 		else if ( transformArg.contains( ".nii" ) )
 		{
-			ValuePair< long[], double[] > sizeAndRes = NiftiIo.readSizeAndResolution( new File( transformPath ) );
-			dims = sizeAndRes.a;
-			spacing = sizeAndRes.b;
+			return NiftiIo.readSizeAndResolution( new File( transformPath ) );
 		}
 		else if ( transformArg.contains( ".h5" ) )
 		{
@@ -511,22 +526,17 @@ public class TransformReader
 			dims = n5.getDatasetAttributes( dataset ).getDimensions();
 			spacing = n5.getAttribute( dataset, N5DisplacementField.SPACING_ATTR, double[].class );
 			if ( spacing == null )
-				spacing = new double[] { 1, 1, 1 };
+				spacing = new double[]{ 1, 1, 1 };
+
+			return new ValuePair<>( dims, spacing );
 		}
 		else
 		{
-			Arrays.fill( min, Double.NEGATIVE_INFINITY );
-			Arrays.fill( min, Double.POSITIVE_INFINITY );
-		}
+			long[] max = new long[ 3 ];
+			Arrays.fill( max, Long.MAX_VALUE );
 
-		if ( dims != null && spacing != null )
-		{
-			// min is always going to be zero
-			for ( int d = 0; d < 3; d++ )
-				max[ d ] = dims[ d ] * spacing[ d ];
+			return new ValuePair<>( max, new double[] { 1, 1, 1 } );
 		}
-
-		return new FinalRealInterval( min, max );
 	}
 
 	public static class H5TransformParameters
