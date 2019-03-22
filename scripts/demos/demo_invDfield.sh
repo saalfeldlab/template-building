@@ -1,9 +1,11 @@
 #!/bin/bash
-        
+
 thisdir=$(pwd)
 
 # The forward transform
-fwd="JRC2018F_FCWB_verysmall_fwd.nrrd"
+fwd="JRC2018F_FCWB_small.nrrd"
+convertDfield JRC2018F_FCWB_small.h5 $fwd
+
 
 # The estimated inverse trasnform
 inv_it="JRC2018F_FCWB_verysmall_invITERATIVE-EST.nrrd"
@@ -17,8 +19,8 @@ transform2Dfield \
 
 
 # Evaluatethe results
-pts="testPts_verysmall.csv"
-ptsxfm="testPts_verysmall_xfm.csv" # transformed points
+pts="testPts_small.csv"
+ptsxfm="testPts_small_xfm.csv" # transformed points
 
 
 # Generate a list of points in the field of view
@@ -34,7 +36,7 @@ transformPoints \
     -d ','
 
 # See how close the transformed points are to the originals
-tDiff="testPts_verysmall_diffmag.csv"
+ptDiff="testPts_small_diffmag.csv"
 pointDifference $thisdir/$pts $thisdir/$ptsxfm $thisdir/$ptDiff -d ',' --mag
 
 echo " "
