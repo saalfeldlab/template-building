@@ -5,7 +5,7 @@ Associated template images and transformations can be downloaded [here](https://
 
 ## Installation
 #### Prerequisites
-* [Apache maven](https://maven.apache.org/index.html)
+* [Apache maven](https://maven.apache.org/index.html) (3.3.9 or higher)
 #### Instructions (Unix-based: Linux/Mac)
 * Check out and install this repo:
 ```
