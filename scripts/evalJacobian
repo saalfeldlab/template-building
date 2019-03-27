@@ -82,6 +82,11 @@ do
             #echo "prefix: $prefix"
 
             out="${prefix}_xform"
+
+            if [ -f $out ]; then
+                echo "Exists, skipping $out"
+                continue
+            fi
             echo "out: $out"
 
             echo "field: $field"
@@ -111,6 +116,10 @@ do
             prefix=$(echo $tmp | sed "s/$PATTERN/\1/g")
 
             out="${prefix}_xform"
+            if [ -f $out ]; then
+                echo "Exists, skipping $out"
+                continue
+            fi
             echo "out: $out"
 
             echo "field: $field"
@@ -133,7 +142,12 @@ do
 
         else
             baseName=${field##*/}
+
             out=`echo $baseName | sed 's/.nii//g'`
+            if [ -f $out ]; then
+                echo "Exists, skipping $out"
+                continue
+            fi
             echo "out: $out"
 
             jacimg="$dir/jacobian/${out}jacobian.nii"
@@ -153,11 +167,12 @@ do
 
     #fi
     
-
-    # Dump data
-    data_out="$dir/jacobian/${out}_data.csv"
-    echo "compartmentImageData $data_out $jacimgr $compartments $compartments false" >> $job
-    echo "jacLabelStats $data_out" >> $job
+    ## Dump data
+    ## This is quite slow and very memory hungry
+    ## Faster alternative Below
+    #data_out="$dir/jacobian/${out}_data.csv"
+    #echo "compartmentImageData $data_out $jacimgr $compartments $compartments false" >> $job
+    #echo "jacLabelStats $data_out" >> $job
 
     chmod +x "$job"
 
@@ -165,5 +180,21 @@ do
     #break
 
 done <$neuronList
+
+cd jacobian
+subJobs -w -o '-n 4' jacobian*sh
+
+## This approach is much faster if only the mean and variance are needed
+## Uses an online algorithm to estimate those two quantities in one
+## pass through the data
+stats_out="$dir/jacobian/stats.csv"
+jacInputs=$(readlink -f *resamp* | sed 's/^/-i /g' | tr '\n' ' ')
+
+jacstatsjob="stats_job.sh"
+echo "#!/bin/bash" > $jacstatsjob
+echo "labelStats -o $stats_out -l $compartments $jacInputs" >> $jacstatsjob
+chmod +x $jacstatsjob
+
+./$jacstatsjob
 
 cd ..
