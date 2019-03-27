@@ -7,6 +7,8 @@
 PAIRLIST="/nrs/saalfeld/john/projects/flyChemStainAtlas/eval/prefix_list_by_neuron.txt"
 IMGDIR="/nrs/saalfeld/john/projects/flyChemStainAtlas/eval/dataNew"
 
+eval_dir="/nrs/saalfeld/john/projects/flyChemStainAtlas/all_evals"
+
 prefixPattern="\(201[6-7][0-9]\{4\}\_[0-9][0-9]_[A-Z][0-9]\).*"
 deletePattern="s/_Scope_.*$//g"
 
@@ -32,7 +34,7 @@ if [[ $# -ge 5 ]];
 then
     realInterval="$5"
 fi
-echo "toNormSpaceXfm: $toNormSpaceXfm"
+echo "realInterval: $realInterval"
 
 destDirectory="evalCompWarpNorm"
 if [[ $# -ge 6 ]];
@@ -280,11 +282,19 @@ pairwiseEval
 
 combineDataByLine "labelData"
 
+#tabulate_data -d $eval_dir \
+
+
+
+
 ## Organize statistics by label
-distXfmLabelStats
+## Do this differently now
+#distXfmLabelStats
 
 
 ## Some brief analysis
+## Do analysis outside 
+
 #labellist=$(uniqueLabels $compartments)
 #echo $labellist
 #for label in $labellist;
