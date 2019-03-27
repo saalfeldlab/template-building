@@ -109,6 +109,9 @@ def main( dest_file, base_dir, template_list, alg_list, eval_arg, line_list, dat
 
     df_tot = pd.DataFrame( columns=['TEMPLATE','ALG','LINE','LABEL','DISTANCE'])
 
+    num_algs=len(alg_list)
+    print( 'nalgs: ', num_algs )
+
     # Read the data
     for template, alg, line in itertools.product( template_list, alg_list, line_list ):
         # Read label stats
@@ -147,19 +150,21 @@ def main( dest_file, base_dir, template_list, alg_list, eval_arg, line_list, dat
     df_at_stats['LABEL'] = -1
     df_all = df_atl_stats.append( df_at_stats ) # append
 
-    # Group algorithms, split labels
-    print( 'stats over all algorithms, split by labels' )
-    df_lstats = df_l.agg( agg_dict )
-    df_lstats['ALG'] = 'ALL'
-    df_all = df_all.append( df_lstats ) # append
 
-    # Group algorithms, group labels
-    print( 'stats over all algorithms, all labels' )
-    df_grandstats = df_t.agg( agg_dict )
-    df_grandstats['LABEL'] = -1
-    df_grandstats['ALG'] = 'ALL'
+    # Only group algorithms if we've passed more than one
+    if( num_algs > 1 ):
+        # Group algorithms, split labels
+        print( 'stats over all algorithms, split by labels' )
+        df_lstats = df_l.agg( agg_dict )
+        df_lstats['ALG'] = 'ALL'
+        df_all = df_all.append( df_lstats ) # append
 
-    df_all = df_all.append( df_grandstats ) # append
+        # Group algorithms, group labels
+        print( 'stats over all algorithms, all labels' )
+        df_grandstats = df_t.agg( agg_dict )
+        df_grandstats['LABEL'] = -1
+        df_grandstats['ALG'] = 'ALL'
+        df_all = df_all.append( df_grandstats ) # append
 
     process_gamma_params( df_all )
     process_ray_params( df_all )
