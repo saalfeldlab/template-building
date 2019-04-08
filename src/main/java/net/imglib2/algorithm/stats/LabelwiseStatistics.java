@@ -9,6 +9,9 @@ import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.stream.Collectors;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import io.IOHelper;
 import net.imglib2.Cursor;
 import net.imglib2.RandomAccess;
@@ -24,6 +27,8 @@ import picocli.CommandLine.Option;
 public class LabelwiseStatistics< L extends IntegerType< L >, T extends RealType< T > > implements Callable< Void >
 {
 
+	public static long NO_ALL_LABEL = Long.MIN_VALUE;
+
 	@Option( names = { "-i", "--input" }, required = true, description = "Image to compute the statistics for." )
 	private List< String > inputs;
 
@@ -32,6 +37,11 @@ public class LabelwiseStatistics< L extends IntegerType< L >, T extends RealType
 
 	@Option( names = { "-l", "--labelVolume" }, required = true, description = "File containing the discrete labels." )
 	private List< String > labelVolumes;
+
+	@Option( names = { "-a", "--all-label" }, required = false, 
+			description = "If this value is set, then another label with this value is added to the table and "
+					+ "gives the statistics for all values over all non-background labels. Long.MIN_VALUE (-9223372036854775808) is disallowed." )
+	private long allLabel = NO_ALL_LABEL;
 
 	@Option( names = { "-b", "--background" }, required = false, description = "The background label (default = ${DEFAULT-VALUE})." )
 	private long backgroundLabel = 0;
@@ -48,14 +58,24 @@ public class LabelwiseStatistics< L extends IntegerType< L >, T extends RealType
 	@Option(names = {"-h", "--help"}, usageHelp = true, description = "Print this help message" )
 	private boolean help;
 
-	HashMap< Long, Double > means = new HashMap<>();
+	HashMap< Long, Double > means;
 
-	HashMap< Long, Double > vars = new HashMap<>();
+	HashMap< Long, Double > vars;
 
-	HashMap< Long, Long > counts = new HashMap<>();
+	HashMap< Long, Long > counts;
 
 	// need to keep track of this for online computation of variance
-	HashMap< Long, Double > m2s = new HashMap<>();
+	HashMap< Long, Double > m2s;
+
+	final Logger logger = LoggerFactory.getLogger( LabelwiseStatistics.class );
+
+	public LabelwiseStatistics()
+	{
+		means = new HashMap<>();
+		counts = new HashMap<>();
+		vars = new HashMap<>();
+		m2s = new HashMap<>();
+	}
 
 	public static void main( String[] args )
 	{
@@ -82,6 +102,7 @@ public class LabelwiseStatistics< L extends IntegerType< L >, T extends RealType
 		}
 		else if ( labelVolumes.size() == 1 )
 		{
+			logger.info( "reading " + labelVolumes.get( 0 ));
 			fixedLabels = io.readRai( new File( labelVolumes.get( 0 ) ) );
 		}
 
@@ -89,6 +110,7 @@ public class LabelwiseStatistics< L extends IntegerType< L >, T extends RealType
 		RandomAccessibleInterval< T > img = null;
 		for ( int i = 0; i < inputs.size(); i++ )
 		{
+			logger.info( "reading " + inputs.get( i ));
 			img = ( RandomAccessibleInterval< T > ) io.readRai( new File( inputs.get( i ) ) );
 
 			if ( fixedLabels != null )
@@ -97,10 +119,12 @@ public class LabelwiseStatistics< L extends IntegerType< L >, T extends RealType
 			}
 			else
 			{
+				logger.info( "reading " + labelVolumes.get( i ));
 				labels = ( RandomAccessibleInterval< L > ) io.readRai( new File( labelVolumes.get( i ) ) );
 			}
 
 			process( img, labels );
+			img = null;
 		}
 
 		PrintWriter out = null;
@@ -140,8 +164,14 @@ public class LabelwiseStatistics< L extends IntegerType< L >, T extends RealType
 
 	public void process( RandomAccessibleInterval< T > img, RandomAccessibleInterval< L > labels )
 	{
-		means = new HashMap<>();
-		counts = new HashMap<>();
+
+		if( allLabel != NO_ALL_LABEL && !counts.containsKey( allLabel ))
+		{
+			logger.info( "merged statistics go to label: " + allLabel );
+			counts.put( allLabel, new Long( 0 ) );
+			means.put( allLabel, new Double( 0 ) );
+			m2s.put( allLabel, new Double( 0 ) );
+		}
 
 		Cursor< T > c = Views.flatIterable( img ).cursor();
 		RandomAccess< L > ra = labels.randomAccess();
@@ -152,6 +182,7 @@ public class LabelwiseStatistics< L extends IntegerType< L >, T extends RealType
 			ra.setPosition( c );
 
 			T val = c.get();
+			double x = val.getRealDouble();
 			L labeltype = ra.get();
 			long label = labeltype.getIntegerLong();
 
@@ -166,30 +197,35 @@ public class LabelwiseStatistics< L extends IntegerType< L >, T extends RealType
 				m2s.put( label, new Double( 0 ) );
 			}
 
-			// update the value for 'label'
-			counts.put( label, counts.get( label ) + 1 );
+			update( label, x );
 
-			long count = counts.get( label );
-
-			double x = val.getRealDouble();
-			double mn = means.get( label );
-
-			double del = x - mn;
-			mn += del / count;
-			double del2 = x - mn;
-
-			means.put( label, mn );
-
-			double m2 = m2s.get( label );
-			m2s.put( label, m2 + ( del * del2 ) );
-
+			if( allLabel != NO_ALL_LABEL )
+				update( allLabel, x );
 		}
 
-		vars = new HashMap<>();
 		for ( Long label : means.keySet() )
 		{
 			vars.put( label, m2s.get( label ) / counts.get( label ) );
 		}
+	}
+
+	protected void update( long label, double x )
+	{
+		// update the value for 'label'
+		counts.put( label, counts.get( label ) + 1 );
+
+		long count = counts.get( label );
+
+		double mn = means.get( label );
+
+		double del = x - mn;
+		mn += del / count;
+		double del2 = x - mn;
+
+		means.put( label, mn );
+
+		double m2 = m2s.get( label );
+		m2s.put( label, m2 + ( del * del2 ) );
 	}
 
 	public HashMap< Long, Double > getMeans()
