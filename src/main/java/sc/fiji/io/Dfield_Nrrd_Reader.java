@@ -172,7 +172,7 @@ public class Dfield_Nrrd_Reader extends ImagePlus implements PlugIn
 		Calibration spatialCal = this.getCalibration();
 		
 		// NB Need RAF in order to ensure that we know file offset
-		RandomAccessFile input = new RandomAccessFile(fi.directory+fi.fileName,"r");
+		RandomAccessFile input = new RandomAccessFile(fi.directory+File.separator+fi.fileName,"r");
 
 		String thisLine,noteType,noteValue, noteValuelc;
 
