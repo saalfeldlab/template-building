@@ -52,6 +52,7 @@ public class TransformReader
 	public static final String C_FLAG = "c";
 	public static final String MAXITERS_FLAG = "maxIters";
 	public static final String TOLERANCE_FLAG = "tolerance";
+	public static final String STEP_TRIES_FLAG = "stepTries";
 
 	public static final String IDENTITY = "id";
 
@@ -105,7 +106,6 @@ public class TransformReader
 				String[] paramParts = part.split(";");
 				for( String param : paramParts )
 				{
-					System.out.println( param );
 					if( param.startsWith( INVOPT_FLAG ))
 					{
 						continue;
@@ -128,6 +128,11 @@ public class TransformReader
 					else if( param.startsWith( MAXITERS_FLAG ))
 					{
 						inverseOptimizer.setMaxIters( 
+								Integer.parseInt( param.substring( param.indexOf( "=" ) + 1 )));
+					}
+					else if( param.startsWith( STEP_TRIES_FLAG ))
+					{
+						inverseOptimizer.setStepSizeMaxTries( 
 								Integer.parseInt( param.substring( param.indexOf( "=" ) + 1 )));
 					}
 					else
