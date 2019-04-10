@@ -184,8 +184,8 @@ public class TransformToDeformationField implements Callable<Void>
 
 		RandomAccessibleInterval< T > dfield = DfieldIoHelper.vectorAxisPermute( dfieldraw, 3, 3 );
 
-		logger.info( "processing" );
-		transformToDeformationField( transform, dfield, pixelToPhysical );
+		logger.info( "processing with " + nThreads + " threads." );
+		transformToDeformationField( transform, dfield, pixelToPhysical, nThreads );
 
 		logger.info( "writing" );
 		DfieldIoHelper dfieldIo = new DfieldIoHelper();
@@ -246,6 +246,7 @@ public class TransformToDeformationField implements Callable<Void>
 		ArrayList<Callable<Void>> jobs = new ArrayList<Callable<Void>>();
 		for( int i = 0; i < nThreads; i++ )
 		{
+            final int start = i;
 			jobs.add( new Callable<Void>()
 			{
 				@Override
@@ -258,7 +259,7 @@ public class TransformToDeformationField implements Callable<Void>
 
 					final RandomAccess< T > dfieldRa = dfield.randomAccess();
 					final IntervalIterator it = new IntervalIterator( Views.hyperSlice( dfield, vecdim, 0 ));
-					it.jumpFwd( step );
+					it.jumpFwd( start );
 					while( it.hasNext() )
 					{
 						it.jumpFwd( step );
