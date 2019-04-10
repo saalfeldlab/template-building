@@ -1,5 +1,6 @@
 package transforms;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.concurrent.Callable;
 
@@ -113,7 +114,8 @@ public class DownsampleDfield implements Callable<Void>
 			System.out.println( "target sigmas: " + Arrays.toString( targetSigmas ) );
 
 			double[] factorsD = Arrays.stream( factors ).mapToDouble( x -> ( double ) x ).toArray();
-			dfieldDown = downsampleDisplacementField( dfield, factorsD, sourceSigmas, targetSigmas, nThreads );
+			//dfieldDown = downsampleDisplacementField( dfield, factorsD, sourceSigmas, targetSigmas, nThreads );
+			dfieldDown = downsampleDisplacementFieldStacked( dfield, factorsD, sourceSigmas, targetSigmas, nThreads );
 		}
 
 		if( estimateError )
@@ -149,6 +151,33 @@ public class DownsampleDfield implements Callable<Void>
 		return null;
 	}
 
+	public static <T extends RealType<T> & NativeType<T>> RandomAccessibleInterval< T > downsampleDisplacementFieldStacked(
+			final RandomAccessibleInterval< T > dfield, 
+			final double[] factors,
+			final double[] sourceSigmas, 
+			final double[] targetSigmas, 
+			int nThreads )
+	{
+		int vectorDim = dfield.numDimensions() - 1;
+		Interval spatialInterval = DownsampleGaussian.inferOutputIntervalFromFactors( Views.hyperSlice( dfield, vectorDim, 0 ), factors );
+		NLinearInterpolatorFactory< T > interpFactory = new NLinearInterpolatorFactory<T>();
+
+		ArrayList<RandomAccessibleInterval<T>> vecList = new ArrayList<>();
+		for( int i = 0; i < dfield.numDimensions() - 1; i++ )
+		{
+			ArrayImgFactory< T > factory = new ArrayImgFactory<>( Util.getTypeFromInterval( dfield ));
+			ArrayImg< T, ? > dfieldComponent = factory.create( spatialInterval );
+
+			IntervalView< T > dv = Views.hyperSlice( dfield, vectorDim, i );
+			DownsampleGaussian.resampleGaussian( 
+					dv, dfieldComponent, new long[ spatialInterval.numDimensions() ], interpFactory, factors, sourceSigmas, targetSigmas, nThreads, 1e-6 );
+
+			vecList.add( dfieldComponent );
+		}
+
+		return Views.stack( vecList );
+	}
+
 	public static <T extends RealType<T> & NativeType<T>> RandomAccessibleInterval< T > downsampleDisplacementField(
 			final RandomAccessibleInterval< T > dfield, 
 			final double[] factors,
@@ -165,6 +194,7 @@ public class DownsampleDfield implements Callable<Void>
 
 		ArrayImgFactory< T > factory = new ArrayImgFactory<>( Util.getTypeFromInterval( dfield ));
 		ArrayImg< T, ? > dfieldDown = factory.create( outdims );
+
 		downsampleDisplacementField( dfield, dfieldDown, factors, sourceSigmas, targetSigmas, nThreads );
 		return dfieldDown;
 	}
@@ -193,7 +223,10 @@ public class DownsampleDfield implements Callable<Void>
 			IntervalView< T > src = Views.hyperSlice( dfield, vectorDim, i );
 			IntervalView< T > dst = Views.hyperSlice( dfieldDown, vectorDim, i );
 
-			DownsampleGaussian.resampleGaussianInplace( 
+//			DownsampleGaussian.resampleGaussianInplace( 
+//					src, dst, offset, interpFactory, factors, sourceSigmas, targetSigmas, nThreads, 1e-6 );
+
+			DownsampleGaussian.resampleGaussian( 
 					src, dst, offset, interpFactory, factors, sourceSigmas, targetSigmas, nThreads, 1e-6 );
 		}
 	}

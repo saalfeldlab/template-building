@@ -33,6 +33,8 @@ import net.imglib2.exception.ImgLibException;
 import net.imglib2.exception.IncompatibleTypeException;
 import net.imglib2.img.Img;
 import net.imglib2.img.ImgFactory;
+import net.imglib2.img.array.ArrayImg;
+import net.imglib2.img.array.ArrayImgFactory;
 import net.imglib2.img.display.imagej.ImageJFunctions;
 import net.imglib2.img.imageplus.ImagePlusImg;
 import net.imglib2.img.imageplus.ImagePlusImgFactory;
@@ -392,7 +394,14 @@ public class DownsampleGaussian implements Callable<Void>
 		validateSigmas( sourceSigmas, epsilon );
 		validateSigmas( targetSigmas, epsilon );
 
-		resampleGaussianInplace( 
+//		resampleGaussianInplace( 
+//				ipi, out, offset,
+//				interpfactory, 
+//				downsampleFactors, sourceSigmas, targetSigmas,
+//				nThreads,
+//				epsilon );
+
+		resampleGaussian( 
 				ipi, out, offset,
 				interpfactory, 
 				downsampleFactors, sourceSigmas, targetSigmas,
@@ -484,7 +493,13 @@ public class DownsampleGaussian implements Callable<Void>
 
 		Img< T > out = outputFactory.create( outputInterval );
 
-		resampleGaussianInplace( 
+//		resampleGaussianInplace( 
+//				in, out, offset,
+//				interpfactory, 
+//				factors, sourceSigmas, targetSigmas,
+//				nThreads, epsilon );
+
+		resampleGaussian( 
 				in, out, offset,
 				interpfactory, 
 				factors, sourceSigmas, targetSigmas,
@@ -706,6 +721,101 @@ public class DownsampleGaussian implements Callable<Void>
 		System.out.println( "finished");
 
 	}
+
+	/**
+	 * Create a downsampled {@link Img}.
+	 *
+	 * @param img the source image
+	 * @param downsampleFactors scaling factors in each dimension
+	 * @param sourceSigmas the Gaussian at which the source was sampled (guess 0.5 if you do not know)
+	 * @param targetSigmas the Gaussian at which the target will be sampled
+	 *
+	 * @return a new {@link Img}
+	 */
+	public static <T extends RealType<T> & NativeType<T>, S extends RealType<S> & NativeType<S>> void resampleGaussian( 
+			final RandomAccessibleInterval< S > imgIn,
+			final RandomAccessibleInterval< T > out,
+			final long[] offset,
+			final InterpolatorFactory< S, RandomAccessible< S > > interpFactory,
+			final double[] downsampleFactors, 
+			final double[] sourceSigmas,
+			final double[] targetSigmas,
+			final int nThreads,
+			final double epsilon )
+	{
+	
+		int ndims = imgIn.numDimensions();
+
+		ArrayImgFactory< S > factory = new ArrayImgFactory<>(Views.flatIterable( imgIn ).firstElement());
+		ArrayImg< S, ? > img = factory.create( imgIn );
+		System.out.println( "allocating img for gauss size: " + Util.printInterval( img ) );
+
+		if( !Double.isNaN( targetSigmas[0]) && !Double.isNaN(sourceSigmas[0]))
+		{
+			double[] sigs = new double[ ndims ];
+			for ( int d = 0; d < ndims; d++ )
+			{
+				double s = targetSigmas[d] * downsampleFactors[d];
+				sigs[d] = Math.sqrt( s * s  - sourceSigmas[d] * sourceSigmas[d] );
+
+				if( sigs[d] < epsilon || Double.isNaN( sigs[ d ]))
+					sigs[ d ] = epsilon;
+			}
+
+			System.out.println( "using sigs: " + Arrays.toString( sigs ));
+			try
+			{
+				System.out.print( "Gaussian..");
+				if ( nThreads < 1 )
+				{
+					System.out.println( "using all threads" );
+					Gauss3.gauss( sigs, Views.extendBorder( imgIn ), img );
+				}
+				else
+				{
+					System.out.println( "using " + nThreads + " threads" );
+					Gauss3.gauss( sigs, Views.extendBorder( imgIn ), img, nThreads );
+				}
+				System.out.println( "finished");
+			}
+			catch ( IncompatibleTypeException e )
+			{
+				e.printStackTrace();
+			}
+		}
+
+		double[] min = new double[ out.numDimensions() ];
+		for ( int d = 0; d < ndims; d++ )
+			min[ d ] = offset[ d ] * downsampleFactors[ d ];
+
+		// use LUT to trade memory for speed 
+		System.out.print( "Build LUT.."); 
+		double[][] coordLUT = new double[ndims][];
+		for( int d = 0; d<ndims; d++)
+		{
+			int nd = (int)out.dimension(d);
+			coordLUT[d] = new double[nd];
+			for( int i = 0; i<nd; i++)
+			{
+				coordLUT[d][i] =  ( min[ d ] +  i * downsampleFactors[d] );
+			}
+		}
+
+		RealRandomAccess< S > rra = Views.interpolate( Views.extendBorder( img ), interpFactory ).realRandomAccess();
+
+		System.out.print( "Resampling..");
+		int[] pos = new int[ out.numDimensions() ];
+		Cursor<T> outc = Views.iterable( out ).cursor();
+		while( outc.hasNext() )
+		{
+			outc.fwd();
+			outc.localize( pos );
+			setPositionFromLut( pos, coordLUT, rra );
+			outc.get().setReal( rra.get().getRealDouble() );
+		}
+		System.out.println( "finished");
+
+	}
 	
 	/**
 	 * Create a downsampled {@link Img}.
@@ -784,12 +894,8 @@ public class DownsampleGaussian implements Callable<Void>
 				coordLUT[d][i] =  ( min[ d ] +  i * downsampleFactors[d] );
 			}
 		}
-		
-//		RealRandomAccessible< T > rra = Views.interpolate( Views.extendZero( img ), interpFactory );
-//		RealRandomAccess< T > rrab = rra.realRandomAccess();
 
 		RealRandomAccess< S > rra = Views.interpolate( Views.extendBorder( img ), interpFactory ).realRandomAccess();
-
 
 		System.out.print( "Resampling..");
 		int[] pos = new int[ out.numDimensions() ];
