@@ -631,5 +631,12 @@ public class TransformReader
 			return new H5TransformParameters( path, fwddataset, invdataset, inverse, affineOnly, deformationOnly );
 		}
 	}
-	
+
+	public static AffineTransform3D from( AffineTransform xfm )
+	{
+		assert xfm.numDimensions() == 3;
+		AffineTransform3D out = new AffineTransform3D();
+		out.set( xfm.getRowPackedCopy());
+		return out;
+	}
 }
