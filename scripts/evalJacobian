@@ -192,7 +192,7 @@ jacInputs=$(readlink -f *resamp* | sed 's/^/-i /g' | tr '\n' ' ')
 
 jacstatsjob="stats_job.sh"
 echo "#!/bin/bash" > $jacstatsjob
-echo "labelStats -o $stats_out -l $compartments $jacInputs" >> $jacstatsjob
+echo "labelStats -o $stats_out -a "-1" -l $compartments $jacInputs" >> $jacstatsjob
 chmod +x $jacstatsjob
 
 ./$jacstatsjob

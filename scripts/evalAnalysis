@@ -10,13 +10,17 @@ DOVISNEURONOVERLAY=""
 DOREPORT=""
 NEEDPREPROC=""
 
+
 CENTILES='0.01,0.05,0.1,0.25,0.5,0.75,0.9,0.95,0.99'
 INTERVAL="850,650,250" 
 ANALYSISRESOLUTION="0.5,0.5,0.5" # in microns
+NORMXFM=""
+ANALYSISINTERVAL=""
+#0,0,0:1395,680,415
 
 PREFIX="ALLF"
 
-while getopts "ac:djlnprst:v" OPT
+while getopts "ac:di:jlnprst:vx:" OPT
 do
     case $OPT in
     a) # do all
@@ -38,6 +42,10 @@ do
     e) # resolution for analysis
        ANALYSISRESOLUTION=$OPTARG
        echo "resolution for analysis: $ANALYSISRESOLUTION"
+       ;;
+    i) # resolution for analysis
+       ANALYSISINTERVAL=$OPTARG
+       echo "interval for analysis: $ANALYSISINTERVAL"
        ;;
     j) # jacobian 
        DOJACOBIAN="1"
@@ -65,6 +73,10 @@ do
     s) # neuron similarity 
        DONEURONSIM="1"
        NEEDPREPROC="1"
+       ;;
+    x) # normalizing transform
+       NORMXFM=$OPTARG
+       echo "Normalizing transform: $NORMXFM"
        ;;
     v) # vis neuron overlay 
        DOVISNEURONOVERLAY="1"
@@ -136,8 +148,7 @@ fi
 ## DISTANCE TRANSFORM LABEL-WISE
 if [ $DODISTXFMLABELS ]; then
     echo "Doing distance transform label-wise"
-    #runDistXfmHistEvalComp $TEMPLATE $COMPARTMENTS $CENTILES
-    runDistXfmEvalComp $TEMPLATE $COMPARTMENTS $ANALYSISRESOLUTION
+    runDistXfmEvalComp "$TEMPLATE" "$COMPARTMENTS" "$ANALYSISRESOLUTION" "$NORMXFM" "$ANALYSISINTERVAL" "evalCompWarpNorm"
 fi
 
 ## TRANSFORMING NEURON IMAGES
