@@ -1,0 +1,68 @@
+#!/bin/bash
+
+helpstring="$(basename "$0") [-h] [-i INPUT ] [-o OUTPUT] [-t TRANSFORM] Use transformix to apply a spatial transform to an swc file" 
+
+CLEAN=1
+while getopts "hdi:o:t:" OPT
+do
+    case $OPT in
+    h) # help
+       echo "$helpstring"
+       exit 0
+       ;;
+    i) # output
+       IN="$OPTARG"
+       ;;
+    o) # output
+       OUT="$OPTARG"
+       ;;
+    t) # transform
+       TRANSFORM="$OPTARG"
+       ;;
+    d) # don't clean
+       CLEAN=0
+       ;;
+    \?) # getopts issues an error message
+       echo "$helpstring" >&2
+       exit 1
+       ;;
+    esac
+done
+
+echo $CLEAN
+pts="${OUT}_tmp_coord.txt"
+ptsxfm="${OUT}_tmp_coord_xfm.txt"
+pre="${OUT}_tmp_pre.txt"
+post="${OUT}_tmp_post.txt"
+
+# Ignore comments
+# drop coordinates into a file
+awk '/^[0-9]/{print $3, $4, $5}' $IN > $pts
+N=$(wc -l $pts | awk '{print $1}')
+
+# format so that transformix likes it
+#   prepend 'point' to indicate that these are point coordinates 
+#       (not image pixel indices)
+sed -i '1i point' $pts
+#   prepend the number of points 
+sed -i "2i $N" $pts
+
+# drop other data in another file
+awk '/^[0-9]/{print $1, $2}' $IN > $pre
+awk '/^[0-9]/{print $6, $7}' $IN > $post
+
+# do the transform
+d=$(dirname $pts)
+transformix -out $d -tp $TRANSFORM -def $pts
+
+# get the relevant part of the output
+awk -F';' '{print $5}' ${d}/outputpoints.txt  | sed 's/.*\[ \(.*\) \].*/\1/g' > $ptsxfm
+
+# Add back the swc columns (index, radius, parent, etc)
+paste -d' ' $pre $ptsxfm $post > $OUT
+
+## clean tmp files
+if [[ $CLEAN == "1" ]]
+then
+    rm $pts $ptsxfm $pre $post $d/outputpoints.txt $d/transformix.log
+fi
