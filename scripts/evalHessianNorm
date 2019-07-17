@@ -1,0 +1,198 @@
+#!/bin/bash
+# 
+
+GZPATTERN="*.gz"
+PATTERN=".*\(201[6-7][0-9]\{4\}\_[0-9][0-9]_[A-Z][0-9]\).*"
+
+neuronList="/nrs/saalfeld/john/projects/flyChemStainAtlas/eval/dataNew/neuron_list.txt"
+hessExe="/groups/saalfeld/home/bogovicj/dev/template/template-building-pub/jgo/measureDfieldSmoothness"
+
+HISTBINS="128"
+HISTTHRESH="0.5"
+
+HISTMIN="-2"
+HISTMAX="4"
+
+LOGHISTMIN="-2"
+LOGHISTMAX="2" 
+
+ref="$1"
+compartments="$2"
+
+if [[ -z $ref ]];
+then
+    echo "Must specify reference" 
+    exit 1
+fi
+
+isCmtk=""
+if [[ -d Registration ]];
+then
+    echo "is CMTK"
+    isCmtk="1"
+fi
+
+isElastix=""
+numElastix=$(ls */elastix.log | wc -l)
+if [[ $numElastix > 0 ]];
+then
+    isElastix="1"
+fi
+
+mkdir -p hessian
+
+dir=`pwd`
+i=0
+
+while read neurImg
+do
+    echo $neurImg
+
+    job="hessian/hessian_$i.sh"
+    echo "#!/bin/bash" > $job
+     
+    if [[ -n $isCmtk ]];
+    then
+        regXfms=`matchEvalDataCmtk --conv $neurImg $dir`
+        echo "regXfms: $regXfms"
+        field=$regXfms
+    elif [[ -n $isElastix ]];
+    then
+        regXfms=`matchEvalDataElastix $neurImg $dir`
+        echo "regXfms: $regXfms"
+        field=$regXfms
+    else
+        regXfms=`matchEvalData $neurImg $dir`
+        field=$(echo $regXfms | awk '{print $2}')   
+    fi
+    echo "field: $field"
+
+
+    if [[ $isCmtk ]];
+    then
+        echo "editing name for Elastix"
+
+        tmp=$(dirname $field)
+        prefix=$(echo $tmp | sed "s/$PATTERN/\1/g")
+
+        out="${prefix}_xform"
+
+        if [ -f $out ]; then
+            echo "Exists, skipping $out"
+            continue
+        fi
+        echo "out: $out"
+
+        echo "field: $field"
+        if [[ $field == *.gz ]];
+        then 
+            #echo "stripping off gz"
+            field=${field%.*}
+        fi
+        echo "field: $field"
+
+        hessNrmImg="$dir/hessian/${out}hessian.nii"
+        hessNrmImgr="$dir/hessian/${out}hessian_resamp.nii"
+
+        if [ -f $hessNrmImg ];
+        then
+            echo "Exists, skipping $hessNrmImg"
+            continue
+        fi
+
+        echo "#!/bin/bash" > $job
+        echo "$hessExe -i $field --outputHessianNorm $hessNrmImg" >> $job
+        ## Transform to 0.5um isotropic
+        echo "ResampleImageBySpacing 3 $hessNrmImg $hessNrmImgr 0.5 0.5 0.5 0 0 0" >> $job
+        echo " "
+
+    elif [[ -n $isElastix ]];
+    then
+
+        echo "editing name for elastix"
+        tmp=$(dirname $field)
+        prefix=$(echo $tmp | sed "s/$PATTERN/\1/g")
+
+        out="${prefix}_xform"
+        if [ -f $out ]; then
+            echo "Exists, skipping $out"
+            continue
+        fi
+        echo "out: $out"
+
+        echo "field: $field"
+        if [[ $field == *.gz ]];
+        then 
+            #echo "stripping off gz"
+            field=${field%.*}
+        fi
+        echo "field: $field"
+
+        hessNrmImg="$dir/hessian/${out}hessian.nii"
+        hessNrmImgr="$dir/hessian/${out}hessian_resamp.nii"
+
+        if [ -f $hessNrmImg ];
+        then
+            echo "Exists, skipping $hessNrmImg"
+            continue
+        fi
+
+        ## not happy with reformatx
+        #echo "reformatx --hessian-correct-global -o $jacimg $ref -j $field" >> $job
+
+        echo "#!/bin/bash" > $job
+        echo "$hessExe -i $field --outputHessianNorm $hessNrmImg" >> $job
+        ## Transform to 0.5um isotropic
+        echo "ResampleImageBySpacing 3 $hessNrmImg $hessNrmImgr 0.5 0.5 0.5 0 0 0" >> $job
+        echo " "
+
+    else
+        baseName=${field##*/}
+
+        out=`echo $baseName | sed 's/.nii//g'`
+        if [ -f $out ]; then
+            echo "Exists, skipping $out"
+            continue
+        fi
+        echo "out: $out"
+
+        hessNrmImg="$dir/hessian/${out}hessian.nii"
+        hessNrmImgr="$dir/hessian/${out}hessian_resamp.nii"
+
+        if [ -f $hessNrmImg ];
+        then
+            echo "Exists, skipping $hessNrmImg"
+            continue
+        fi
+
+        echo "#!/bin/bash" > $job
+        echo "$hessExe -i $field --outputHessianNorm $hessNrmImg" >> $job
+        ## Transform to 0.5um isotropic
+        echo "ResampleImageBySpacing 3 $hessNrmImg $hessNrmImgr 0.5 0.5 0.5 0 0 0" >> $job
+        echo " "
+    fi
+
+    chmod +x "$job"
+
+    ((i++))
+    #break
+
+done <$neuronList
+
+cd hessian
+#subJobs -w -o '-n 2' hessian*sh
+
+## This approach is much faster if only the mean and variance are needed
+## Uses an online algorithm to estimate those two quantities in one
+## pass through the data
+stats_out="$dir/hessian/stats.csv"
+hessInputs=$(readlink -f *resamp* | sed 's/^/-i /g' | tr '\n' ' ')
+
+hessStatsJob="stats_job.sh"
+echo "#!/bin/bash" > $hessStatsJob
+echo "labelStats -o $stats_out -a "-1" -l $compartments $hessInputs" >> $hessStatsJob
+chmod +x $hessStatsJob
+
+./$hessStatsJob
+
+cd ..
