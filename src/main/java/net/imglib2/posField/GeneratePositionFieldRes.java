@@ -1,55 +1,97 @@
 package net.imglib2.posField;
 
 import java.io.File;
+import java.util.concurrent.Callable;
 
-import org.janelia.utility.parse.ParseUtils;
 
-import ij.IJ;
 import ij.ImagePlus;
 import io.IOHelper;
-import io.nii.Nifti_Writer;
 import net.imglib2.FinalInterval;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.exception.ImgLibException;
 import net.imglib2.img.imageplus.FloatImagePlus;
 import net.imglib2.img.imageplus.ImagePlusImgs;
+import net.imglib2.loops.LoopBuilder;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.numeric.real.FloatType;
+import net.imglib2.util.Intervals;
 import net.imglib2.util.Util;
 import net.imglib2.view.Views;
-import process.RenderTransformed;
+import picocli.CommandLine;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
 import util.RenderUtil;
 
-public class GeneratePositionFieldRes
+@Command( version = "0.1.1-SNAPSHOT",
+		description="Creates an image where the intensity corresponds to the a "
+				+ "coordinate of that pixels/voxel's spatial position.")
+public class GeneratePositionFieldRes implements Callable<Void>
 {
+
+	@Option( names = { "-f", "--reference-image" }, required = false, description = "Input reference image (optional)." )
+	private String imagePath;
+
+	@Option( names = { "-o", "--output" }, required = false, description = "Output position field" )
+	private String outputPath;
+
+	@Option( names = { "-d", "--dimensions" }, required = false, description = "Image dimensions" )
+	private long[] intervalDimsIn;
+
+	@Option( names = { "-r", "--resolution" }, required = false, description = "Output resolution" )
+	private double[] resolutionIn;
+
+	@Option( names = { "-c", "--coordinate" }, required = false, description = "Coordinate that intensity will correspond to" )
+	private int coordinate = -1;
+	
+	private double[] resolution;
+
+	private long[] intervalDims;
 
 	public static void main( String[] args ) throws ImgLibException
 	{
-		String outArg = args[ 0 ];
-		String intervalArg = args[ 1 ];
-		String resArg = args[ 2 ];
+		CommandLine.call( new GeneratePositionFieldRes(), args );
+	}
+	
+	public void setup()
+	{
+		if( imagePath != null )
+		{
+			IOHelper io = new IOHelper();
+			RandomAccessibleInterval<?> rai = io.readRai( new File( imagePath ) );
+			//ImagePlus ip = io.readIp( imagePath );
 
-		int dim = -1;
-		if ( args.length >= 3 )
-			dim = Integer.parseInt( args[ 3 ]);
+			resolution = io.getResolution();
+			intervalDims = Intervals.dimensionsAsLongArray( rai );
+		}
+		
+		if( intervalDimsIn != null )
+			intervalDims = intervalDimsIn;
 
-		FinalInterval interval = RenderTransformed.parseInterval( intervalArg );
+		if( resolutionIn != null )
+			resolution = resolutionIn;
+	}
 
-		double[] res = ParseUtils.parseDoubleArray( resArg );
+	public Void call()
+	{
+		setup();
+
+		FinalInterval interval = new FinalInterval( intervalDims );
+
 		AffineTransform3D xfm = new AffineTransform3D();
-		xfm.set( 	res[ 0 ], 0.0, 0.0, 0.0,
-					0.0, res[ 1 ], 0.0, 0.0,
-					0.0, 0.0, res[ 2 ], 0.0 );
+		xfm.set( 	resolution[ 0 ], 0.0, 0.0, 0.0,
+					0.0, resolution[ 1 ], 0.0, 0.0,
+					0.0, 0.0, resolution[ 2 ], 0.0 );
 
 		PositionRandomAccessible< FloatType, AffineTransform3D > pra = 
 				new PositionRandomAccessible< FloatType, AffineTransform3D >(
-						interval.numDimensions(), new FloatType(), xfm, dim );
+						interval.numDimensions(), new FloatType(), xfm, coordinate );
+		
+		System.out.println( "pra ndims: " + pra.numDimensions() );
 
 		int nd = interval.numDimensions();
-//		long[] min = null;
-//		long[] max = null;
-		long[] min = new long[ nd ];
-		long[] max = new long[ nd ];
+		
+		long[] min = new long[ nd+1 ];
+		long[] max = new long[ nd+1 ];
 
 		for( int d = 0; d < nd; d++ )
 		{
@@ -57,35 +99,52 @@ public class GeneratePositionFieldRes
 			max[ d ] = interval.max( d );
 		}
 
-		if( dim < 0 )
+		if( coordinate < 0 )
 		{
 			min[ nd ] = 0;
 			max[ nd ] = nd-1;
 		}
+		else
+		{
+			min[nd] = coordinate;
+			max[nd] = coordinate;
+		}
 
 		FinalInterval outputInterval = new FinalInterval( min, max );
+		RandomAccessibleInterval< FloatType > raiout = 
+				Views.dropSingletonDimensions( Views.interval( pra, outputInterval ));
+		
 
-		// Permute so that slices are correctly interpreted as such 
-		// (instead of channels )
-		RandomAccessibleInterval< FloatType > raiout = Views.interval( pra, outputInterval );
+		// Permute so that slices are correctly interpreted as such (instead of channels )
+		FloatImagePlus< FloatType > output = ImagePlusImgs.floats( Intervals.dimensionsAsLongArray( raiout ));
+
 		System.out.println( raiout );
 		System.out.println( Util.printInterval(raiout) );
 
+		System.out.println( "output interval " + Util.printInterval( output) );
 
-		FloatImagePlus< FloatType > output = ImagePlusImgs.floats( max );
-		RenderUtil.copyToImageStack( raiout, output, 4 );
+//		LoopBuilder.setImages( output, raiout ).forEachPixel( (y,x) -> { y.set( x.get() ); });
+
+		int nc = 1;
+		if( coordinate < 0 )
+		{
+			nc = 3;
+			RenderUtil.copyToImageStack( 
+					Views.permute( raiout, 3, 2 ), 
+					Views.permute( output, 3, 2 ), 4 );
+		}
+		else
+			RenderUtil.copyToImageStack( raiout, output, 4 );
 
 		ImagePlus imp = output.getImagePlus();
-		imp.getCalibration().pixelWidth  = res[ 0 ];
-		imp.getCalibration().pixelHeight = res[ 1 ];
-		imp.getCalibration().pixelDepth  = res[ 2 ];
-		imp.setDimensions( imp.getNSlices(), imp.getNChannels(), imp.getNFrames() );
+		imp.getCalibration().pixelWidth  = resolution[ 0 ];
+		imp.getCalibration().pixelHeight = resolution[ 1 ];
+		imp.getCalibration().pixelDepth  = resolution[ 2 ];
+		imp.setDimensions( nc, (int)intervalDims[2], 1 );
 
-		System.out.println( "nChannels " + imp.getNChannels() );
-		System.out.println( "nFrames " + imp.getNFrames() );
-		System.out.println( "nSlices " + imp.getNSlices() );
+		IOHelper.write( imp, new File( outputPath ));
 
-		IOHelper.write( imp, outArg );
+		return null;
 	}
 
 }
