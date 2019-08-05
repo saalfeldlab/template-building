@@ -3,11 +3,13 @@ package util;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.function.BiConsumer;
 
 import com.google.common.collect.Streams;
 
@@ -21,11 +23,15 @@ import net.imglib2.RandomAccessible;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.RealInterval;
 import net.imglib2.realtransform.RealTransform;
+import net.imglib2.type.Type;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.NumericType;
+import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.numeric.integer.IntType;
 import net.imglib2.view.IntervalView;
 import net.imglib2.view.Views;
+import net.imglib2.view.composite.Composite;
+import net.imglib2.view.composite.CompositeIntervalView;
 
 public class RenderUtil
 {
@@ -119,6 +125,69 @@ public class RenderUtil
 			splitPoints[ i ] = splitPoints[ i - 1 ] + del; 
 		}
 		return splitPoints;
+	}
+
+	/**
+	 * Sets values of the dest vector image by applying a function to corresponding
+	 * values of the src vector image.
+	 * 
+	 * The function's first argument is the source, the second is it's destination. 
+	 * 
+	 * @param src
+	 * @param dest
+	 * @param function
+	 * @param nCores
+	 * @return
+	 * @throws InterruptedException
+	 * @throws ExecutionException
+	 */
+	public static < T extends RealType<T>, V extends Composite< T > > boolean copyToImageStackIterOrder( 
+			final CompositeIntervalView< T, V > src,
+			final CompositeIntervalView< T, V > dest,
+			final BiConsumer< V, V > function,
+			final int nCores ) throws InterruptedException, ExecutionException
+	{
+
+		int nThreads = nCores;
+		ExecutorService threadPool;
+		if ( nCores < 1 )
+			nThreads = Runtime.getRuntime().availableProcessors();
+
+		final int nTasks = nThreads;
+		threadPool = Executors.newFixedThreadPool( nThreads );
+		LinkedList< Callable< Boolean > > jobs = new LinkedList< Callable< Boolean > >();
+		for ( int i = 0; i < nThreads; i++ )
+		{
+
+			final int index = i;
+			jobs.add( new Callable< Boolean >()
+			{
+				public Boolean call()
+				{
+					// start by offset by this jobs' index
+					Cursor< V > c = Views.flatIterable( dest ).cursor();
+					final RandomAccess< V > threadRa = src.randomAccess().copyRandomAccess();
+					c.jumpFwd( index );
+
+					while ( c.hasNext() )
+					{
+						c.jumpFwd( nTasks );
+						threadRa.setPosition( c );
+						function.accept( threadRa.get(), c.get() );
+					}
+
+					return true;
+				}
+			} );
+		}
+
+		List< Future< Boolean > > futures = threadPool.invokeAll( jobs );
+		List< Boolean > results = new ArrayList< Boolean >();
+		for ( Future< Boolean > f : futures )
+			results.add( f.get() );
+
+		System.out.println( "done copying" );
+		return results.stream().reduce( true, ( a, b ) -> a && b );
 	}
 
 	public static < T extends NumericType< T > > boolean copyToImageStackIterOrder( 
