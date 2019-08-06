@@ -15,14 +15,37 @@ HISTMAX="4"
 LOGHISTMIN="-2"
 LOGHISTMAX="2" 
 
-ref="$1"
+ref=""
+compartments=""
+transformPattern=""
+
+while getopts "c:r:t:" OPT
+do
+    case $OPT in
+    c) # normalizing transform
+       compartments=$OPTARG
+       echo "Compartments image: $compartments"
+       ;;
+    r) # reference image
+       ref=$OPTARG
+       echo "Reference image: $ref"
+       ;;
+    t) # transform pattern
+       transformPattern=$OPTARG
+       echo "Transform pattern: $transformPattern"
+       ;;
+    \?) # getopts issues an error message
+       echo "$USAGE" >&2
+       exit 1
+       ;;
+    esac
+done
+
 if [[ -z $ref ]];
 then
     echo "Must specify reference" 
     exit 1
 fi
-
-compartments="$2"
 
 isCmtk=""
 if [[ -d Registration ]];

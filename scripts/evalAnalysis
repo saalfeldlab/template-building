@@ -5,11 +5,13 @@ DODISTXFM=""
 DODISTXFMLABELS=""
 DOXFMNEURON=""
 DOJACOBIAN=""
+DOHESSIAN=""
 DONEURONSIM=""
 DOVISNEURONOVERLAY=""
 DOREPORT=""
 NEEDPREPROC=""
 
+FOLDERFORDIST="evalCompWarpNorm"
 
 CENTILES='0.01,0.05,0.1,0.25,0.5,0.75,0.9,0.95,0.99'
 INTERVAL="850,650,250" 
@@ -20,7 +22,7 @@ ANALYSISINTERVAL=""
 
 PREFIX="ALLF"
 
-while getopts "ac:di:jlnprst:vx:" OPT
+while getopts "ac:df:hi:jlnprst:vx:" OPT
 do
     case $OPT in
     a) # do all
@@ -42,6 +44,14 @@ do
     e) # resolution for analysis
        ANALYSISRESOLUTION=$OPTARG
        echo "resolution for analysis: $ANALYSISRESOLUTION"
+       ;;
+    f) # resolution for analysis
+       FOLDERFORDIST=$OPTARG
+       echo "folder to save distance results to: $FOLDERFORDIST"
+       ;;
+    h) # hessian 
+       DOHESSIAN="1"
+       NEEDPREPROC="1"
        ;;
     i) # resolution for analysis
        ANALYSISINTERVAL=$OPTARG
@@ -89,6 +99,7 @@ do
        ;;
     esac
 done
+
 
 if [ -z $TEMPLATE ];
 then
@@ -148,13 +159,19 @@ fi
 ## DISTANCE TRANSFORM LABEL-WISE
 if [ $DODISTXFMLABELS ]; then
     echo "Doing distance transform label-wise"
-    runDistXfmEvalComp "$TEMPLATE" "$COMPARTMENTS" "$ANALYSISRESOLUTION" "$NORMXFM" "$ANALYSISINTERVAL" "evalCompWarpNorm"
+    runDistXfmEvalComp "$TEMPLATE" "$COMPARTMENTS" "$ANALYSISRESOLUTION" "$NORMXFM" "$ANALYSISINTERVAL" "$FOLDERFORDIST"
 fi
 
 ## TRANSFORMING NEURON IMAGES
 if [ $DOJACOBIAN ]; then
     echo "Computing Jacobian"
-    evalJacobian $TEMPLATE $COMPARTMENTS
+    evalJacobian -r $TEMPLATE -c $COMPARTMENTS
+fi
+
+## TRANSFORMING NEURON IMAGES
+if [ $DOHESSIAN ]; then
+    echo "Computing Hessian Norm"
+    evalHessianNorm $TEMPLATE $COMPARTMENTS
 fi
 
 ## TRANSFORMING NEURON IMAGES

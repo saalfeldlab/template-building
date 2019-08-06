@@ -4,11 +4,16 @@
 
 PATTERN="^\(201[6-7][0-9]\{4\}\_[0-9][0-9]_[A-Z][0-9]\).*"
 CONVERTED="--conv"
+CONVERTED_PHYSICAL="--phys"
 
 xfmPattern="registration"
 if [ $1 == "$CONVERTED" ]
 then
     xfmPattern="xform.nii"
+    shift
+elif [ $1 == "$CONVERTED_PHYSICAL" ]
+then
+    xfmPattern="xform_noAffine.nrrd"
     shift
 fi
 
