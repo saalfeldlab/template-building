@@ -14,6 +14,8 @@ import ij.ImagePlus;
 import io.nii.NiftiIo;
 import io.nii.Nifti_Writer;
 import loci.formats.FormatException;
+import loci.formats.ImageReader;
+import loci.plugins.BF;
 import net.imglib2.RandomAccessible;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.RealRandomAccessible;
@@ -21,6 +23,7 @@ import net.imglib2.img.display.imagej.ImageJFunctions;
 import net.imglib2.interpolation.InterpolatorFactory;
 import net.imglib2.realtransform.RealViews;
 import net.imglib2.realtransform.Scale;
+import net.imglib2.transform.integer.MixedTransform;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.NumericType;
 import net.imglib2.type.numeric.RealType;
@@ -29,6 +32,8 @@ import net.imglib2.type.numeric.integer.UnsignedShortType;
 import net.imglib2.type.numeric.real.FloatType;
 import net.imglib2.util.Util;
 import net.imglib2.util.ValuePair;
+import net.imglib2.view.IntervalView;
+import net.imglib2.view.MixedTransformView;
 import net.imglib2.view.Views;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
@@ -57,6 +62,10 @@ public class IOHelper implements Callable<Void>
 
 	@Option(names = {"--unit", "-u"}, description = "Unit" )
 	private String unit = null;
+
+	@Option(names = {"--do-not-permute-h5" }, description = "This flag indicates that input h5 files should not have their dimensions permuted. "
+			+ "By default, the order of dimensions for h5 files are read in reverse order." )
+	private boolean permute = true;
 
 	final Logger logger = LoggerFactory.getLogger( IOHelper.class );
 	
@@ -97,6 +106,11 @@ public class IOHelper implements Callable<Void>
 		return null;
 	}
 
+	public double[] getResolution()
+	{
+		return resolution;
+	}
+
 	public ValuePair< long[], double[] > readSizeAndResolution( String filePath )
 	{
 		if ( filePath.endsWith( "nii" ) )
@@ -122,6 +136,33 @@ public class IOHelper implements Callable<Void>
 				return nr.readSizeAndResolution( new File( filePath ) );
 			}
 			catch ( IOException e )
+			{
+				e.printStackTrace();
+			}
+		}
+		else
+		{
+			try
+			{
+				ImageReader reader = new ImageReader();
+				
+				reader.setId( filePath );
+				
+				long[] size =  new long[]{ 
+					reader.getSizeX(),
+					reader.getSizeY(),
+					reader.getSizeZ()
+				};
+				
+				Object metastore = reader.getMetadataStoreRoot();
+				System.out.println( metastore );
+				double[] resolutions = null;
+
+				reader.close();
+				return new ValuePair< long[], double[] >( size, resolutions );
+				
+			}
+			catch ( Exception e )
 			{
 				e.printStackTrace();
 			}
@@ -170,7 +211,26 @@ public class IOHelper implements Callable<Void>
 		}
 		else
 		{
-			ip = IJ.openImage( filePathAndDataset );
+			try
+			{
+				ip = IJ.openImage( filePathAndDataset );
+			}
+			catch( Exception e )
+			{
+				e.printStackTrace();
+			}
+			
+			if ( ip == null ) 
+			{
+				try
+				{
+					ip = BF.openImagePlus( filePathAndDataset )[0];
+				}
+				catch( Exception e )
+				{
+					e.printStackTrace();
+				}
+			}
 		}
 		
 		resolution = new double[ 3 ];
@@ -188,6 +248,7 @@ public class IOHelper implements Callable<Void>
 		ip.getCalibration().pixelDepth  = res[ 2 ];
 	}
 	
+	@SuppressWarnings( "unchecked" )
 	public <T extends RealType<T> & NativeType<T>> T getType()
 	{
 		if( rai != null )
@@ -214,6 +275,7 @@ public class IOHelper implements Callable<Void>
 		return ip;
 	}
 
+	@SuppressWarnings( "unchecked" )
 	public <T extends RealType<T> & NativeType<T>> RandomAccessibleInterval< T > getRai()
 	{
 		return ( RandomAccessibleInterval< T > ) rai;
@@ -265,7 +327,15 @@ public class IOHelper implements Callable<Void>
 			try
 			{
 				n5 = new N5HDF5Reader( fpath, 32, 32, 32 );
-				img = N5Utils.open( n5, dset );
+
+				RandomAccessibleInterval<T> tmp = N5Utils.open( n5, dset );
+				if( permute )
+				{
+					System.out.println(" reversing dims ");
+					img = reverseDims( tmp );
+				}
+				else 
+					img = tmp;
 
 				float[] rtmp = n5.getAttribute( dset, "element_size_um", float[].class );
 				if( rtmp != null )
@@ -291,6 +361,54 @@ public class IOHelper implements Callable<Void>
 			rai = ImageJFunctions.wrap( readIp( filePathAndDataset ) );
 			return ( RandomAccessibleInterval< T > ) rai;
 		}
+	}
+	
+    /**
+     * Permutes the dimensions of a {@link RandomAccessibleInterval}
+     * using the given permutation vector, where the ith value in p
+     * gives destination of the ith input dimension in the output. 
+     *
+     * @param source the source data
+     * @param p the permutation
+     * @return the permuted source
+     */
+	public static final < T > IntervalView< T > permute( RandomAccessibleInterval< T > source, int[] p )
+	{
+		final int n = source.numDimensions();
+
+		final long[] min = new long[ n ];
+		final long[] max = new long[ n ];
+		for ( int i = 0; i < n; ++i )
+		{
+			min[ p[ i ] ] = source.min( i );
+			max[ p[ i ] ] = source.max( i );
+		}
+
+		final MixedTransform t = new MixedTransform( n, n );
+		t.setComponentMapping( p );
+
+		return Views.interval( new MixedTransformView< T >( source, t ), min, max );
+	}
+	
+    /**
+     * Permutes the dimensions of a {@link RandomAccessibleInterval}
+     * using the given permutation vector, where the ith value in p
+     * gives destination of the ith input dimension in the output. 
+     *
+     * @param source the source data
+     * @param p the permutation
+     * @return the permuted source
+     */
+	public static final < T > IntervalView< T > reverseDims( RandomAccessibleInterval< T > source )
+	{
+		final int n = source.numDimensions();
+
+		final int[] p = new int[ n ];
+		for ( int i = 0; i < n; ++i )
+		{
+			p[ i ] = n - 1 - i;
+		}
+		return permute( source, p );
 	}
 	
 	public < T extends RealType< T > & NativeType< T > > RealRandomAccessible< T > interpolate( 

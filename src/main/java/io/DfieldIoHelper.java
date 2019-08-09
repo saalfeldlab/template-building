@@ -24,6 +24,8 @@ import ij.ImagePlus;
 import io.nii.NiftiIo;
 import io.nii.Nifti_Writer;
 import loci.formats.FormatException;
+import net.imglib2.FinalInterval;
+import net.imglib2.Interval;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.converter.Converter;
 import net.imglib2.converter.Converters;
@@ -392,5 +394,24 @@ public class DfieldIoHelper
 		}
 
 		return N5DisplacementField.permute( source, component );
+	}
+	
+	public static Interval dfieldIntervalVectorFirst3d( Interval dfieldInterval )
+	{
+		if( dfieldInterval.dimension( 0 ) == 3 )
+		{
+			return dfieldInterval;
+		}
+		else if( dfieldInterval.dimension( 3 ) == 3 )
+		{
+			FinalInterval interval = new FinalInterval(
+					dfieldInterval.dimension( 3 ),
+					dfieldInterval.dimension( 0 ),
+					dfieldInterval.dimension( 1 ),
+					dfieldInterval.dimension( 2 ));
+			return interval;
+		}
+		else 
+			return null;
 	}
 }
