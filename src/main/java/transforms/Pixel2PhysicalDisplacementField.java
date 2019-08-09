@@ -65,7 +65,7 @@ public class Pixel2PhysicalDisplacementField<T extends RealType<T> & NativeType<
 			e.printStackTrace();
 		}
 		
-		dfieldPixelToPhysicalWrite( ( RandomAccessibleInterval< T > ) dfield.getImg(), resolution, nThreads, dfieldOut );
+		dfieldPixelToPhysicalWrite( dfield.getImg(), resolution, nThreads, dfieldOut );
 		
 		return null;
 	}
