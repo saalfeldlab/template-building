@@ -20,69 +20,69 @@ import net.imglib2.util.Util;
 public class RemoveAffineFromDisplacement
 {
 
-	public static void main( String[] args ) throws NotEnoughDataPointsException, IllDefinedDataPointsException
-	{
-		int argIdx = 0;
-
-
-		String outPath = args[ argIdx++ ];
-		String defPath = args[ argIdx++ ];
-		String affinePath = args[ argIdx++ ];
-
-		AffineTransform3D affine;
-		try
-		{
-			affine = ANTSLoadAffine.loadAffine( affinePath );
-		} catch ( IOException e1 )
-		{
-			e1.printStackTrace();
-			System.err.println( "\nCould not load affine from: " + affinePath );
-			return;
-		}
-
-		ImagePlus imp = null;
-		Img< FloatType > displacement = null;
-		if( defPath.endsWith( "nii" ))
-		{
-			try
-			{
-				imp = NiftiIo.readNifti( new File( defPath ) );
-			} catch ( FormatException e )
-			{
-				e.printStackTrace();
-			} catch ( IOException e )
-			{
-				e.printStackTrace();
-			}
-		}
-		else
-		{
-			imp = IJ.openImage( defPath );
-		}
-		displacement = ImageJFunctions.convertFloat( imp );
-
-		if ( displacement == null )
-		{
-			System.err.println( "Failed to load displacement field" );
-			return;
-		}
-
-		System.out.println(
-				"DISPLACEMENT INTERVAL: " + Util.printInterval( displacement ) );
-
-
-		System.out.println( "removing affine part from warp" );
-		AffineFromDisplacement.removeAffineComponent( displacement, affine, true );
-		System.out.println( "saving warp" );
-
-
-//				IJ.save( ImageJFunctions.wrap( displacement, "warp" ),
-//						outPath + "_warp.tif" );
-
-		Nifti_Writer.writeDisplacementField3d( imp, new File( outPath ) );
+//	public static void main( String[] args ) throws NotEnoughDataPointsException, IllDefinedDataPointsException
+//	{
+//		int argIdx = 0;
+//
+//
+//		String outPath = args[ argIdx++ ];
+//		String defPath = args[ argIdx++ ];
+//		String affinePath = args[ argIdx++ ];
+//
+//		AffineTransform3D affine;
+//		try
+//		{
+//			affine = ANTSLoadAffine.loadAffine( affinePath );
+//		} catch ( IOException e1 )
+//		{
+//			e1.printStackTrace();
+//			System.err.println( "\nCould not load affine from: " + affinePath );
+//			return;
+//		}
+//
+//		ImagePlus imp = null;
+//		Img< FloatType > displacement = null;
+//		if( defPath.endsWith( "nii" ))
+//		{
+//			try
+//			{
+//				imp = NiftiIo.readNifti( new File( defPath ) );
+//			} catch ( FormatException e )
+//			{
+//				e.printStackTrace();
+//			} catch ( IOException e )
+//			{
+//				e.printStackTrace();
 //			}
-		
-	}
+//		}
+//		else
+//		{
+//			imp = IJ.openImage( defPath );
+//		}
+//		displacement = ImageJFunctions.convertFloat( imp );
+//
+//		if ( displacement == null )
+//		{
+//			System.err.println( "Failed to load displacement field" );
+//			return;
+//		}
+//
+//		System.out.println(
+//				"DISPLACEMENT INTERVAL: " + Util.printInterval( displacement ) );
+//
+//
+//		System.out.println( "removing affine part from warp" );
+//		AffineFromDisplacement.removeAffineComponent( displacement, affine, true );
+//		System.out.println( "saving warp" );
+//
+//
+////				IJ.save( ImageJFunctions.wrap( displacement, "warp" ),
+////						outPath + "_warp.tif" );
+//
+//		Nifti_Writer.writeDisplacementField3d( imp, new File( outPath ) );
+////			}
+//		
+//	}
 
 //	/**
 //	 * Removes the affine part from a displacement field 
