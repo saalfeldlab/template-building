@@ -4,8 +4,13 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 import ij.IJ;
 import ij.ImagePlus;
@@ -41,6 +46,7 @@ import net.imglib2.util.Util;
 import net.imglib2.view.IntervalView;
 import net.imglib2.view.SubsampleIntervalView;
 import net.imglib2.view.Views;
+import net.imglib2.view.composite.Composite;
 import net.imglib2.view.composite.CompositeIntervalView;
 import net.imglib2.view.composite.GenericComposite;
 import picocli.CommandLine;
@@ -64,6 +70,9 @@ public class AffineFromDisplacement<T> implements Callable< Void >
 
 	@Option( names = { "-s", "--sample-step" }, required = false, description = "Sampling step" )
 	private int step = 4;
+
+	@Option( names = { "-q", "--num-threads" }, required = false, description = "Sampling step" )
+	private int nThreads = 1;
 
 	@Option( names = { "--do-warp" }, required = false, description = "Write displacementfield with affine part removed" )
 	private Boolean doWarp = true;
@@ -124,7 +133,8 @@ public class AffineFromDisplacement<T> implements Callable< Void >
 						new File( outputPrefix + dfieldSuffix),
 						affine, dfield.getImg(), Util.getTypeFromInterval( dfield.getImg() ),
 						dfield.getDefField(), dfield.getResolution(), 
-						filter );
+						filter,
+						nThreads );
 			}
 		}
 
@@ -237,13 +247,14 @@ public class AffineFromDisplacement<T> implements Callable< Void >
 	 * @param filter if true, ignores vectors in the field equal to (0,0,0)
 	 */
 	public static <S extends RealType<S>, T extends RealType< T > & NativeType<T>> void removeAffineComponentAndWrite(
-			File outFile,
-			AffineTransform3D affine,
-			Interval intervalIn,
-			T t,
-			RealRandomAccessible< S > displacementFieldInPhysical,
-			double[] outputResolution,
-			boolean filter )
+			final File outFile,
+			final AffineTransform3D affine,
+			final Interval intervalIn,
+			final T t,
+			final RealRandomAccessible< S > displacementFieldIn,
+			final double[] outputResolution,
+			final boolean filter,
+			final int numThreads )
 	{
 		Interval intervalOut = DfieldIoHelper.dfieldIntervalVectorFirst3d( intervalIn );
 		Scale3D pixelToPhysical = new Scale3D( outputResolution );
@@ -254,7 +265,10 @@ public class AffineFromDisplacement<T> implements Callable< Void >
 		{
 
 			RandomAccessibleInterval< T > dfield = DfieldIoHelper.vectorAxisPermute( dfieldraw, 3, 3 );
-			removeAffineComponent( affine, dfield, displacementFieldInPhysical, pixelToPhysical, filter );
+			if( numThreads == 1 )
+				removeAffineComponent( affine, dfield, displacementFieldIn, pixelToPhysical, filter );
+			else
+				removeAffineComponent( affine, dfield, displacementFieldIn, pixelToPhysical, filter, numThreads );
 
 			DfieldIoHelper dfieldIo = new DfieldIoHelper();
 			dfieldIo.spacing = outputResolution; // naughty
@@ -272,11 +286,11 @@ public class AffineFromDisplacement<T> implements Callable< Void >
 	 * Removes the affine part from a displacement field 
 	 */
 	public static <S extends RealType<S>,T extends RealType< T >> void removeAffineComponent(
-			AffineTransform3D affine,
-			RandomAccessibleInterval< T > displacementFieldOut,
-			RealRandomAccessible< S > displacementFieldInPhysical,
-			AffineGet pixelToPhysical,
-			boolean filter )
+			final AffineTransform3D affine,
+			final RandomAccessibleInterval< T > displacementFieldOut,
+			final RealRandomAccessible< S > displacementFieldInPhysical,
+			final AffineGet pixelToPhysical,
+			final boolean filter )
 	{
 		final int VECTOR_DIM = 3;
 		System.out.println("removing affine from dfield");
@@ -332,18 +346,153 @@ public class AffineFromDisplacement<T> implements Callable< Void >
 
 			// remove the affine part
 			affine.applyInverse( affineResult, physicalDestinationPoint  );
-			
-//			System.out.println( "c: " + Util.printCoordinates( c ));
-//			System.out.println( "x: " + Util.printCoordinates( x ));
-//			System.out.println( "y: " + Util.printCoordinates( y ));
-//			System.out.println( "z: " + Util.printCoordinates( affineResult ));
-			
+	
 			// set the output
 			for ( int i = 0; i < 3; i++ )
 				outputVector.get( i ).setReal(
 						 affineResult.getDoublePosition( i ) - physicalOutputPoint.getDoublePosition( i ) );
 
 		}
+	}
+
+	/**
+	 * Removes the affine part from a displacement field 
+	 */
+	public static <S extends RealType<S>,T extends RealType< T >> void removeAffineComponent(
+			final AffineTransform3D affine,
+			final RandomAccessibleInterval< T > displacementFieldOut,
+			final RealRandomAccessible< S > displacementFieldIn,
+			final AffineGet pixelToPhysical,
+			final boolean filter,
+			final int numThreads )
+	{
+		System.out.println("removing affine from dfield");
+
+		CompositeIntervalView< T, ? extends GenericComposite< T > > vectorField = Views.collapse( displacementFieldOut );
+	
+		ExecutorService threadPool = Executors.newFixedThreadPool( numThreads );
+		LinkedList< Callable< Boolean > > jobs = new LinkedList< Callable< Boolean > >();
+		for ( int task = 0; task < numThreads; task++ )
+		{
+			final int index = task;
+			jobs.add( new Callable< Boolean >()
+			{
+				public Boolean call()
+				{
+					final RealPoint tmp1 = new RealPoint( 3 );
+					final RealPoint tmp2 = new RealPoint( 3 );
+					final RealPoint tmp3 = new RealPoint( 3 );
+
+					final Cursor< ? extends GenericComposite< T > > c = Views.flatIterable( vectorField ).cursor();
+					final RealRandomAccess< S > realRa = displacementFieldIn.realRandomAccess();
+					
+					final AffineTransform3D affineCopy = affine.copy();
+					final AffineGet pix2PhysCopy = pixelToPhysical.copy();
+
+					c.jumpFwd( index );
+					while ( c.hasNext() )
+					{
+						c.jumpFwd( numThreads );
+						removeAffinePart( c, affineCopy,
+								realRa, pix2PhysCopy,
+								filter, tmp1, tmp2, tmp3 );
+								
+					}
+					return true;
+				}
+			});
+		}
+
+		List< Future< Boolean > > futures;
+		try
+		{
+			futures = threadPool.invokeAll( jobs );
+			List< Boolean > results = new ArrayList< Boolean >();
+			for ( Future< Boolean > f : futures )
+				results.add( f.get() );
+		}
+		catch ( InterruptedException e )
+		{
+			e.printStackTrace();
+		}
+		catch ( ExecutionException e )
+		{
+			e.printStackTrace();
+		}
+
+	}
+	
+	/**
+	 * Subroutine for removing an affine froma a vector displacement field.
+	 * Cursor must be set to the correct position before calling this method (the cursor position is not modified).
+	 * 
+	 * @param c cursor holding displacement vector as a composite
+	 * @param affine the affine to remove
+	 * @param realRa original displacement 
+	 * @param pixelToPhysical transform from coordinate of 
+	 * @param filter ignore the zero vector?
+	 * @param tmp1 temporary storage 1 (to reuse)
+	 * @param tmp2 temporary storage 2 (to reuse)
+	 */
+	public static <T extends RealType<T>, S extends RealType<S>, V extends Composite<T>> void removeAffinePart( 
+			final Cursor<V> c,
+			final AffineGet affine,
+			final RealRandomAccess< S > realRa,
+			final AffineGet pixelToPhysical,
+			final boolean filter,
+			final RealPoint tmp1,
+			final RealPoint tmp2,
+			final RealPoint tmp3 )
+	{
+		final int VECTOR_DIM = 3;
+		Composite< T > outputVector = c.get();
+
+		RealPoint physPt = tmp1;
+		pixelToPhysical.apply( c, physPt );
+		for ( int i = 0; i < 3; i++ )
+			realRa.setPosition( physPt.getDoublePosition( i ), i );
+
+		realRa.setPosition( 0, VECTOR_DIM ); // first vector coordinate
+		if ( filter )
+		{
+			boolean allZeros = true;
+			for ( int i = 0; i < 3; i++ )
+			{
+				if( realRa.get().getRealFloat() != 0.0f )
+				{
+					allZeros = false;
+					break;
+				}
+				realRa.fwd( VECTOR_DIM );
+			}
+	
+			if( allZeros )
+				return;
+		}
+		
+		// go to real space
+		RealPoint physicalOutputPoint = tmp1;
+		RealPoint physicalDestinationPoint = tmp2;
+		pixelToPhysical.apply( c, physicalOutputPoint );
+
+		// what real coordinate does this tranformation go to
+		realRa.setPosition( 0, 3 ); // first vector coordinate
+		for ( int d = 0; d < 3; d++ )
+		{
+			physicalDestinationPoint.setPosition(
+					physicalOutputPoint.getDoublePosition( d ) + realRa.get().getRealDouble(),
+					d );
+			realRa.fwd( VECTOR_DIM );
+		}
+
+		// remove the affine part
+		RealPoint affineResult = tmp3;
+		affine.applyInverse( affineResult, physicalDestinationPoint  );
+
+		// set the output
+		for ( int i = 0; i < 3; i++ )
+			outputVector.get( i ).setReal(
+					 affineResult.getDoublePosition( i ) - physicalOutputPoint.getDoublePosition( i ) );
 	}
 
 	/**
