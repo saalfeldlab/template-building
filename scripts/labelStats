@@ -1,0 +1,13 @@
+#!/bin/bash
+
+javaOpts="-Xmx32g"
+if [[ $1 == '--java' ]];
+then
+    shift
+    javaOpts="$1"
+    shift
+fi
+
+BASEDIR=$(dirname "$0")
+cp=`cat "$BASEDIR/gaussDs.cp"`
+java -cp "$cp" $javaOpts net.imglib2.algorithm.stats.LabelwiseStatistics "$@"
