@@ -61,7 +61,7 @@ then
     # Elastix
     echo "elastix"
 
-    for t in `ls */TransformParameters.0.txt`
+    for t in `ls */TransformParameters.0.txt | grep -v affine`
     do
         echo $t
         out=$(echo $t | sed 's/.0.txt/_def.nrrd/g')
