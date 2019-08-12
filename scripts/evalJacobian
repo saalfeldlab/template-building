@@ -19,12 +19,24 @@ ref=""
 compartments=""
 transformPattern=""
 
-while getopts "c:r:t:" OPT
+destdir="jacobian"
+
+physical=""
+
+while getopts "c:d:pr:t:" OPT
 do
     case $OPT in
     c) # normalizing transform
        compartments=$OPTARG
        echo "Compartments image: $compartments"
+       ;;
+    d) # destination directory
+       destdir=$OPTARG
+       echo "destination dir: $destdir"
+       ;;
+    p) # use physical field when applicable
+       physical="1"
+       echo "use field converted to physical: TRUE"
        ;;
     r) # reference image
        ref=$OPTARG
@@ -40,6 +52,8 @@ do
        ;;
     esac
 done
+
+echo "destdir: $destdir"
 
 if [[ -z $ref ]];
 then
@@ -61,7 +75,7 @@ then
     isElastix="1"
 fi
 
-mkdir -p jacobian
+mkdir -p $destdir
 
 dir=`pwd`
 i=0
@@ -70,12 +84,19 @@ while read neurImg
 do
     echo $neurImg
 
-    job="jacobian/jacobian_$i.sh"
+    job="$destdir/jacobian_$i.sh"
     echo "#!/bin/bash" > $job
      
     if [[ -n $isCmtk ]];
     then
-        regXfms=`matchEvalDataCmtk --conv $neurImg $dir`
+        if [[ $physical == "1" ]];
+        then
+            echo "PHYSICAL"
+            regXfms=`matchEvalDataCmtk --phys $neurImg $dir`
+        else
+            regXfms=`matchEvalDataCmtk --conv $neurImg $dir`
+        fi
+
         echo "regXfms: $regXfms"
         field=$regXfms
     elif [[ -n $isElastix ]];
@@ -96,7 +117,7 @@ do
 
         if [[ $isCmtk ]];
         then
-            echo "editing name for Elastix"
+            echo "editing name for cmtk"
             #echo "field: $field"
 
             tmp=$(dirname $field)
@@ -121,9 +142,9 @@ do
             echo "field: $field"
 
 
-            jacimg="$dir/jacobian/${out}jacobian.nii"
-            jacimgzip="$dir/jacobian/${out}jacobian.nii.gz"
-            jacimgr="$dir/jacobian/${out}jacobian_resamp.nii"
+            jacimg="$dir/$destdir/${out}jacobian.nii"
+            jacimgzip="$dir/$destdir/${out}jacobian.nii.gz"
+            jacimgr="$dir/$destdir/${out}jacobian_resamp.nii"
 
             ## not happy with reformatx
             #echo "reformatx --jacobian-correct-global -o $jacimg $ref -j $field" >> $job
@@ -157,9 +178,9 @@ do
             echo "field: $field"
 
 
-            jacimg="$dir/jacobian/${out}jacobian.nrrd"
-            jacimgzip="$dir/jacobian/${out}jacobian.nrrd"
-            jacimgr="$dir/jacobian/${out}jacobian_resamp.nrrd"
+            jacimg="$dir/$destdir/${out}jacobian.nrrd"
+            jacimgzip="$dir/$destdir/${out}jacobian.nrrd"
+            jacimgr="$dir/$destdir/${out}jacobian_resamp.nrrd"
 
             ## not happy with reformatx
             #echo "reformatx --jacobian-correct-global -o $jacimg $ref -j $field" >> $job
@@ -179,9 +200,9 @@ do
             fi
             echo "out: $out"
 
-            jacimg="$dir/jacobian/${out}jacobian.nii"
-            jacimgzip="$dir/jacobian/${out}jacobian.nii.gz"
-            jacimgr="$dir/jacobian/${out}jacobian_resamp.nii"
+            jacimg="$dir/$destdir/${out}jacobian.nii"
+            jacimgzip="$dir/$destdir/${out}jacobian.nii.gz"
+            jacimgr="$dir/$destdir/${out}jacobian_resamp.nii"
 
             echo "#!/bin/bash" > $job
             ##echo "ANTSJacobian 3 $field $dir/jacobian/$out 0" >> $job
@@ -210,13 +231,13 @@ do
 
 done <$neuronList
 
-cd jacobian
+cd $destdir
 subJobs -w -o '-n 2' jacobian*sh
 
 ## This approach is much faster if only the mean and variance are needed
 ## Uses an online algorithm to estimate those two quantities in one
 ## pass through the data
-stats_out="$dir/jacobian/stats.csv"
+stats_out="$dir/$destdir/stats.csv"
 jacInputs=$(readlink -f *resamp* | sed 's/^/-i /g' | tr '\n' ' ')
 
 jacstatsjob="stats_job.sh"
