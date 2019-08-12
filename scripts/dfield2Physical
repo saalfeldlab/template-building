@@ -1,0 +1,74 @@
+#!/bin/bash
+
+STEP="4"
+REMOVEAFFINE="0"
+REFIMG=""
+
+PIX2PHYSICAL=""
+RAWDFIELD="" 
+OUTPUTDFIELD="" 
+
+nThreads="8"
+
+while getopts "ad:f:o:p:q:s:" OPT
+do
+    case $OPT in
+    a) # remove affine
+       REMOVEAFFINE="1"
+       ;;
+    d) # dfield
+       RAWDFIELD="$OPTARG"
+       ;;
+    f) # reference image
+       REFIMG="$OPTARG"
+       ;;
+    o) # dfield
+       OUTPUTDFIELD="$OPTARG"
+       ;;
+    p) # pixel to physical optional
+       PIX2PHYSICAL="$OPTARG"
+       ;;
+    q) # pixel to physical optional
+       nThreads="$OPTARG"
+       ;;
+    s) # pixel to physical optional
+       STEP="$OPTARG"
+       ;;
+    \?) # getopts issues an error message
+       echo "$USAGE" >&2
+       exit 1
+       ;;
+    esac
+done
+
+
+if [ -z $RAWDFIELD ];
+then
+    echo "Need to pass a deformation field"
+    exit 1
+fi
+
+if [ -z $OUTPUTDFIELD ];
+then
+    dfieldBase=${RAWDFIELD%.*}
+    OUTPUTDFIELD="${dfieldBase}_physical.nii"
+fi
+
+echo "input displacement field : $RAWDFIELD"
+echo "output to : $OUTPUTDFIELD"
+echo "pixel to physical transform : $PIX2PHYSICAL"
+
+if [[ $PIX2PHYSICAL ]];
+then
+    echo "tform 2 dfield"
+    transform2Dfield \
+        -f $REFIMG \
+        -o $OUTPUTDFIELD \
+        -t $RAWDFIELD -t $PIX2PHYSICAL \
+        -q $nThreads
+
+    affineFromDisplacement -i $OUTPUTDFIELD -s $STEP -q $nThreads
+else
+    affineFromDisplacement -i $RAWDFIELD -s $STEP -q $nThreads
+fi
+
