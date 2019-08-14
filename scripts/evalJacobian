@@ -101,7 +101,14 @@ do
         field=$regXfms
     elif [[ -n $isElastix ]];
     then
-        regXfms=`matchEvalDataElastix $neurImg $dir`
+        
+        if [[ $physical == "1" ]];
+        then
+            echo "PHYSICAL"
+            regXfms=`matchEvalDataElastix --phys $neurImg $dir`
+        else
+            regXfms=`matchEvalDataElastix $neurImg $dir`
+        fi
         echo "regXfms: $regXfms"
         field=$regXfms
     else
@@ -141,7 +148,6 @@ do
             fi
             echo "field: $field"
 
-
             jacimg="$dir/$destdir/${out}jacobian.nii"
             jacimgzip="$dir/$destdir/${out}jacobian.nii.gz"
             jacimgr="$dir/$destdir/${out}jacobian_resamp.nii"
@@ -176,7 +182,6 @@ do
                 field=${field%.*}
             fi
             echo "field: $field"
-
 
             jacimg="$dir/$destdir/${out}jacobian.nrrd"
             jacimgzip="$dir/$destdir/${out}jacobian.nrrd"
@@ -232,6 +237,7 @@ do
 done <$neuronList
 
 cd $destdir
+
 subJobs -w -o '-n 2' jacobian*sh
 
 ## This approach is much faster if only the mean and variance are needed

@@ -171,7 +171,7 @@ fi
 ## TRANSFORMING NEURON IMAGES
 if [ $DOHESSIAN ]; then
     echo "Computing Hessian Norm"
-    evalHessianNorm $TEMPLATE $COMPARTMENTS
+    evalHessianNorm -r $TEMPLATE -c $COMPARTMENTS
 fi
 
 ## TRANSFORMING NEURON IMAGES

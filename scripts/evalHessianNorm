@@ -5,7 +5,9 @@ GZPATTERN="*.gz"
 PATTERN=".*\(201[6-7][0-9]\{4\}\_[0-9][0-9]_[A-Z][0-9]\).*"
 
 neuronList="/nrs/saalfeld/john/projects/flyChemStainAtlas/eval/dataNew/neuron_list.txt"
-hessExe="/groups/saalfeld/home/bogovicj/dev/template/template-building-pub/jgo/measureDfieldSmoothness"
+
+#hessExe="/groups/saalfeld/home/bogovicj/dev/template/template-building-pub/jgo/measureDfieldSmoothness"
+hessExe="/groups/saalfeld/home/bogovicj/dev/template/template-building-pub/scripts/dfieldSmoothnessMeasures"
 
 HISTBINS="128"
 HISTTHRESH="0.5"
@@ -16,8 +18,45 @@ HISTMAX="4"
 LOGHISTMIN="-2"
 LOGHISTMAX="2" 
 
-ref="$1"
-compartments="$2"
+ref=""
+compartments=""
+transformPattern=""
+
+destdir="jacobian"
+
+physical=""
+
+while getopts "c:d:pr:t:" OPT
+do
+    case $OPT in
+    c) # normalizing transform
+       compartments=$OPTARG
+       echo "Compartments image: $compartments"
+       ;;
+    d) # destination directory
+       destdir=$OPTARG
+       echo "destination dir: $destdir"
+       ;;
+    p) # use physical field when applicable
+       physical="1"
+       echo "use field converted to physical: TRUE"
+       ;;
+    r) # reference image
+       ref=$OPTARG
+       echo "Reference image: $ref"
+       ;;
+    t) # transform pattern
+       transformPattern=$OPTARG
+       echo "Transform pattern: $transformPattern"
+       ;;
+    \?) # getopts issues an error message
+       echo "$USAGE" >&2
+       exit 1
+       ;;
+    esac
+done
+
+echo "destdir: $destdir"
 
 if [[ -z $ref ]];
 then
@@ -39,7 +78,7 @@ then
     isElastix="1"
 fi
 
-mkdir -p hessian
+mkdir -p $destdir
 
 dir=`pwd`
 i=0
@@ -48,17 +87,31 @@ while read neurImg
 do
     echo $neurImg
 
-    job="hessian/hessian_$i.sh"
+    job="$destdir/hessian_$i.sh"
     echo "#!/bin/bash" > $job
-     
+
     if [[ -n $isCmtk ]];
     then
-        regXfms=`matchEvalDataCmtk --conv $neurImg $dir`
+        if [[ $physical == "1" ]];
+        then
+            echo "PHYSICAL"
+            regXfms=`matchEvalDataCmtk --phys $neurImg $dir`
+        else
+            regXfms=`matchEvalDataCmtk --conv $neurImg $dir`
+        fi
+
         echo "regXfms: $regXfms"
         field=$regXfms
     elif [[ -n $isElastix ]];
     then
-        regXfms=`matchEvalDataElastix $neurImg $dir`
+        
+        if [[ $physical == "1" ]];
+        then
+            echo "PHYSICAL"
+            regXfms=`matchEvalDataElastix --phys $neurImg $dir`
+        else
+            regXfms=`matchEvalDataElastix $neurImg $dir`
+        fi
         echo "regXfms: $regXfms"
         field=$regXfms
     else
@@ -91,8 +144,8 @@ do
         fi
         echo "field: $field"
 
-        hessNrmImg="$dir/hessian/${out}hessian.nii"
-        hessNrmImgr="$dir/hessian/${out}hessian_resamp.nii"
+        hessNrmImg="$dir/$destdir/${out}hessian.nrrd"
+        hessNrmImgr="$dir/$destdir/${out}hessian_resamp.nrrd"
 
         if [ -f $hessNrmImg ];
         then
@@ -128,8 +181,8 @@ do
         fi
         echo "field: $field"
 
-        hessNrmImg="$dir/hessian/${out}hessian.nii"
-        hessNrmImgr="$dir/hessian/${out}hessian_resamp.nii"
+        hessNrmImg="$dir/$destdir/${out}hessian.nrrd"
+        hessNrmImgr="$dir/$destdir/${out}hessian_resamp.nrrd"
 
         if [ -f $hessNrmImg ];
         then
@@ -156,8 +209,8 @@ do
         fi
         echo "out: $out"
 
-        hessNrmImg="$dir/hessian/${out}hessian.nii"
-        hessNrmImgr="$dir/hessian/${out}hessian_resamp.nii"
+        hessNrmImg="$dir/$destdir/${out}hessian.nrrd"
+        hessNrmImgr="$dir/$destdir/${out}hessian_resamp.nrrd"
 
         if [ -f $hessNrmImg ];
         then
@@ -179,13 +232,13 @@ do
 
 done <$neuronList
 
-cd hessian
-#subJobs -w -o '-n 2' hessian*sh
+cd $destdir
+subJobs -w -o '-n 2' hessian*sh
 
 ## This approach is much faster if only the mean and variance are needed
 ## Uses an online algorithm to estimate those two quantities in one
 ## pass through the data
-stats_out="$dir/hessian/stats.csv"
+stats_out="$dir/$destdir/stats.csv"
 hessInputs=$(readlink -f *resamp* | sed 's/^/-i /g' | tr '\n' ' ')
 
 hessStatsJob="stats_job.sh"
