@@ -29,6 +29,7 @@ import net.imglib2.img.basictypeaccess.array.FloatArray;
 import net.imglib2.img.display.imagej.ImageJFunctions;
 import net.imglib2.interpolation.randomaccess.NLinearInterpolatorFactory;
 import net.imglib2.realtransform.AffineGet;
+import net.imglib2.realtransform.AffineTransform;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.realtransform.AffineTransform4DRepeated3D;
 import net.imglib2.realtransform.InverseRealTransform;
@@ -58,6 +59,7 @@ public class ANTSDeformationField implements InvertibleRealTransform
 //	private RealRandomAccess<FloatType> defFieldAccess;
 	
 	private double[] resolution;
+	private String unit;
 	
 	private int lastDim;
 	private int numDimOut;
@@ -69,10 +71,11 @@ public class ANTSDeformationField implements InvertibleRealTransform
 			  new double[]{
 					  ip.getCalibration().pixelWidth,
 					  ip.getCalibration().pixelHeight,
-					  ip.getCalibration().pixelDepth });
+					  ip.getCalibration().pixelDepth }, 
+			  ip.getCalibration().getUnit() );
 	}
 	
-	public ANTSDeformationField( RandomAccessibleInterval<FloatType> defIn, double[] resolution ) 
+	public ANTSDeformationField( RandomAccessibleInterval<FloatType> defIn, double[] resolution, String unit ) 
 	{
 		try {
 			this.def = N5DisplacementField.vectorAxisLast( defIn );
@@ -83,6 +86,7 @@ public class ANTSDeformationField implements InvertibleRealTransform
 		}
 
 		this.resolution = resolution;
+		this.unit = unit;
 
 		lastDim = def.numDimensions() - 1;
 		numDimOut = (int)def.dimension( lastDim );
@@ -144,11 +148,11 @@ public class ANTSDeformationField implements InvertibleRealTransform
 		this.lastDim = other.lastDim;
 		this.numDimOut = other.numDimOut;
 		this.resolution = other.resolution;
-		
+	
 		if( resolution == null )
 		{
 			defField = Views.interpolate( 
-					Views.extendZero( def ), new NLinearInterpolatorFactory< FloatType >());
+					Views.extendBorder( def ), new NLinearInterpolatorFactory< FloatType >());
 		}
 		else
 		{
@@ -158,7 +162,7 @@ public class ANTSDeformationField implements InvertibleRealTransform
 			scaleXfm.set( resolution[ 2 ], 2, 2 );
 
 			defField= RealViews.transform(
-					Views.interpolate( Views.extendZero( def ), new NLinearInterpolatorFactory< FloatType >()),
+					Views.interpolate( Views.extendBorder( def ), new NLinearInterpolatorFactory< FloatType >()),
 					new AffineTransform4DRepeated3D( scaleXfm ));
 		}
 	}
@@ -181,6 +185,11 @@ public class ANTSDeformationField implements InvertibleRealTransform
 	public double[] getResolution()
 	{
 		return resolution;
+	}
+	
+	public String getUnit()
+	{
+		return unit;
 	}
 	
 	private void load( File f ) throws FormatException, IOException
@@ -440,10 +449,18 @@ public class ANTSDeformationField implements InvertibleRealTransform
 		long[] min = new long[ nd ];
 		long[] max = new long[ nd ];
 
-		for( int d = 0; d < resolutions.length; d++ )
+		for( int d = 0; d < nd; d++ )
 		{
-			min[ d ] = (long)Math.ceil( resolutions[ d ] * interval.realMin( d ));
-			max[ d ] = (long)Math.floor( resolutions[ d ] * interval.realMax( d ));
+			if ( d < resolutions.length )
+			{
+				min[ d ] = (long)Math.ceil( resolutions[ d ] * interval.realMin( d ));
+				max[ d ] = (long)Math.floor( resolutions[ d ] * interval.realMax( d ));
+			}
+			else
+			{
+				min[ d ] = (long)Math.ceil( interval.realMin( d ));
+				max[ d ] = (long)Math.floor( interval.realMax( d ));
+			}
 		}
 		return new FinalInterval( min, max );
 	}

@@ -55,7 +55,7 @@ public class TransformToDeformationField implements Callable<Void>
 	@Option( names = { "-o", "--output" }, required = true, description = "Output file for transformed image" )
 	private String outputFile;
 
-	@Option( names = { "-q", "--nThreads" }, required = false, description = "Number of threads." )
+	@Option( names = { "-q", "--num-threads" }, required = false, description = "Number of threads." )
 	private int nThreads = 1;
 
 //	@Option( names = { "--double" }, required = false, description = "Use double precision for output, otherwise the output is 32 bit floats." )

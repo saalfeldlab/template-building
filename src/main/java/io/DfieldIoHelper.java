@@ -164,6 +164,7 @@ public class DfieldIoHelper
 		RandomAccessibleInterval<FloatType> dfieldRAI = null;
 		ImagePlus dfieldIp = null;
 		double[] spacing = null;
+		String unit = null;
 		if ( fieldPath.endsWith( "nii" ) )
 		{
 			try
@@ -171,6 +172,7 @@ public class DfieldIoHelper
 				dfieldIp = NiftiIo.readNifti( new File( fieldPath ) );
 
 				spacing = new double[] { dfieldIp.getCalibration().pixelWidth, dfieldIp.getCalibration().pixelHeight, dfieldIp.getCalibration().pixelDepth };
+				unit = dfieldIp.getCalibration().getUnit();
 
 			}
 			catch ( FormatException e )
@@ -193,6 +195,8 @@ public class DfieldIoHelper
 					dfieldIp.getCalibration().pixelWidth,
 					dfieldIp.getCalibration().pixelHeight,
 					dfieldIp.getCalibration().pixelDepth };
+
+			unit = dfieldIp.getCalibration().getUnit();
 
 		}
 		else if ( fieldPath.contains( "h5" ) )
@@ -222,13 +226,20 @@ public class DfieldIoHelper
 		else
 		{
 			dfieldIp = IJ.openImage( fieldPath );
+
+			spacing = new double[]{ 
+					dfieldIp.getCalibration().pixelWidth,
+					dfieldIp.getCalibration().pixelHeight,
+					dfieldIp.getCalibration().pixelDepth };
+
+			unit = dfieldIp.getCalibration().getUnit();
 		}
 		
 		if( dfieldIp != null )
 			dfieldRAI = ImageJFunctions.wrapFloat( dfieldIp );
 
 		RandomAccessibleInterval< FloatType > fieldPermuted = DfieldIoHelper.vectorAxisPermute( dfieldRAI, 3, 3 );
-		return new ANTSDeformationField( fieldPermuted, spacing );
+		return new ANTSDeformationField( fieldPermuted, spacing, unit );
 	}
 
 	public < T extends RealType< T > > RandomAccessibleInterval< FloatType > read( final String fieldPath ) throws Exception

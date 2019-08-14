@@ -44,6 +44,12 @@ public class DisplacementFieldSmoothnessMeasures implements Callable<Void>
 	@Option(names = {"--field-of-view", "-f"}, description = "Field of view over which to compute", split="," )
 	private long[] intervalSpec;
 
+	@Option(names = {"--resolution"}, description = "Resolution of output.", split="," )
+	private double[] resolutionSpec;
+
+	@Option(names = {"--unit"}, description = "Units of output image physical coordinates.")
+	private String unit = "pixel";
+
 	@Option(names = {"--outputHessian"}, description = "Output file for hessian.", required = false )
 	private String outputHessianPath;
 
@@ -74,9 +80,13 @@ public class DisplacementFieldSmoothnessMeasures implements Callable<Void>
 
 		DfieldIoHelper dfieldIo = new DfieldIoHelper();
 		ANTSDeformationField transform = null;
+		double[] resolution = new double[]{ 1, 1, 1 };
 		try
 		{
 			transform = dfieldIo.readAsDeformationField( inputTransformPath );
+			resolution = transform.getResolution();
+			unit = transform.getUnit();
+			System.out.println( "resolution : " + Arrays.toString( resolution ));
 		}
 		catch ( Exception e )
 		{
@@ -88,6 +98,9 @@ public class DisplacementFieldSmoothnessMeasures implements Callable<Void>
 			interval = intervalSpec;
 		else
 			interval = Intervals.dimensionsAsLongArray( transform.getImg() );
+
+		if( resolutionSpec != null )
+			resolution = resolutionSpec;
 
 
 		ImagePlusImgFactory< FloatType > factory = new ImagePlusImgFactory<>( new FloatType() );
@@ -112,8 +125,14 @@ public class DisplacementFieldSmoothnessMeasures implements Callable<Void>
 			if( doHessian )
 			{
 				System.out.println( "Saving to : " + outputHessianPath );
+
 				ImagePlus hessip = hessianImg.getImagePlus();
+				hessip.getCalibration().pixelWidth = resolution[ 0 ]; 
+				hessip.getCalibration().pixelHeight = resolution[ 1 ]; 
+				hessip.getCalibration().pixelDepth = resolution[ 2 ]; 
 				hessip.setDimensions( 9, (int)interval[ 2 ], 1 );
+				hessip.getCalibration().setUnit( unit );
+
 				IOHelper.write( hessip, outputHessianPath );
 			}
 	
@@ -123,10 +142,24 @@ public class DisplacementFieldSmoothnessMeasures implements Callable<Void>
 				// TODO flesh out with more options after I implement them
 				
 				// don't pass interval directly in case it is of length > 3
+				// and permute, to deal with default imagej axis order
 				ImagePlusImg< FloatType, ? > normImg = factory.create( 
-						new long[]{ interval[0], interval[1], interval[2] } );
+						new long[]{ interval[0], interval[1], 1, interval[2] } );
+				
+				IntervalView< FloatType > normImgPermuted = 
+						Views.hyperSlice( 
+								Views.permute( normImg, 2, 3 ), 
+								3, 0 );
+				
+				System.out.println( "Setting hessian norm resolutions to: " + Arrays.toString( resolution ) );
+				ImagePlus hessNormIp = normImg.getImagePlus();
+				hessNormIp.getCalibration().pixelWidth = resolution[ 0 ]; 
+				hessNormIp.getCalibration().pixelHeight = resolution[ 1 ]; 
+				hessNormIp.getCalibration().pixelDepth = resolution[ 2 ]; 
+				hessNormIp.setDimensions( 1, (int)interval[ 2 ], 1 );
+				hessNormIp.getCalibration().setUnit( unit );
 
-				pixelwiseMatrixNorms( normImg, hessianImg, transform.getResolution() );
+				pixelwiseMatrixNorms( normImgPermuted, hessianImg, transform.getResolution() );
 				System.out.println( "Saving to : " + outputHessianNormPath );
 				IOHelper.write( normImg.getImagePlus(), outputHessianNormPath );
 			}
@@ -142,7 +175,13 @@ public class DisplacementFieldSmoothnessMeasures implements Callable<Void>
 
 			System.out.println( "Saving to : " + outputJacPath );
 			ImagePlus jacip = jacImg.getImagePlus();
+
+			jacip.getCalibration().pixelWidth = resolution[ 0 ]; 
+			jacip.getCalibration().pixelHeight = resolution[ 1 ]; 
+			jacip.getCalibration().pixelDepth = resolution[ 2 ]; 
 			jacip.setDimensions( 9, (int)interval[ 2 ], 1 );
+			jacip.getCalibration().setUnit( unit );
+
 			IOHelper.write( jacip, outputJacPath );
 		}
 
@@ -157,22 +196,17 @@ public class DisplacementFieldSmoothnessMeasures implements Callable<Void>
 //			System.out.println( "Computing jacobian determinant forward." );
 //			jacobianDeterminantForward( jacDetImg, transform.getImg(), transform.getResolution() );
 
+			ImagePlus jacDetIp = jacDetImg.getImagePlus();
+			jacDetIp.getCalibration().pixelWidth = resolution[ 0 ]; 
+			jacDetIp.getCalibration().pixelHeight = resolution[ 1 ]; 
+			jacDetIp.getCalibration().pixelDepth = resolution[ 2 ]; 
+			jacDetIp.setDimensions( 1, (int)interval[ 2 ], 1 );
+			jacDetIp.getCalibration().setUnit( unit );
+
 			System.out.println( "Saving to : " + outputJacDetPath );
 			IOHelper.write( jacDetImg.getImagePlus(), outputJacDetPath );
 		}
-				
-		
-		
-//		DfieldIoHelper io = new DfieldIoHelper();
-//		try
-//		{
-//			io.write( resultImg, outputPath );
-//		}
-//		catch ( Exception e )
-//		{
-//			e.printStackTrace();
-//		}
-		
+	
 		return null;
 	}
 	
