@@ -7,6 +7,7 @@ import org.janelia.utility.parse.ParseUtils;
 
 import bigwarp.landmarks.LandmarkTableModel;
 import ij.IJ;
+import ij.ImagePlus;
 import io.AffineImglib2IO;
 import io.nii.NiftiIo;
 import loci.formats.FormatException;
@@ -121,9 +122,9 @@ public class FlipVariancePointPairsJFRC2013 extends EstimateLeftRightVariance_JF
 		AffineTransform3D templateAdjust = ANTSLoadAffine.loadAffine( templateFlipAdjustF );
 		templateFlip.preConcatenate( templateAdjust.inverse() );
 		
-		Img< FloatType > defLowImg = ImageJFunctions.wrap( 
-				NiftiIo.readNifti( new File( templateSymDefF ) ) );
-		ANTSDeformationField templateDf = new ANTSDeformationField( defLowImg, new double[]{ 1, 1, 1 } );
+		ImagePlus ip = NiftiIo.readNifti( new File( templateSymDefF ) );
+		Img< FloatType > defLowImg = ImageJFunctions.convertFloat( ip );
+		ANTSDeformationField templateDf = new ANTSDeformationField( defLowImg, new double[]{ 1, 1, 1 }, ip.getCalibration().getUnit() );
 		
 		InvertibleRealTransformSequence symmetrizingTransform = new InvertibleRealTransformSequence();
 		symmetrizingTransform.add( templateFlip );

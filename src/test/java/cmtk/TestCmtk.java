@@ -3,6 +3,7 @@ package cmtk;
 import java.io.IOException;
 
 import ij.IJ;
+import ij.ImagePlus;
 import loci.formats.FormatException;
 import net.imglib2.RandomAccess;
 import net.imglib2.img.Img;
@@ -29,11 +30,10 @@ public class TestCmtk
 	{
 		String displacementF = "/nrs/saalfeld/john/projects/flyChemStainAtlas/cmtk_test/MakeAverageBrain/Registration/warp/start-1_F-A5_01_warp_m0g80c8e1e-1x26r4.list/dfield.tif";
 
-		Img< FloatType > displacementField = ImageJFunctions
-				.convertFloat( IJ.openImage( displacementF ) );
+		ImagePlus ip = IJ.openImage( displacementF );
+		Img< FloatType > displacementField = ImageJFunctions.convertFloat( ip );
 		ANTSDeformationField df = new ANTSDeformationField( displacementField,
-				new double[]
-				{ 1, 1, 1 } );
+				new double[]{ 1, 1, 1 }, ip.getCalibration().getUnit() );
 
 		System.out.println( displacementField.numDimensions() );
 		System.out.println( displacementField.dimension( 3 ) );
@@ -89,10 +89,10 @@ public class TestCmtk
 		 * yielded: ( 502.710026, 356.955505, 158.651995 )
 		 */
 
-		Img< FloatType > defLowImg = ImageJFunctions
-				.convertFloat( IJ.openImage( displacementF ) );
-		ANTSDeformationField df = new ANTSDeformationField( defLowImg, new double[]
-		{ 1, 1, 1 } );
+		ImagePlus ip = IJ.openImage( displacementF );
+		Img< FloatType > displacementField = ImageJFunctions.convertFloat( ip );
+		ANTSDeformationField df = new ANTSDeformationField( displacementField,
+				new double[]{ 1, 1, 1 }, ip.getCalibration().getUnit() );
 
 		InvertibleRealTransformSequence totalXfm = new InvertibleRealTransformSequence();
 		if ( df != null )

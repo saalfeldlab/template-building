@@ -6,6 +6,7 @@ import java.io.IOException;
 import bdv.util.Bdv;
 import bdv.util.BdvFunctions;
 import ij.IJ;
+import ij.ImagePlus;
 import io.AffineImglib2IO;
 import io.nii.NiftiIo;
 import jitk.spline.XfmUtils;
@@ -109,9 +110,11 @@ public class EstimateLeftRightVariance_CAN
 		AffineTransform3D affine = ANTSLoadAffine.loadAffine( affineF );
 		
 //		ANTSDeformationField df = null;
-		Img< FloatType > defLowImg = ImageJFunctions.wrap( 
-				NiftiIo.readNifti( new File( deformationF ) ) );
-		ANTSDeformationField df = new ANTSDeformationField( defLowImg, new double[]{ 1, 1, 1} );
+		ImagePlus ip = NiftiIo.readNifti( new File( deformationF ) );
+		Img< FloatType > defLowImg = ImageJFunctions.convertFloat( 
+				ip );
+
+		ANTSDeformationField df = new ANTSDeformationField( defLowImg, new double[]{ 1, 1, 1}, ip.getCalibration().getUnit() );
 		
 		AffineTransform3D flipAffine = null;
 		if( flipPreXfmF != null && !flipPreXfmF.isEmpty() )

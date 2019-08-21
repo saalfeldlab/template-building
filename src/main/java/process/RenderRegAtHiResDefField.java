@@ -143,8 +143,10 @@ public class RenderRegAtHiResDefField
 		}
 		totalAffine.preConcatenate( affine.inverse() );
 
-		Img< FloatType > defLowImg = ImageJFunctions.wrap( 
-				NiftiIo.readNifti( new File( warpF ) ) );
+		ImagePlus ip = NiftiIo.readNifti( new File( warpF ) );
+		Img< FloatType > defLowImg = ImageJFunctions.convertFloat( 
+				ip );
+
 		System.out.println( defLowImg );
 
 		// the deformation
@@ -152,7 +154,7 @@ public class RenderRegAtHiResDefField
 		if ( warpF != null )
 		{
 			System.out.println( "loading warp - factors 1 1 1" );
-			df = new ANTSDeformationField( defLowImg, new double[]{1,1,1} );
+			df = new ANTSDeformationField( defLowImg, new double[]{1,1,1}, ip.getCalibration().getUnit() );
 			System.out.println( df.getDefInterval() );
 		}
 
