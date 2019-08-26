@@ -12,9 +12,18 @@ import matplotlib.pyplot as plt
 alg_list = ['antsRegDog', 'antsRegOwl', 'antsRegYang', 'cmtkCOG', 'cmtkCow', 'cmtkHideo', 'elastixSFA', 'elastixBigfootA' ]
 template_list = [ 'JFRC2013_lo', 'JFRCtemplate2010', 'TeforBrain_f', 'F-antsFlip_lo', 'FCWB']
 
+template_list_res_old = [ 'F-antsFlip_lo', 'jrc18_1p2', 'jrc18_2p4', 'jrc18_3p6', \
+                    'TeforBrain_f', 'TeforBrain_1p2', 'TeforBrain_2p4', 'TeforBrain_3p6']
+
+template_list_res = [ 'F-antsFlip_lo', 'jrc18_1p2', 'jrc18_2p4', 'jrc18_3p6', \
+                    'TeforBrain_f', 'TeforBrain_1p2iso', 'TeforBrain_2p4iso', 'TeforBrain_3p6iso']
+
+jrc18_template_name_list = [ 'F-antsFlip_lo', 'F-antsFlip_lof','jrc18_1p2', 'jrc18_2p4', 'jrc18_3p6', \
+                           'JFRC2018','JFRC2018 (1.2um)','JFRC2018 (2.4um)','JFRC2018 (3.6um)']
 
 # Name Map
-alg_name_map = { 'antsRegDog': 'ANTs A', 'antsRegOwl' : 'ANTs B',
+alg_name_map = { 'antsRegDog': 'ANTs A', 'antsRegDog8': 'ANTs A', 
+                'antsRegOwl' : 'ANTs B',
         'antsRegYang' : 'ANTs C', 'cmtkCOG' : 'CMTK A',
         'cmtkHideo' : 'CMTK B', 'cmtkCow' : 'CMTK C',
         'ANTs Dog' : 'ANTs A', 'ANTs Owl' : 'ANTs B', 'ANTs Yang' : 'ANTs C',
@@ -28,7 +37,7 @@ template_name_map = { 'JFRC2013_lo':'JFRC2013', 'JFRC2013_lof':'JFRC2013',
                       'F-cmtkFlip_lof' : 'CMTK groupwise', 'FCWB':'FCWB',
                       'jfrc 2013' : 'JFRC2013', 'ANTs groupwise' : 'JRC2018',
                       'jfrc 2010' : 'JFRC2010',
-                      'jrc18_1p2':'JFRC2018 (1.2um)',
+                      'jrc18_1p2':'JFRC2018 (1.2um)', 
                       'jrc18_2p4':'JFRC2018 (2.4um)',
                       'jrc18_3p6':'JFRC2018 (3.6um)',
                       'TeforBrain_1p2iso':'Tefor (1.2um)',
@@ -114,6 +123,7 @@ def clean_jac_table( df ):
     for col in [ x for x in df.columns if x.startswith('Unnamed') ]:
         df = df.drop( col, axis=1 )
 
+    
     rename_dict = {}
     for a,b in df.loc[ 0 ].iteritems():
         rename_dict[a] = '_'.join(['JAC', b])
@@ -122,24 +132,46 @@ def clean_jac_table( df ):
     df = df.drop([0])
     return df
 
+def clean_names( df ):
+    df['TEMPLATE'] = df.apply(lambda x: template_name(x['TEMPLATE']), axis=1)
+    df['ALG'] = df.apply(lambda x: alg_name(x['ALG']), axis=1)
+    df['TA'] = df.apply(lambda x: ''.join([x['TEMPLATE'],':',x['ALG']]), axis=1)
+    return df
+
+def addNormColumn( f, df ):
+    if re.search( "Affine", f ) is not None:
+        normalizationType = 'affine'
+    else:
+        normalizationType = 'warp'
+    
+    normtype = df.apply( lambda x: 'na' if x['TEMPLATE'] in jrc18_template_name_list else normalizationType, axis=1)
+    df['normalization'] = normtype
+    
+    return df
+
 def genStdDevs( df ):
     df['DISTANCE_std'] = df.apply( lambda x: math.sqrt(float(x['DISTANCE_var'])), axis=1)
     df['DISTANCE_gam_std'] = df.apply( lambda x: math.sqrt(float(x['DISTANCE_gam_var'])), axis=1)
     df['DISTANCE_ray_std'] = df.apply( lambda x: math.sqrt(float(x['DISTANCE_ray_var'])), axis=1)
-    df.reset_index( drop=True )
 
-def readStatTables( stat_dir='/nrs/saalfeld/john/projects/flyChemStainAtlas/all_evals/stats_2019Mar'):
+def meanStdStringCol( df, resultcol, meancol, stdcol, formatstring='%0.2f (%0.2f)' ):
+    df[resultcol] = df.apply(
+        lambda x: formatstring%(x[meancol], x[stdcol]), axis=1)
+
+    
+def readStatTables( stat_dir='/nrs/saalfeld/john/projects/flyChemStainAtlas/all_evals/stats_2019Jul'):
     dist_df = None
     for f in glob.glob( ''.join([stat_dir,'/*dist*.csv']) ):
         tmp_df = pd.read_csv( f )
-        tmp_df_clean = clean_table_hdr( tmp_df )
+        tmp_df_clean = clean_table_hdr( tmp_df ).reset_index( drop=True )
+        tmp_df_clean_norm = addNormColumn( f, tmp_df_clean )
+#         print( tmp_df_clean_norm[ tmp_df_clean_norm.normalization == 'na'].shape )
         if dist_df is None:
-            dist_df = tmp_df_clean
+            dist_df = tmp_df_clean_norm
         else:
-            dist_df = dist_df.append( tmp_df_clean )
+            dist_df = dist_df.append( tmp_df_clean_norm )
 
     genStdDevs( dist_df )
-
 
     jac_df = None
     for f in glob.glob( ''.join([stat_dir,'/*jacStats.csv']) ):
@@ -168,28 +200,30 @@ def readStatTables( stat_dir='/nrs/saalfeld/john/projects/flyChemStainAtlas/all_
     for f in glob.glob( ''.join([stat_dir,'/*timeStats.csv']) ):
     #     print( f )
         tmp_df = pd.read_csv( f, names=['TEMPLATE','ALG','numThreads','runtime','avgmem', 'maxmem'] )
+        tmp_df = tmp_df.reset_index( drop=True )
         if timeMem_df is None:
             timeMem_df = tmp_df
         else:
             timeMem_df = timeMem_df.append( clean_table_hdr( tmp_df ))
+        
+#         timeMem_df = timeMem_df.reset_index( drop=True )
     
     return dist_df, jac_df, hess_df, timeMem_df
 
-def groupTables( dist_df, jac_df, hess_df, timeMem_df ):
-    dist_df['ALG'].unique()
+
+def groupTables( dist_df, jac_df, hess_df, timeMem_df, the_template_list, normalization_type='warp' ):
+
     [alg_name(x) for x in dist_df['ALG'].unique() ]
 
     # filter templates
-    tmask = dist_df.apply( lambda x: (x['TEMPLATE'] in template_list ), axis=1)
+    tmask = dist_df.apply( lambda x: (x['TEMPLATE'] in the_template_list ), axis=1)
     df = dist_df.loc[tmask]
 
     # Filter out appropriate rows and columns
-    dist_table = df.loc[ (df.LABEL == -1) & (df.ALG != 'ALL')][['ALG','TEMPLATE','DISTANCE_mean','DISTANCE_std']]
+    dist_table = df.loc[ (df.LABEL == -1) & (df.ALG != 'ALL') & \
+                        ((df.normalization == normalization_type) | (df.normalization == 'na'))][['ALG','TEMPLATE','DISTANCE_mean','DISTANCE_std']]
 
-    dist_table['TEMPLATE'] = dist_table.apply(lambda x: template_name(x['TEMPLATE']), axis=1)
-    dist_table['ALG'] = dist_table.apply(lambda x: alg_name(x['ALG']), axis=1)
-    dist_table['TA'] = dist_table.apply(lambda x: ''.join([x['TEMPLATE'],':',x['ALG']]), axis=1)
-
+    dist_table = clean_names( dist_table )
 
     # Tabulate times
     timeMem_df['CPUTIME'] = timeMem_df.apply(lambda x: float(x['runtime'])*float(x['numThreads']), axis=1) 
@@ -213,17 +247,10 @@ def groupTables( dist_df, jac_df, hess_df, timeMem_df ):
     
     # Tabulate jacobians and hessians
     jac_table = jac_df.loc[ jac_df.label == -1 ]
-
-    jac_table['TEMPLATE'] = jac_table.apply(lambda x: template_name(x['TEMPLATE']), axis=1)
-    jac_table['ALG'] = jac_table.apply(lambda x: alg_name(x['ALG']), axis=1)
-    jac_table['TA'] = jac_table.apply(lambda x: ''.join([x['TEMPLATE'],':',x['ALG']]), axis=1)
-
+    jac_table = clean_names( jac_table )
 
     hess_table = hess_df.loc[ hess_df.label == -1 ]
-
-    hess_table['TEMPLATE'] = hess_table.apply(lambda x: template_name(x['TEMPLATE']), axis=1)
-    hess_table['ALG'] = hess_table.apply(lambda x: alg_name(x['ALG']), axis=1)
-    hess_table['TA'] = hess_table.apply(lambda x: ''.join([x['TEMPLATE'],':',x['ALG']]), axis=1)
+    hess_table = clean_names( hess_table )
 
     # combine the tables
     tmp_tbl = dist_table.set_index('TA').join( time_table.set_index('TA'), lsuffix='_dist')
@@ -231,7 +258,6 @@ def groupTables( dist_df, jac_df, hess_df, timeMem_df ):
     total_table = tmp_tbl.join( jac_table.set_index('TA'), lsuffix='_j' )
     total_table = total_table.join( hess_table.set_index('TA'), lsuffix='_j' )
     # total_table
-
 
     # total_table.query( 'label == -1')
     # total_table.query( 'TEMPLATE == "JFRC2013" & ALG == "elastixSFA"' )
@@ -244,7 +270,7 @@ def groupTables( dist_df, jac_df, hess_df, timeMem_df ):
     return grouped_label_table
     
 
-def make_scatter_plot( table, x_label, y_label ):
+def make_scatter_plot( table, x_label, y_label, color_map=template_color_map ):
     ax = plt.gca()
     for i,row in table.iterrows():
 
@@ -252,7 +278,7 @@ def make_scatter_plot( table, x_label, y_label ):
         alg = alg_name(row['ALG'].lstrip(' ').rstrip(' '))
         s = "  " + alg
 
-        c = template_color_map[row['TEMPLATE']]
+        c = color_map[row['TEMPLATE']]
         ax.annotate( s, (row[x_label], row[y_label] ), color=c, size=13 )
 
         # The below lines only add labels for one algorithm (per template)
