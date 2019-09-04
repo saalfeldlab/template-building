@@ -231,7 +231,7 @@ public class Test2dN5Dfield
 //			RandomAccessibleInterval<UnsignedByteType> imgout = Views.hyperSlice( (RandomAccessibleInterval<UnsignedByteType>)obj, 2, 0 );
 //			return imgout;
 		}
-		return ( RandomAccessibleInterval< UnsignedByteType > ) ImageJFunctions.wrap( ip );
+		return ImageJFunctions.wrapByte( ip );
 	}
 
 }
