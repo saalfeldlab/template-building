@@ -30,19 +30,19 @@ import picocli.CommandLine.Option;
 public class TransformPoints implements Callable<Void>
 {
 
-	@Option( names = { "-i", "--input" }, required = true, description = "Image file to transform." )
+	@Option( names = { "-i", "--input" }, required = true, description = "Points file to transform." )
 	private String input;
 
 	@Option( names = { "-o", "--output" }, required = false, description = "Output file. Prints to standard out if no output argument given." )
 	private String output;
 
-	@Option( names = { "-t", "--transform" }, required = false, description = "Transformation file." )
+	@Option( names = { "-t", "--transform" }, required = false, description = "Transformation files." )
 	private List< String > transformFiles = new ArrayList<>();
 
 	@Option( names = { "-d", "--delimeter" }, required = false, description = "Delimeter separating coordinates (default=\"${DEFAULT-VALUE}\")." )
 	private String delimeter = ",";
 
-	@Option( names = { "--header" }, required = false, description = "Number of header lines." )
+	@Option( names = { "-h", "--header" }, required = false, description = "Number of header lines." )
 	private int numHeaderLines = 0;
 
 //	@Option( names = { "-j", "--nThreads" }, required = false, description = "Number of rendering threads (default=1)" )
