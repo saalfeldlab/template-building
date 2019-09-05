@@ -9,13 +9,11 @@ import org.janelia.saalfeldlab.n5.GzipCompression;
 import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Reader;
 import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Writer;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
-import org.janelia.utility.parse.ParseUtils;
 
 import ij.IJ;
 import ij.ImagePlus;
 import io.IOHelper;
 import io.nii.NiftiIo;
-import jitk.spline.XfmUtils;
 import loci.formats.FormatException;
 import net.imglib2.Cursor;
 import net.imglib2.FinalInterval;
@@ -56,6 +54,7 @@ import net.imglib2.type.numeric.integer.UnsignedLongType;
 import net.imglib2.type.numeric.integer.UnsignedShortType;
 import net.imglib2.type.numeric.real.DoubleType;
 import net.imglib2.type.numeric.real.FloatType;
+import net.imglib2.util.Intervals;
 import net.imglib2.util.Util;
 import net.imglib2.view.RandomAccessibleOnRealRandomAccessible;
 import net.imglib2.view.Views;
@@ -341,8 +340,8 @@ public class DownsampleGaussian implements Callable<Void>
 				downsampleFactors[ d ] = resultResolutions[ d ] / resIn[ d ];
 			}
 
-			System.out.println( "resultResolutions: " + XfmUtils.printArray( resultResolutions ));
-			System.out.println( "downsampleFactors: " + XfmUtils.printArray( downsampleFactors ));
+			System.out.println( "resultResolutions: " + Arrays.toString( resultResolutions ));
+			System.out.println( "downsampleFactors: " + Arrays.toString( downsampleFactors ));
 		}
 		else if( downsampleFactors != null  )
 		{
@@ -354,8 +353,8 @@ public class DownsampleGaussian implements Callable<Void>
 				resultResolutions[ d ] = downsampleFactors[ d ] * resIn[ d ];
 			}
 			
-			System.out.println( "resultResolutions: " + XfmUtils.printArray( resultResolutions ));
-			System.out.println( "downsampleFactors: " + XfmUtils.printArray( downsampleFactors ));
+			System.out.println( "resultResolutions: " + Arrays.toString( resultResolutions ));
+			System.out.println( "downsampleFactors: " + Arrays.toString( downsampleFactors ));
 		}
 		else
 		{
@@ -367,8 +366,8 @@ public class DownsampleGaussian implements Callable<Void>
 		targetSigmas = checkAndFillArrays( targetSigmasIn, nd, "target sigmas");
 
 		System.out.println("nthreads: " + nThreads );
-		System.out.println( XfmUtils.printArray( sourceSigmas ));
-		System.out.println( XfmUtils.printArray( targetSigmas ));
+		System.out.println( Arrays.toString( sourceSigmas ));
+		System.out.println( Arrays.toString( targetSigmas ));
 		
 		Interval outputInterval = ipi;
 		long[] offset = new long[ nd ];
@@ -745,13 +744,26 @@ public class DownsampleGaussian implements Callable<Void>
 	{
 	
 		int ndims = imgIn.numDimensions();
-
-		ArrayImgFactory< S > factory = new ArrayImgFactory<>(Views.flatIterable( imgIn ).firstElement());
-		ArrayImg< S, ? > img = factory.create( imgIn );
-		System.out.println( "allocating img for gauss size: " + Util.printInterval( img ) );
-
+		
+		RandomAccessibleInterval<S> img = null;
 		if( !Double.isNaN( targetSigmas[0]) && !Double.isNaN(sourceSigmas[0]))
 		{
+			String type = "array";
+			ImgFactory<S> factory = null;
+
+			long nPixels = Intervals.numElements( imgIn );
+			if( nPixels <= 2100000 ) // approx max array length
+			{
+				factory = new ArrayImgFactory<>( Util.getTypeFromInterval( imgIn ) );
+			}
+			else
+			{
+				type = "imgplus";
+				factory = new ImagePlusImgFactory<>( Util.getTypeFromInterval( imgIn ) );
+			}
+			System.out.println( "allocating " + type + " img for gauss size: " );
+			img = factory.create( imgIn );
+
 			double[] sigs = new double[ ndims ];
 			for ( int d = 0; d < ndims; d++ )
 			{
@@ -783,6 +795,11 @@ public class DownsampleGaussian implements Callable<Void>
 				e.printStackTrace();
 			}
 		}
+		else
+		{
+			img = imgIn;
+		}
+
 
 		double[] min = new double[ out.numDimensions() ];
 		for ( int d = 0; d < ndims; d++ )
