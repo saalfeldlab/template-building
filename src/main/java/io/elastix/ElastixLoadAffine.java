@@ -18,9 +18,7 @@ public class ElastixLoadAffine
 
 	public static void main( String[] args ) throws IOException
 	{
-		String fPath = "/nrs/saalfeld/john/projects/flyChemStainAtlas/all_evals/JFRC2013_lof/elastixSFA/20161102_32_C1_Scope_1_C1_down_elastixSFA_affine/TransformParameters.0.txt";
-		
-		AffineTransform3D xfm = load( fPath );
+		AffineTransform3D xfm = load( args[ 0 ] );
 		System.out.println( Arrays.stream(xfm.getRowPackedCopy()).mapToObj( Double::toString ).collect( Collectors.joining(",") ));
 	}
 	
