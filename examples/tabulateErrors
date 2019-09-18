@@ -1,0 +1,28 @@
+#!/bin/bash
+
+table="errTableLevels.csv"
+
+echo "xfm,level,min,avg,max" > $table
+
+for f in `ls *err*.txt`;
+do
+    echo $f
+
+    if [[ $f == *Fwd* ]];
+    then
+        dir="F"
+    elif [[ $f == *Inv* ]];
+    then
+        dir="I"
+    else
+        echo "uh oh"
+    fi
+
+    xfm=$(echo $f | sed 's/_err.*.txt//g')
+    level=$(echo $f | sed 's/.*_err[A-Z][a-z][a-z]\(.\).txt/\1/g')
+    min=$(grep min $f | sed -e 's/.*://g' -e 's/ //g')
+    avg=$(grep avg $f | sed -e 's/.*://g' -e 's/ //g')
+    max=$(grep max $f | sed -e 's/.*://g' -e 's/ //g')
+
+    echo "${xfm}($dir),$level,$min,$avg,$max" >> $table
+done

@@ -1,0 +1,66 @@
+#!/bin/bash
+
+base_dir="/groups/saalfeld/public/jrc2018/transformations"
+dest_dir="/groups/saalfeld/home/bogovicj/dev/template/template-building-pub/examples"
+
+N=5
+h5XfmList=(
+    'public_transforms/JRC2018F_FAFB.h5'
+    'public_transforms/JRC2018F_FCWB.h5'
+    'public_transforms/JRC2018F_JFRC2010.h5'
+    'public_transforms/JRC2018F_JFRC2013.h5'
+    'public_transforms/JRC2018F_TEFOR.h5'
+    )
+
+
+fwdList=(
+    'JRC2018F_FAFB/JRC2018F_FAFB1Warp.nii'
+    'jrc2018F-FCWB/JRC2018F_FCWB_1Warp.nii'
+    'jrc2018F-jfrc2010/JRC2018F_JFRC2010_Warp.nii'
+    'jrc2018F-jfrc2013/JRC2018F_JFRC2013_Warp.nii'
+    'JRC2018F_TEFOR/JRC2018F_TEFOR_1Warp.nii'
+)
+
+invList=(
+    'JRC2018F_FAFB/JRC2018F_FAFB1InverseWarp.nii'
+    'jrc2018F-FCWB/JRC2018F_FCWB_1InverseWarp.nii'
+    'jrc2018F-jfrc2010/JRC2018F_JFRC2010_InverseWarp.nii'
+    'jrc2018F-jfrc2013/JRC2018F_JFRC2013_InverseWarp.nii'
+    'JRC2018F_TEFOR/JRC2018F_TEFOR_1InverseWarp.nii'
+)
+
+#echo "${h5XfmList[0]}"
+#echo "Compare "
+
+
+hi=$((N-1))
+#for i in "4"
+#for i in $(seq 0 3);
+
+for level in 1 2
+do
+    for i in $(seq 0 $hi);
+    do
+        echo $i
+        echo $level
+        echo "${h5XfmList[$i]}"
+        echo "${fwdList[$i]}"
+        echo "${invList[$i]}"
+        outF=$(echo "${h5XfmList[$i]}" | sed -e 's:.*/::g' -e "s/.h5/_errFwd$level.txt/g")
+        outI=$(echo "${h5XfmList[$i]}" | sed -e 's:.*/::g' -e "s/.h5/_errInv$level.txt/g")
+        echo $outF
+        echo $outI
+
+        fwdh5Xfm="$base_dir/${h5XfmList[$i]}:/$level/dfield"
+        invh5Xfm="$base_dir/${h5XfmList[$i]}:/$level/invdfield"
+
+        fwdXfm="$base_dir/${fwdList[$i]}"
+        invXfm="$base_dir/${invList[$i]}"
+
+        echo " "
+        compareDfields $fwdXfm $fwdh5Xfm > $dest_dir/$outF
+
+        compareDfields $invXfm $invh5Xfm > $dest_dir/$outI
+        
+    done
+done
