@@ -4,6 +4,22 @@
 
 PATTERN="^\(201[6-7][0-9]\{4\}\_[0-9][0-9]_[A-Z][0-9]\).*"
 
+CONVERTED_PHYSICAL="--phys"
+RAW="--raw"
+
+xfmPattern="TransformParameters_def"
+suffix=".nrrd"
+if [ $1 == "$CONVERTED_PHYSICAL" ]
+then
+    xfmPattern="TransformParameters_def_noAffine"
+    shift
+elif [ $1 == "$RAW" ]; 
+then
+    xfmPattern="TransformParameters.0"
+    suffix=".txt"
+    shift
+fi
+
 in="$1"
 REGDIR="$2"
 
@@ -16,6 +32,6 @@ else
 fi
 
 prefix=`echo "$input" | sed "s/$PATTERN/\1/g"`
-xfm=`ls ${REGDIR}/${prefix}*/TransformParameters_def.nrrd`
+xfm=`ls ${REGDIR}/${prefix}*/${xfmPattern}${suffix} | grep -v affine`
 
 echo "$xfm"
