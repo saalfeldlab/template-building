@@ -3,12 +3,14 @@
 out="$1"
 shift
 
+prefix=$(parseTemplateAlg)
+
 for f in $@;
 do
     runtime=$(grep 'Run time :' $f | sed -e 's/sec.//g' -e 's/Run time ://g' | tr -d ' ')
     avgmem=$(grep 'Average Memory :' $f | sed -e 's/MB//g' -e 's/Average Memory ://g' | tr -d ' ')
     maxmem=$(grep 'Max Memory :' $f | sed -e 's/MB//g' -e 's/Max Memory ://g' | tr -d ' ')
     
-    echo "$runtime,$avgmem,$maxmem" >> $out
+    echo "$prefix,$runtime,$avgmem,$maxmem" >> $out
 
 done
