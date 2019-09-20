@@ -1,0 +1,8 @@
+#!/bin/bash
+
+BASEDIR=$(dirname "$0")
+#cp=`cat "$BASEDIR/gaussDs.cp`
+cp=`cat "$BASEDIR/theclasspath.cp"`
+
+
+/misc/local/jdk1.8.0_102/bin/java -cp $cp -Xmx8g vis.WriteClaheSlices $@
