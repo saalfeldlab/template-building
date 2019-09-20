@@ -1,6 +1,5 @@
 package vis;
 
-import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.stream.Stream;
@@ -8,7 +7,7 @@ import java.util.stream.Stream.Builder;
 
 import ij.IJ;
 import ij.ImagePlus;
-import io.nii.NiftiIo;
+import io.IOHelper;
 import loci.formats.FormatException;
 import mpicbg.ij.clahe.Flat;
 import net.imglib2.Cursor;
@@ -44,17 +43,10 @@ public class WriteClaheSlices
 		Stream<String> codeArgs = Arrays.stream( args ).skip( 4 );
 
 		System.out.println( "min max " + min + " " + max );
-		
-		ImagePlus ip = null;
-		if( fin.endsWith( "nii" ))
-		{
-			ip = NiftiIo.readNifti( new File( fin ));
-		}
-		else
-		{
-			ip = IJ.openImage( fin );
-		}
-		
+
+		IOHelper io = new IOHelper();
+		ImagePlus ip = io.readIp( fin );
+
 		if( ip.getBitDepth() == 8 )
 		{
 			System.out.println("byte");
