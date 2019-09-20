@@ -1,0 +1,36 @@
+#!/bin/bash
+
+nThreads="4"
+
+moving="$1"
+shift
+fixed="$1"
+shift
+output="$1"
+shift
+
+affine_params="elastix_affine_params.txt"
+params="elastixB_bspline_params.txt"
+
+affine_output="${output}_affine"
+
+mkdir $output
+mkdir $affine_output
+
+echo "AFFINE"
+elastix -f $fixed \
+    -m $moving \
+    -out $affine_output \
+    -threads $nThreads \
+    -p $affine_params
+
+affine_params=$(ls ${affine_output}/TransformParameters.0.txt)
+
+echo "BSPLINE"
+elastix -f $fixed \
+    -t0 $affine_params \
+    -m $moving \
+    -out $output \
+    -threads $nThreads \
+    -p $params
+
