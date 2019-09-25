@@ -8,8 +8,8 @@ exe="/groups/saalfeld/home/bogovicj/dev/template/template-building-pub/scripts/v
 out_dir="/groups/saalfeld/home/bogovicj/pubDrafts/grpDrosTemplate/grpDrosTemplate/figs/regExamplesArrow";
 
 ## JRC2018
-#img_list="/groups/saalfeld/home/bogovicj/dev/template/template-building-pub/scripts/visualization/jrc18_img_list.txt"
-#z="z139 z174 z255"
+img_list="/groups/saalfeld/home/bogovicj/dev/template/template-building-pub/scripts/visualization/jrc18_img_list.txt"
+z="z139 z174 z255"
 
 # JFRC2010
 #img_list="/groups/saalfeld/home/bogovicj/dev/template/template-building-pub/scripts/visualization/jfrc2010_img_list.txt"
@@ -20,8 +20,8 @@ out_dir="/groups/saalfeld/home/bogovicj/pubDrafts/grpDrosTemplate/grpDrosTemplat
 #z="z115 z154 z221"
 
 ## FCWB 
-img_list="/groups/saalfeld/home/bogovicj/dev/template/template-building-pub/scripts/visualization/fcwb_img_list.txt"
-z="z41 z55 z80"
+#img_list="/groups/saalfeld/home/bogovicj/dev/template/template-building-pub/scripts/visualization/fcwb_img_list.txt"
+#z="z41 z55 z80"
 
 ## Tefor
 #img_list="/groups/saalfeld/home/bogovicj/dev/template/template-building-pub/scripts/visualization/tefor_img_list.txt"

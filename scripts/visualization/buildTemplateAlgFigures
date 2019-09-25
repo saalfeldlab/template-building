@@ -1,0 +1,25 @@
+#!/bin/bash
+
+dir="/groups/saalfeld/home/bogovicj/pubDrafts/grpDrosTemplate/grpDrosTemplate/figs/regExamplesArrow"
+
+template="$1"
+
+#oldAlg="$2"
+#newAlg="$3"
+
+oldAlg="antsRegDog"
+newAlgList="antsRegOwl antsRegYang cmtkCOG cmtkCow cmtkHideo elastixSFA
+elastixBigfootA"
+
+for newAlg in $newAlgList
+do
+    echo $newAlg
+    ls "$dir/${template}_${oldAlg}.svg"
+    echo "$dir/${template}_${newAlg}.svg"
+
+    sed "s/$oldAlg/$newAlg/g" $dir/${template}_${oldAlg}.svg > $dir/${template}_${newAlg}.svg 
+    svg2pdf $dir/${template}_${newAlg}.svg 
+
+    echo " "
+
+done

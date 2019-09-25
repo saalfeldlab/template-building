@@ -1,0 +1,75 @@
+#!/bin/bash
+
+dir="/groups/saalfeld/home/bogovicj/pubDrafts/grpDrosTemplate/grpDrosTemplate/figs/regExamplesArrow"
+
+regList="antsRegDog antsRegOwl antsRegYang cmtkCOG cmtkCow cmtkHideo elastixSFA elastixBigfootA"
+subList="20161102_32_C1 20170223_32_A2"
+
+## JRC2018
+#template="F-antsFlip_lo"
+#z="z0139 z0174 z0255"
+
+# JFRC2010
+#template="JFRCtemplate2010"
+#z="z0074 z0105 z0169"
+
+## JFRC2013
+#template="JFRC2013_lo"
+#z="z0115 z0154 z0221"
+
+## FCWB 
+#template="FCWB"
+#z="z0041 z0055 z0080"
+
+## Tefor
+template="TeforBrain_f"
+z="z0071 z0089 z0138"
+
+
+for sub in $subList
+do
+    #echo "sub: $sub"
+
+    for zval in $z
+    do
+        #echo $zval
+
+        for reg in $regList
+        do
+            #echo "reg: $reg"
+
+            templateFile="${dir}/${template}_${zval}_TEMPLATE.svg"
+
+            name="${template}_${reg}_${sub}_${zval}"
+            svgname="${template}_${reg}_${sub}_${zval}.svg"
+            pngname="${template}_${reg}_${sub}_${zval}.png"
+
+            pngFile="$dir/${name}.png"
+            svgFile="$dir/${name}.svg"
+            pdfFile="$dir/${name}.pdf"
+
+            echo $svgFile
+            echo $pdfFile
+           
+            sed -e "s#sodipodi:docname=\".*\"#sodipodi:docname=\"$svgname\"#g" \
+                -e "s#sodipodi:absref=.*#sodipodi:absref=\"$pngFile\"#g" \
+                -e "s#xlink:href=.*#xlink:href=\"$pngname\"#g" \
+                "$templateFile" > $svgFile
+
+            #inkscape $svgFile --export-pdf=$pdfFile
+            #exit 0
+
+            #ls $pngFile
+            #ls $templateFile
+            echo " "
+        done
+
+
+    done
+
+    #sed -e "s#sodipodi:docname=\".*\"#sodipodi:docname=\"$outname\"#g" \
+    #    -e "s#sodipodi:absref=.*#sodipodi:absref=\"$fullpath\"#g" \
+    #    -e "s#xlink:href=.*#xlink:href=\"$name\"#g" \
+    #    "$in" > $out
+done
+
