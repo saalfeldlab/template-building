@@ -1,0 +1,44 @@
+#!/bin/bash
+# Measure time for transforming skeletons withs nii dfields vs h5 dfields
+
+## SMALL H5
+smallStart=$(date +%s%N)
+transformSwc -s GadMARCM-F000122_seg001_03.swc \
+    -o GadMARCM-F000122_seg001_03_toJRC2018small.swc \
+    -t JRC2018F_FCWB_small.h5??i
+smallEnd=$(date +%s%N)
+echo "smallStart,$smallStart"
+echo "smallEnd,$smallEnd"
+smallTime=$(echo "($smallEnd - $smallStart)/1000000" | bc)
+echo "smallTime,$smallTime"
+
+
+## Big H5
+bigStart=$(date +%s%N)
+bigH5="/groups/saalfeld/public/jrc2018/transformations/quantized_multiscale/JRC2018F_FCWB.h5"
+transformSwc -s GadMARCM-F000122_seg001_03.swc \
+    -o GadMARCM-F000122_seg001_03_toJRC2018.swc \
+    -t ${bigH5}??i
+bigEnd=$(date +%s%N)
+echo "bigStart,$bigStart"
+echo "bigEnd,$bigEnd"
+bigTime=$(echo "($bigEnd - $bigStart)/1000000" | bc)
+echo "bigTime,$bigTime"
+
+# Raw ants outputs
+affine="/groups/saalfeld/public/jrc2018/transformations/jrc2018F-FCWB/JRC2018F_FCWB_0Affine.mat"
+fdfield="/groups/saalfeld/public/jrc2018/transformations/jrc2018F-FCWB/JRC2018F_FCWB_1Warp.nii"
+idfield="/groups/saalfeld/public/jrc2018/transformations/jrc2018F-FCWB/JRC2018F_FCWB_1InverseWarp.nii"
+
+antsStart=$(date +%s%N)
+transformSwc -s GadMARCM-F000122_seg001_03.swc \
+    -o GadMARCM-F000122_seg001_03_toJRC2018AntsInv.swc \
+    -t ${affine}?i \
+    -t ${idfield}
+antsEnd=$(date +%s%N)
+
+echo "antsStart,$antsStart"
+echo "antsEnd,$antsEnd"
+antsTime=$(echo "($antsEnd - $antsStart)/1000000" | bc)
+echo "antsTime,$antsTime"
+
