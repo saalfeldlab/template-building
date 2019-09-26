@@ -42,3 +42,19 @@ echo "antsEnd,$antsEnd"
 antsTime=$(echo "($antsEnd - $antsStart)/1000000" | bc)
 echo "antsTime,$antsTime"
 
+
+#############################################################
+# This script produced the following output on 2019 Sept 26 #
+#############################################################
+#smallStart,1569523492033478557
+#smallEnd,1569523494058777305
+#smallTime,2025
+# 
+#bigStart,1569523494063696252
+#bigEnd,1569523495817527854
+#bigTime,1753
+#
+#antsStart,1569523495822603388
+#antsEnd,1569523563795869723
+#antsTime,67973
+
