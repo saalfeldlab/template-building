@@ -235,7 +235,7 @@ public class TransformReader
 		}
 		else if( transformPath.contains( ".h5" ) || transformPath.contains( ".hdf5" )) 
 		{
-			return readH5Invertible( transformPath );
+			return readH5Invertible( transformPathFull );
 		}
 		else if( transformPath.contains( ".csv" ) )
 		{
