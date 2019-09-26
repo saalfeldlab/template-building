@@ -5,6 +5,7 @@ import static org.junit.Assert.*;
 import java.lang.reflect.Field;
 
 import org.janelia.saalfeldlab.transform.io.TransformReader;
+import org.janelia.saalfeldlab.transform.io.TransformReader.H5TransformParameters;
 import org.junit.Test;
 
 import net.imglib2.FinalInterval;
@@ -22,6 +23,16 @@ public class TransformFileParseTest
 {
 	static final String TEST_MAT_FILE = "src/test/resources/affinemtx.mat";
 	static final String TEST_TXT_FILE = "src/test/resources/affinemtx.txt";
+
+	static final String TEST_H5_FILE = "src/test/resources/my.h5";
+
+	static final String TEST_H5_DATASET_A = "foo";
+	static final String TEST_H5_DATASET_AFWD = "foo/dfield";
+	static final String TEST_H5_DATASET_AINV = "foo/invdfield";
+
+	static final String TEST_H5_DATASET_B = "bar";
+	static final String TEST_H5_DATASET_BFWD = "bar/dfield";
+	static final String TEST_H5_DATASET_BINV = "bar/invdfield";
 
 	@Test
 	public void testParse()
@@ -43,6 +54,29 @@ public class TransformFileParseTest
 		assertArrayEquals( "mat inverse", affine_inv.getRowPackedCopy(), affine.inverse().getRowPackedCopy(), 1e-6 );
 
 		assertArrayEquals( "mat vs txt", affine_txt.getRowPackedCopy(), affine.getRowPackedCopy(), 1e-6 );
+	}
+
+	@Test
+	public void testH5Parse()
+	{
+
+		String inv = "i";
+
+		String fileDataset = String.join( "?", TEST_H5_FILE, TEST_H5_DATASET_A );
+		String fileDatasetInv = String.join( "?", TEST_H5_FILE, TEST_H5_DATASET_A, inv );
+
+
+		H5TransformParameters params = TransformReader.H5TransformParameters.parse( fileDataset );
+		H5TransformParameters invparams = TransformReader.H5TransformParameters.parse( fileDatasetInv );
+		
+		assertTrue( "params not inverted", !params.inverse );
+		assertEquals( "params dataset", TEST_H5_DATASET_AFWD, params.fwddataset );
+		assertEquals( "params dataset", TEST_H5_DATASET_AINV, params.invdataset );
+
+		assertTrue( "inv params are inverted", invparams.inverse );
+		assertEquals( "inv params dataset", TEST_H5_DATASET_AFWD, invparams.fwddataset );
+		assertEquals( "inv params dataset", TEST_H5_DATASET_AINV, invparams.invdataset );
+
 	}
 
 	@Test
