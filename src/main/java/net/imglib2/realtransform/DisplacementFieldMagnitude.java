@@ -91,14 +91,14 @@ public class DisplacementFieldMagnitude implements Callable< Void >
 		CompositeIntervalView< FloatType, ? extends GenericComposite< FloatType > > dfieldVec = Views.collapse( dfieldRai );
 		
 		// allocate output
-		FloatImagePlus< FloatType > magImg = ImagePlusImgs.floats( Intervals.dimensionsAsLongArray( dfieldVec ) );
+		setMagImg( ImagePlusImgs.floats( Intervals.dimensionsAsLongArray( dfieldVec ) ) );
 		
 		System.out.println("computing");
-		LoopBuilder.setImages( dfieldVec, magImg ).forEachPixel( 
+		LoopBuilder.setImages( dfieldVec, getMagImg() ).forEachPixel( 
 				(i,o) -> { o.setReal( magnitude( i, nc ) );}
 			);
 		
-		ImagePlus ip = magImg.getImagePlus();
+		ImagePlus ip = getMagImg().getImagePlus();
 		ip.getCalibration().pixelWidth = dfield.getResolution()[ 0 ];
 		ip.getCalibration().pixelHeight = dfield.getResolution()[ 1 ];
 		ip.getCalibration().pixelDepth = dfield.getResolution()[ 2 ];
@@ -139,6 +139,16 @@ public class DisplacementFieldMagnitude implements Callable< Void >
 	public void setOutput( String output )
 	{
 		this.output = output;
+	}
+
+	public FloatImagePlus< FloatType > getMagImg()
+	{
+		return magImg;
+	}
+
+	public void setMagImg( FloatImagePlus< FloatType > magImg )
+	{
+		this.magImg = magImg;
 	}
 
 }
