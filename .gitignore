@@ -10,7 +10,11 @@
 /python/.ipynb_checkpoints/
 /tmp_*/
 
+/python/analyis/tables/
+/python/analyis/figs/
+
 # images / outputs
 *png
 *jpg
 *tif
+*swc
