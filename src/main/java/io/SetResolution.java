@@ -21,16 +21,9 @@ public class SetResolution {
 		String unit = null;
 		if( args.length >= 4 )
 			unit = args[ 3 ];
-		
-		ImagePlus ip = null;
-		if( imF.endsWith( "nii" ))
-		{
-			ip = NiftiIo.readNifti( new File( imF ));
-		}
-		else
-		{
-			ip = IJ.openImage( imF );
-		}
+
+		IOHelper io = new IOHelper();
+		ImagePlus ip = io.readIp( new File( imF ));
 
 		ip.getCalibration().pixelWidth  = res[ 0 ];
 		ip.getCalibration().pixelHeight = res[ 1 ];
