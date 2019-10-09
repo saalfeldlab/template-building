@@ -1,0 +1,67 @@
+#!/bin/bash
+
+imgdir="/nrs/saalfeld/john/projects/flyChemStainAtlas/flyLightDataInJRC18Space"
+
+fwarp="/groups/saalfeld/public/jrc2018/transformations/JRC2018F_FAFB/JRC2018F_FAFB1Warp.nii"
+iwarp="/groups/saalfeld/public/jrc2018/transformations/JRC2018F_FAFB/JRC2018F_FAFB1InverseWarp.nii"
+affine="/groups/saalfeld/public/jrc2018/transformations/JRC2018F_FAFB/JRC2018F_FAFB0Affine.mat"
+
+#xfmList="-t $fwarp -t $affine"
+xfmList="-t ${affine}?i -t $iwarp"
+
+h5xfm="/groups/saalfeld/public/jrc2018/transformations/quantized_multiscale/JRC2018F_FAFB.h5"
+
+
+fafbTgt="/groups/saalfeld/public/jrc2018/transformations/JRC2018F_FAFB/syn-s8-blur.nrrd"
+
+### ANTS
+antstimes="antsImageTransformTimes.csv"
+
+echo "start,end,time" > $antstimes
+
+for f in `ls $imgdir/*hdr.nrrd`
+do
+    echo $f
+    out=$(echo $f | sed 's/.nrrd/_xfm2Fafb.nrrd/g')
+    echo $out
+    xfmstart=$(date +%s%N)
+    transformImg \
+        -i $f \
+        -o $out \
+        -f $fafbTgt \
+        $xfmList \
+        -j 16
+    xfmend=$(date +%s%N)
+
+    xfmtime=$(echo "($xfmend - $xfmstart)/1000000" | bc)
+
+    echo "$xfmstart,$xfmend,$xfmtime" >> $antstimes
+    #break
+done
+
+
+## H5
+
+#h5times="h5ImageTransformTimes.csv"
+#echo "start,end,time" > $h5times
+#
+#for f in `ls $imgdir/*hdr.nrrd`
+#do
+#    echo $f
+#    out=$(echo $f | sed 's/.nrrd/_xfm2FafbH5.nrrd/g')
+#    echo $out
+#    xfmstart=$(date +%s%N)
+#    transformImg \
+#        -i $f \
+#        -o $out \
+#        -f $fafbTgt \
+#        -t ${h5xfm}??i \
+#        -j 16
+#    xfmend=$(date +%s%N)
+#
+#    xfmtime=$(echo "($xfmend - $xfmstart)/1000000" | bc)
+#    echo $xfmtime
+#
+#    echo "$xfmstart,$xfmend,$xfmtime" >> $h5times
+#    #break
+#done

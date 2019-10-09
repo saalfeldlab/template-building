@@ -1,0 +1,79 @@
+#!/bin/bash
+# Measure time for transforming skeletons withs nii dfields vs h5 dfields
+
+# Generate the list of neurons to transform
+dir="/groups/saalfeld/home/bogovicj/dev/template/template-building-pub/scripts/h5Analysis/links2data"
+
+neuronList=$(ls $dir/*[0-9].swc | grep -v 'xfm')
+
+nm2um="/nrs/saalfeld/john/fafbsynapse_to_template/nm2um.mat"
+
+h5big="/groups/saalfeld/public/jrc2018/transformations/quantized_multiscale/JRC2018F_FAFB.h5"
+
+
+### h5
+h5times="h5timesIndv.csv"
+echo "start,end,time" > $h5times
+for f in $neuronList
+do
+    bigStart=$(date +%s%N)
+    output=$(echo $f | sed 's/.swc/_xfmH5indv.swc/g')
+    echo $f
+    echo $output
+    echo " "
+
+    transformSwc \
+        -s $f \
+        -o $output \
+        -t $nm2um \
+        -t ${h5big}??i \
+        #--dry-run 
+
+    bigEnd=$(date +%s%N)
+    echo "bigStart,$bigStart"
+    echo "bigEnd,$bigEnd"
+    bigTime=$(echo "($bigEnd - $bigStart)/1000000" | bc)
+    echo "bigTime,$bigTime"
+
+    echo "$bigStart,$bigEnd,$bigTime" >> $h5times
+done
+
+
+
+#######################################
+#######################################
+#######################################
+
+fwarp="/groups/saalfeld/public/jrc2018/transformations/JRC2018F_FAFB/JRC2018F_FAFB1Warp.nii"
+iwarp="/groups/saalfeld/public/jrc2018/transformations/JRC2018F_FAFB/JRC2018F_FAFB1InverseWarp.nii"
+affine="/groups/saalfeld/public/jrc2018/transformations/JRC2018F_FAFB/JRC2018F_FAFB0Affine.mat"
+
+xfmList="-t $nm2um -t $affine?i -t $iwarp"
+
+# ANTS
+antstimes="antstimesIndv.csv"
+echo "start,end,time" > $antstimes
+for f in $neuronList
+do
+    bigStart=$(date +%s%N)
+    output=$(echo $f | sed 's/.swc/_xfmAntsIndv.swc/g')
+    echo $f
+    echo $output
+    echo " "
+
+    transformSwc \
+        -s $f \
+        -o $output \
+        $xfmList \
+        #--dry-run 
+
+    bigEnd=$(date +%s%N)
+    echo "bigStart,$bigStart"
+    echo "bigEnd,$bigEnd"
+    bigTime=$(echo "($bigEnd - $bigStart)/1000000" | bc)
+    echo "bigTime,$bigTime"
+
+    echo "$bigStart,$bigEnd,$bigTime" >> $antstimes
+done
+
+
