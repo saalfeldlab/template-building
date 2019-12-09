@@ -18,18 +18,17 @@
   <parent>
   	<groupId>org.scijava</groupId>
   	<artifactId>pom-scijava</artifactId>
-  	<version>24.0.0</version>
+  	<version>26.0.0</version>
   </parent>
   <dependencies>
   	<dependency>
   		<groupId>sc.fiji</groupId>
   		<artifactId>bigwarp_fiji</artifactId>
-  		<version>3.1.2</version>
+  		<version>5.0.0</version>
   	</dependency>
   	<dependency>
   		<groupId>sc.fiji</groupId>
   		<artifactId>bigdataviewer-vistools</artifactId>
-  		<version>1.0.0-beta-11</version>
   	</dependency>
   	<dependency>
   		<groupId>sc.fiji</groupId>
@@ -38,12 +37,10 @@
  	<dependency>
 		<groupId>ome</groupId>
 		<artifactId>bio-formats_plugins</artifactId>
-		<version>5.5.0</version><!--$NO-MVN-MAN-VER$-->
 	</dependency>
 	<dependency>
 		<groupId>ome</groupId>
 		<artifactId>formats-gpl</artifactId>
-		<version>5.5.0</version>
 	</dependency>
 	<dependency>
 		<groupId>ome</groupId>
