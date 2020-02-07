@@ -63,7 +63,7 @@ public class DfieldIoHelper
 			final String outputPath ) throws Exception
 	{
 
-		if ( outputPath.contains( "h5" ) )
+		if ( outputPath.endsWith( "h5" ) || outputPath.endsWith( "hdf5" ) )
 		{
 			RandomAccessibleInterval<T> dfield = vectorAxisPermute( dfieldIn, 3, 3 );
 
