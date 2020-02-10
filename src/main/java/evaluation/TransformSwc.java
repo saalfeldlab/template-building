@@ -55,6 +55,10 @@ public class TransformSwc implements Callable< Void >
 			+ "Every transform that is passed will be applied to the skeletons in the order they are passed. "
 			+ "-t <transform file path> applies the inverse of the given transform if possible." )
 	private List<String> transforms;
+	
+	@Option( names = { "-r", "--radius-scale" }, required = false, 
+			description = "Scales the radius at every point by the given factor.  Must be positive." )
+	private double radiusScale = -1;
 
 	@Option( names = { "--dry-run" }, required = false, description = "Prints files to work on, but does nothing." )
 	private boolean dryRun;
@@ -127,7 +131,7 @@ public class TransformSwc implements Callable< Void >
 
 			if( ! dryRun )
 			{
-				Swc res = transformSWC( totalXfm, Swc.read( in ));
+				Swc res = transformSWC( totalXfm, Swc.read( in ), radiusScale );
 				Swc.write( res, out );
 			}
 
@@ -172,14 +176,29 @@ public class TransformSwc implements Callable< Void >
 		}
 	}
 
-	public static Swc transformSWC( final RealTransform xfm, final Swc swc )
+	public static Swc transformSWC( final RealTransform xfm, final Swc swc, final double radiusScale )
 	{
 		ArrayList<SwcPoint> out = new ArrayList<>();
-		swc.getPoints().forEach( pt -> out.add( transform( xfm, pt )) );
+		if( radiusScale > 0 )
+			swc.getPoints().forEach( pt -> out.add( transform( xfm, pt, radiusScale )) );
+		else
+			swc.getPoints().forEach( pt -> out.add( transform( xfm, pt )) );
 		return new Swc( out );
 	}
 	
-	public static SwcPoint transform( RealTransform xfm, SwcPoint pt )
+	public static SwcPoint transform( final RealTransform xfm, final SwcPoint pt, final double radiusScale )
+	{
+		double[] p = new double[] { pt.x, pt.y, pt.z }; 
+		double[] pxfm = new double[ 3 ];
+		xfm.apply( p, pxfm );
+
+		// a copy of pt with the new position
+		SwcPoint pnew = pt.setPosition( pxfm[ 0 ], pxfm[ 1 ], pxfm[ 2 ] );
+		pnew.setRadius( pt.radius * radiusScale );
+		return pnew;
+	}
+
+	public static SwcPoint transform( final RealTransform xfm, final SwcPoint pt )
 	{
 		double[] p = new double[] { pt.x, pt.y, pt.z }; 
 		double[] pxfm = new double[ 3 ];
