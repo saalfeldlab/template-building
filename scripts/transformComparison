@@ -1,0 +1,5 @@
+#!/bin/bash
+
+BASEDIR=$(dirname "$0")
+cp=`cat "$BASEDIR/gaussDs.cp"`
+java -cp "$cp" -Xmx96g  evaluation.TransformComparison "$@"
