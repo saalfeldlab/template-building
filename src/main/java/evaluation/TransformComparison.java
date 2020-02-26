@@ -53,6 +53,9 @@ public class TransformComparison implements Callable< Void >
 
 	@Option( names = { "-t", "--debug-threshold" }, required = false, description = "Prints message when error are greater than this threshold." )
 	private double threshold = Double.MAX_VALUE;
+
+	@Option( names = { "-v", "--verbose" }, required = false, description = "Verbose output" )
+	private boolean verbose = false;
 	
 
     private int ndims; // number of dimensions
@@ -77,7 +80,7 @@ public class TransformComparison implements Callable< Void >
 		transformA = TransformReader.readTransforms( inputFilesA );
 		transformB = TransformReader.readTransforms( inputFilesB );
         ndims = transformA.numSourceDimensions();
- 
+
         tmpA = new RealPoint( ndims );
         tmpB = new RealPoint( ndims );
         
@@ -122,9 +125,21 @@ public class TransformComparison implements Callable< Void >
 			if( errMag > maxErrMag )
 				maxErrMag = errMag;
 			
-			if( !Double.isNaN( threshold ) && errMag > threshold ) 
-				System.out.println( "error is : " + errMag + " at " + Util.printCoordinates( it ));
-
+			if( verbose )
+			{
+				if( errMag > threshold ) 
+				{
+					System.out.println( "point   : " + Util.printCoordinates( it ));
+					System.out.println( "  a     : " + Util.printCoordinates( tmpA ));
+					System.out.println( "  b     : " + Util.printCoordinates( tmpB ));
+					System.out.println( "  error : " + errMag );
+				}
+			}
+			else
+			{
+				if( errMag > threshold ) 
+					System.out.println( "error is : " + errMag + " at " + Util.printCoordinates( it ));
+			}
 
 			i++;
 		}
