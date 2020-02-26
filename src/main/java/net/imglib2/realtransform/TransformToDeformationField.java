@@ -4,6 +4,7 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -13,9 +14,11 @@ import org.janelia.saalfeldlab.transform.io.TransformReader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import bdv.util.BdvOptions;
 import io.DfieldIoHelper;
 import io.IOHelper;
 import net.imglib2.FinalInterval;
+import net.imglib2.Interval;
 import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.RealPoint;
@@ -32,6 +35,7 @@ import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import process.RenderTransformed;
+import util.FieldOfView;
 
 @Command( version = "0.1.1-SNAPSHOT" )
 public class TransformToDeformationField implements Callable<Void>
@@ -43,6 +47,14 @@ public class TransformToDeformationField implements Callable<Void>
 			description = "Size / field of view of image output in pixels.  Comma separated, e.g. \"200,250,300\". "
 					+ "Overrides reference image."  )
 	private String outputSize;
+
+	@Option( names = { "-m", "--interval-min", "--offset" }, required = false, split=",",
+			description = "Offset of the output interval in physical units. Overrides reference image." )
+	private double[] intervalMin;
+
+	@Option( names = { "-x", "--interval-max"  }, required = false, split=",",
+			description = "Maximum coordinate of output interval.  Overrides reference, and outputImageSize parameters." )
+	private double[] intervalMax;
 
 	@Option( names = { "-r", "--output-resolution" }, required = false, split = ",", 
 			description = "The resolution at which to write the output. Overrides reference image." )
@@ -61,11 +73,11 @@ public class TransformToDeformationField implements Callable<Void>
 //	@Option( names = { "--double" }, required = false, description = "Use double precision for output, otherwise the output is 32 bit floats." )
 //	private boolean useDouble;
 
-	private FinalInterval renderInterval;
+	private Interval renderInterval;
 
 	private RealTransformSequence totalTransform;
 
-	private Scale pixelToPhysical;
+	private AffineGet pixelToPhysical;
 
 	final Logger logger = LoggerFactory.getLogger( TransformToDeformationField.class );
 
@@ -79,14 +91,11 @@ public class TransformToDeformationField implements Callable<Void>
 		// use size / resolution if the only input transform is a dfield
 		// ( and size / resolution is not given )
 
+		Optional<ValuePair< long[], double[] >> sizeAndRes = Optional.empty();
 		if ( referenceImagePath != null && !referenceImagePath.isEmpty() && new File( referenceImagePath ).exists() )
 		{
 			IOHelper io = new IOHelper();
-			ValuePair< long[], double[] > sizeAndRes = io.readSizeAndResolution( new File( referenceImagePath ) );
-			renderInterval = new FinalInterval( sizeAndRes.getA() );
-
-			if ( outputResolution == null )
-				outputResolution = sizeAndRes.getB();
+			sizeAndRes = Optional.of( io.readSizeAndResolution( new File( referenceImagePath ) ));
 		}
 		else if( transformFiles.size() == 1 )
 		{
@@ -95,15 +104,7 @@ public class TransformToDeformationField implements Callable<Void>
 			{
 				try
 				{
-					ValuePair< long[], double[] > sizeAndRes = TransformReader.transformSizeAndRes( transformFile );
-					renderInterval = new FinalInterval( sizeAndRes.a );
-					pixelToPhysical = new Scale( sizeAndRes.b );
-
-					if( outputResolution == null )
-					{
-						// this can happen if the pixelToPhysical 
-						outputResolution = sizeAndRes.b;
-					}
+					sizeAndRes = Optional.of( TransformReader.transformSizeAndRes( transformFile ));
 				}
 				catch ( Exception e )
 				{
@@ -113,23 +114,35 @@ public class TransformToDeformationField implements Callable<Void>
 			}
 		}
 
+		int ndims = 3; // TODO generalize
 		if ( outputSize != null && !outputSize.isEmpty() )
 			renderInterval = RenderTransformed.parseInterval( outputSize );
+
+
+		FieldOfView fov = FieldOfView.parse( ndims, sizeAndRes, 
+				Optional.ofNullable( intervalMin ), 
+				Optional.ofNullable( intervalMax ), 
+				Optional.ofNullable( renderInterval ),
+				Optional.ofNullable( outputResolution ));
+		fov.updatePixelToPhysicalTransform();
 
 
 		// contains the physical transformation
 		RealTransformSequence physicalTransform = TransformReader.readTransforms( transformFiles );
 
 		// we need to tack on the conversion from pixel to physical space first
-		pixelToPhysical = null;
-		if ( outputResolution != null )
-			pixelToPhysical = new Scale( outputResolution );
-		else
-		{
-			double[] ones = new double[ physicalTransform.numSourceDimensions() ];
-			Arrays.fill( ones, 1.0 );
-			pixelToPhysical = new Scale( ones );
-		}
+		pixelToPhysical = fov.getPixelToPhysicalTransform();
+		renderInterval = fov.getPixel();
+		outputResolution = fov.getSpacing();
+
+//		if ( outputResolution != null )
+//			pixelToPhysical = new Scale( outputResolution );
+//		else
+//		{
+//			double[] ones = new double[ physicalTransform.numSourceDimensions() ];
+//			Arrays.fill( ones, 1.0 );
+//			pixelToPhysical = new Scale( ones );
+//		}
 
 		logger.info( "render interval: " + Util.printInterval( renderInterval ) );
 		logger.info( "pixelToPhysical: " + pixelToPhysical );
