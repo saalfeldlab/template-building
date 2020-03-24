@@ -10,6 +10,7 @@ import org.junit.Test;
 
 import net.imglib2.FinalInterval;
 import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.RealRandomAccessible;
 import net.imglib2.realtransform.AffineTransform;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.realtransform.DeformationFieldTransform;
@@ -82,11 +83,11 @@ public class TransformFileParseTest
 	@Test
 	public void testIterativeInverseParse() throws NoSuchFieldException, SecurityException, IllegalArgumentException, IllegalAccessException
 	{
-		assertTrue( "true", true );
-
 		// get an optimizer
-		RandomAccessibleInterval< FloatType > img = ConstantUtils.constantRandomAccessibleInterval( new FloatType(), 3, new FinalInterval( 2, 2, 2 ) );
-		InverseRealTransformGradientDescent optimizer = new InvertibleDeformationFieldTransform<>( new DeformationFieldTransform<>( img ) ).getOptimzer();
+		RealRandomAccessible<FloatType> realRa = ConstantUtils.constantRealRandomAccessible( new FloatType( 1f ), 2 );
+
+		InverseRealTransformGradientDescent optimizer = new InvertibleDeformationFieldTransform<>( 
+				new DeformationFieldTransform<>( realRa, realRa ) ).getOptimzer();
 
 		int maxIterVal = 200;
 		double tolVal = 0.012;
