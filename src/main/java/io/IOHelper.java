@@ -2,8 +2,11 @@ package io;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.concurrent.Callable;
 
+import org.janelia.saalfeldlab.n5.N5FSReader;
+import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Reader;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
 import org.slf4j.Logger;
@@ -21,8 +24,15 @@ import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.RealRandomAccessible;
 import net.imglib2.img.display.imagej.ImageJFunctions;
 import net.imglib2.interpolation.InterpolatorFactory;
+import net.imglib2.realtransform.AffineGet;
+import net.imglib2.realtransform.AffineSet;
+import net.imglib2.realtransform.AffineTransform;
+import net.imglib2.realtransform.AffineTransform2D;
+import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.realtransform.RealViews;
 import net.imglib2.realtransform.Scale;
+import net.imglib2.realtransform.Scale2D;
+import net.imglib2.realtransform.Scale3D;
 import net.imglib2.transform.integer.MixedTransform;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.NumericType;
@@ -66,12 +76,26 @@ public class IOHelper implements Callable<Void>
 	@Option(names = {"--do-not-permute-h5" }, description = "This flag indicates that input h5 files should not have their dimensions permuted. "
 			+ "By default, the order of dimensions for h5 files are read in reverse order." )
 	private boolean permute = true;
+	
+	private String resolutionAttribute;
+
+	private String offsetAttribute;
 
 	final Logger logger = LoggerFactory.getLogger( IOHelper.class );
 	
 	public static void main( String[] args )
 	{
 		CommandLine.call( new IOHelper(), args );
+	}
+	
+	public void setResolutionAttribute( final String resolutionAttribute )
+	{
+		this.resolutionAttribute = resolutionAttribute;
+	}
+
+	public void setOffsetAttribute( final String offsetAttribute )
+	{
+		this.offsetAttribute = offsetAttribute;
 	}
 
 	public Void call()
@@ -139,6 +163,50 @@ public class IOHelper implements Callable<Void>
 			{
 				e.printStackTrace();
 			}
+		}
+		else if ( filePath.contains( "n5?" ) ||
+					filePath.contains( "h5?" ) || filePath.contains("hdf?") || filePath.contains("hdf5?") )
+		{
+			String[] parts = filePath.split( "\\?" );
+			String file = parts[ 0 ];
+			String dataset = parts[ 1 ];
+
+			try {
+
+				N5Reader n5;
+				if( filePath.contains( "n5?" ))
+				{
+					n5 = new N5FSReader( file );
+				}
+				else
+				{
+					n5 = new N5HDF5Reader( file, 32, 32, 32 );
+				}
+
+				if( n5.datasetExists( dataset ))
+				{
+					long[] size = (long[])n5.getAttribute( dataset, "dimensions", long[].class );
+
+					double[] resolutions = (double[])n5.getAttribute( dataset, resolutionAttribute, double[].class );
+					if( resolutions == null )
+					{
+						resolutions = new double[ size.length ];
+						Arrays.fill( resolutions, 1.0 );
+					}
+
+					//double[] offset = (double[])n5.getAttribute( filePath, offsetAttribute, double[].class );
+
+					return new ValuePair< long[], double[] >( size, resolutions );
+				}
+				else
+					return null;
+
+			} catch (IOException e)
+			{
+				e.printStackTrace();
+				return null;
+			}
+			
 		}
 		else
 		{
@@ -417,6 +485,57 @@ public class IOHelper implements Callable<Void>
 	{
 		return Views.interpolate( img, 
 				RenderTransformed.getInterpolator( interp, img ));
+	}
+	
+	public static < A extends AffineGet & AffineSet > A pixelToPhysicalN5( final N5Reader n5, final String dataset,
+			final String resolutionAttribute, final String offsetAttribute )
+	{
+		try {
+			if( n5.datasetExists( dataset ))
+			{
+				long[] size = (long[])n5.getAttribute( dataset, "dimensions", long[].class );
+				int nd = size.length;
+
+				double[] resolutions = (double[])n5.getAttribute( dataset, resolutionAttribute, double[].class );
+				if( resolutions == null )
+				{
+					resolutions = new double[ size.length ];
+					Arrays.fill( resolutions, 1.0 );
+				}
+
+				double[] offset = (double[])n5.getAttribute( dataset, offsetAttribute, double[].class );
+	
+				A affine;
+				if ( nd == 1 )
+					affine = (A)(new AffineTransform( 1 ));
+				else if ( nd == 2 && offset == null )
+					affine = (A)new Scale2D();
+				else if ( nd == 2 && offset != null )
+					affine = (A)(new AffineTransform2D());
+				else if ( nd == 3 && offset == null )
+					affine = (A)new Scale3D();
+				else if ( nd == 3 && offset != null )
+					affine = (A)(new AffineTransform3D());
+				else
+					return null;	
+
+				for( int i = 0; i < nd; i++ )
+					affine.set( resolutions[ i ], i, i );
+
+				if( offset != null )
+				{
+					for( int i = 0; i < nd; i++ )
+						affine.set( offset[ i ], i, i+1 );
+				}
+				
+				return affine;
+			}
+		}
+		catch( IOException e )
+		{
+			e.printStackTrace();
+		}	
+		return null;
 	}
 
 	public < T extends RealType< T > & NativeType< T > > RealRandomAccessible< T > readPhysical( 
