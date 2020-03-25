@@ -15,6 +15,7 @@ import net.imglib2.RealPositionable;
 import net.imglib2.realtransform.AffineGet;
 import net.imglib2.realtransform.ScaleAndTranslation;
 import net.imglib2.util.Intervals;
+import net.imglib2.util.Util;
 import net.imglib2.util.ValuePair;
 
 public class FieldOfView
@@ -354,7 +355,13 @@ public class FieldOfView
 			subMax[ i ] = spacing[ i ] * interval.max( i ) ;
 		}
 
-		return new FieldOfView( new FinalRealInterval( subMin, subMax ), Intervals.zeroMin( interval ), spacing );
+		return new FieldOfView( new FinalRealInterval( subMin, subMax ), zeroMin( interval ), spacing );
+	}
+
+	// TODO replace with Intervals.zeroMin when we update imglib2
+	public static Interval zeroMin( final Interval interval )
+	{
+		return new FinalInterval( Intervals.dimensionsAsLongArray( interval ) );	
 	}
 
 	public static FieldOfView parse(
@@ -527,10 +534,34 @@ public class FieldOfView
 	{
 		StringBuffer s = new StringBuffer();
 		s.append( "FOV nd (" + ndims + "):\n" );
-		s.append( "  pix: " + Intervals.toString( pixelInterval ) + "\n");
-		s.append( "  phy: " + Intervals.toString( physicalInterval ) + "\n" );
+		s.append( "  pix: " + Util.printInterval( pixelInterval ) + "\n");
+		s.append( "  phy: " + printRealInterva( physicalInterval ) + "\n" );
 		s.append( "  res: " + Arrays.toString( spacing ) + "\n");
 		return s.toString();
+	}
+	
+	public static String printRealInterva( final RealInterval value )
+	{
+		final StringBuilder sb = new StringBuilder();
+
+		sb.append( "[(" );
+		final int n = value.numDimensions();
+		for ( int d = 0; d < n; d++ )
+		{
+			sb.append( value.realMin( d ) );
+			if ( d < n - 1 )
+				sb.append( ", " );
+		}
+		sb.append( ") -- (" );
+		for ( int d = 0; d < n; d++ )
+		{
+			sb.append( value.realMax( d ) );
+			if ( d < n - 1 )
+				sb.append( ", " );
+		}
+		sb.append( ")]" );
+
+		return sb.toString();	
 	}
 	
 	public static double[] physicalSize( final double[] spacing, final Interval size )
