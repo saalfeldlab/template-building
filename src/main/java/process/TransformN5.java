@@ -12,7 +12,6 @@ import java.util.stream.LongStream;
 import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
-import org.janelia.saalfeldlab.n5.N5FSReader;
 import org.janelia.saalfeldlab.n5.N5FSWriter;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5Writer;
@@ -20,35 +19,24 @@ import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
 import org.janelia.saalfeldlab.n5.spark.supplier.N5WriterSupplier;
 import org.janelia.saalfeldlab.transform.io.TransformReader;
 
-import bdv.export.Downsample;
-import io.DfieldIoHelper;
 import io.IOHelper;
 import net.imglib2.Cursor;
 import net.imglib2.FinalInterval;
 import net.imglib2.Interval;
 import net.imglib2.RandomAccessibleInterval;
-import net.imglib2.RealLocalizable;
-import net.imglib2.RealPoint;
 import net.imglib2.img.array.ArrayImgFactory;
 import net.imglib2.img.cell.CellGrid;
-import net.imglib2.interpolation.randomaccess.NLinearInterpolatorARGBFactory;
-import net.imglib2.interpolation.randomaccess.NLinearInterpolatorFactory;
-import net.imglib2.loops.LoopBuilder;
 import net.imglib2.realtransform.AffineGet;
 import net.imglib2.realtransform.AffineTransform;
 import net.imglib2.realtransform.AffineTransform2D;
 import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.realtransform.DeformationFieldTransform;
 import net.imglib2.realtransform.RealTransformRandomAccessible;
 import net.imglib2.realtransform.RealTransformRealRandomAccessible;
 import net.imglib2.realtransform.RealTransformSequence;
-import net.imglib2.realtransform.RealViews;
 import net.imglib2.realtransform.Scale;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.RealType;
-import net.imglib2.type.numeric.real.FloatType;
 import net.imglib2.util.Intervals;
-import net.imglib2.util.Localizables;
 import net.imglib2.util.Util;
 import net.imglib2.util.ValuePair;
 import net.imglib2.view.IntervalView;
@@ -90,11 +78,11 @@ public class TransformN5 implements Callable<Void>, Serializable
 			description = "A reference image specifying the output size and resolution." )
 	private String referenceImagePath;
 
-	@Option( names = { "-offset-attribute"}, required = false, description = "Attribute storing offset.")
-	private String offsetAttribute = "offset";
-
-	@Option( names = { "-resolution-attribute"}, required = false, description = "Attribute storing resolution (pixel spacing).")
-	private String resolutionAttribute = "resolution";
+//	@Option( names = { "-offset-attribute"}, required = false, description = "Attribute storing offset.")
+//	private String offsetAttribute = "offset";
+//
+//	@Option( names = { "-resolution-attribute"}, required = false, description = "Attribute storing resolution (pixel spacing).")
+//	private String resolutionAttribute = "resolution";
 
 	private transient FinalInterval renderInterval;
 	
@@ -121,8 +109,8 @@ public class TransformN5 implements Callable<Void>, Serializable
 		if( referenceImagePath != null && !referenceImagePath.isEmpty() )
 		{
 			IOHelper io = new IOHelper();
-			io.setResolutionAttribute( resolutionAttribute );
-			io.setOffsetAttribute( offsetAttribute );
+//			io.setResolutionAttribute( resolutionAttribute );
+//			io.setOffsetAttribute( offsetAttribute );
 
 			ValuePair< long[], double[] > sizeAndRes = io.readSizeAndResolution( new File( referenceImagePath ));
 			renderInterval = new FinalInterval( sizeAndRes.getA() );

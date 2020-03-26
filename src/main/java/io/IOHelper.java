@@ -3,6 +3,7 @@ package io;
 import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.Set;
 import java.util.concurrent.Callable;
 
 import org.janelia.saalfeldlab.n5.N5FSReader;
@@ -76,10 +77,12 @@ public class IOHelper implements Callable<Void>
 	@Option(names = {"--do-not-permute-h5" }, description = "This flag indicates that input h5 files should not have their dimensions permuted. "
 			+ "By default, the order of dimensions for h5 files are read in reverse order." )
 	private boolean permute = true;
-	
-	private String resolutionAttribute;
 
 	private String offsetAttribute;
+
+	public static ResolutionGet[] resolutionGetters = new ResolutionGet[]{
+			new Resolution(), new PixelResolution()
+	};
 
 	final Logger logger = LoggerFactory.getLogger( IOHelper.class );
 	
@@ -88,15 +91,15 @@ public class IOHelper implements Callable<Void>
 		CommandLine.call( new IOHelper(), args );
 	}
 	
-	public void setResolutionAttribute( final String resolutionAttribute )
-	{
-		this.resolutionAttribute = resolutionAttribute;
-	}
-
-	public void setOffsetAttribute( final String offsetAttribute )
-	{
-		this.offsetAttribute = offsetAttribute;
-	}
+//	public void setResolutionAttribute( final String resolutionAttribute )
+//	{
+//		this.resolutionAttribute = resolutionAttribute;
+//	}
+//
+//	public void setOffsetAttribute( final String offsetAttribute )
+//	{
+//		this.offsetAttribute = offsetAttribute;
+//	}
 
 	public Void call()
 	{
@@ -187,16 +190,38 @@ public class IOHelper implements Callable<Void>
 				{
 					long[] size = (long[])n5.getAttribute( dataset, "dimensions", long[].class );
 
-					double[] resolutions = (double[])n5.getAttribute( dataset, resolutionAttribute, double[].class );
-					if( resolutions == null )
+					Set<String> attrKeys = n5.listAttributes( dataset ).keySet();
+					double[] resolution = null;
+					for( ResolutionGet rg : resolutionGetters )
 					{
-						resolutions = new double[ size.length ];
-						Arrays.fill( resolutions, 1.0 );
+						if( attrKeys.contains( rg.getKey()))
+						{
+							ResolutionGet rgInstance = (ResolutionGet)n5.getAttribute( dataset, rg.getKey(), rg.getClass() );
+							resolution = rgInstance.getResolution();
+							break;
+						}
 					}
+
+					if( resolution == null )
+					{
+						resolution = new double[ size.length ];
+						Arrays.fill( resolution, 1.0 );
+					}
+
+//					double[] resolutions = new double[ size.length ];
+//					Arrays.fill( resolutions, 1.0 );
+//					if( resolutionAttribute.equals( "resolution" ))
+//					{
+//						resolutions = n5.getAttribute( dataset, resolutionAttribute, double[].class );
+//					}
+//					else if( resolutionAttribute.equals( "pixelResolution"))
+//					{
+//						resolutions = (n5.getAttribute( dataset, resolutionAttribute, PixelResolution.class ).dimensions);
+//					}
 
 					//double[] offset = (double[])n5.getAttribute( filePath, offsetAttribute, double[].class );
 
-					return new ValuePair< long[], double[] >( size, resolutions );
+					return new ValuePair< long[], double[] >( size, resolution );
 				}
 				else
 					return null;
@@ -222,8 +247,8 @@ public class IOHelper implements Callable<Void>
 					reader.getSizeZ()
 				};
 				
-				Object metastore = reader.getMetadataStoreRoot();
-				System.out.println( metastore );
+//				Object metastore = reader.getMetadataStoreRoot();
+//				System.out.println( metastore );
 				double[] resolutions = null;
 
 				reader.close();
@@ -615,5 +640,28 @@ public class IOHelper implements Callable<Void>
 			IJ.save( ip, outputFilePath );
 		}
 			
+	}
+
+	public static interface ResolutionGet
+	{
+		public String getKey();
+		public double[] getResolution();
+	}
+
+	public static class PixelResolution implements ResolutionGet
+	{
+		public static final String key = "pixelResolution";
+		public double[] dimensions;
+		public String unit;
+		public double[] getResolution(){ return dimensions; }
+		public String getKey(){ return key; };
+	}
+
+	public static class Resolution implements ResolutionGet
+	{
+		public static final String key = "resolutions";
+		public double[] resolutions;
+		public double[] getResolution(){ return resolutions; }
+		public String getKey(){ return key; };
 	}
 }
