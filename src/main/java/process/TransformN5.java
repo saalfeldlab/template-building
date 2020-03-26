@@ -312,10 +312,6 @@ public class TransformN5 implements Callable<Void>, Serializable
 
 	public static AffineGet paramsToAffine( final double[] affineParams )
 	{
-		RealLocalizable p;
-		new Translation3D( Util. )
-		AffineTransform3D a;
-
 		int N = affineParams.length;
 		if ( N == 2 )
 		{
