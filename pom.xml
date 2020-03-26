@@ -63,10 +63,12 @@
  	<dependency>
 		<groupId>ome</groupId>
 		<artifactId>bio-formats_plugins</artifactId>
+		<version>6.1.1</version>
 	</dependency>
 	<dependency>
 		<groupId>ome</groupId>
 		<artifactId>formats-gpl</artifactId>
+		<version>6.1.1</version>
 		<exclusions>
 			<exclusion>
 				<groupId>ch.systems.cisd</groupId>
