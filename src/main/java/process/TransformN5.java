@@ -2,6 +2,7 @@ package process;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.Callable;
@@ -26,12 +27,16 @@ import net.imglib2.Cursor;
 import net.imglib2.FinalInterval;
 import net.imglib2.Interval;
 import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.RealLocalizable;
+import net.imglib2.RealPoint;
 import net.imglib2.img.array.ArrayImgFactory;
 import net.imglib2.img.cell.CellGrid;
 import net.imglib2.interpolation.randomaccess.NLinearInterpolatorARGBFactory;
 import net.imglib2.interpolation.randomaccess.NLinearInterpolatorFactory;
 import net.imglib2.loops.LoopBuilder;
 import net.imglib2.realtransform.AffineGet;
+import net.imglib2.realtransform.AffineTransform;
+import net.imglib2.realtransform.AffineTransform2D;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.realtransform.DeformationFieldTransform;
 import net.imglib2.realtransform.RealTransformRandomAccessible;
@@ -43,6 +48,7 @@ import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.numeric.real.FloatType;
 import net.imglib2.util.Intervals;
+import net.imglib2.util.Localizables;
 import net.imglib2.util.Util;
 import net.imglib2.util.ValuePair;
 import net.imglib2.view.IntervalView;
@@ -52,8 +58,10 @@ import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 
 @Command( version = "0.0.1-SNAPSHOT" )
-public class TransformN5 implements Callable<Void>
+public class TransformN5 implements Callable<Void>, Serializable
 {
+	private static final long serialVersionUID = 2341611842505632347L;
+
 	@Option( names = { "-n", "--n5-root" }, required = true, description = "N5 root directory" )
 	private File n5Base;
 
@@ -88,65 +96,20 @@ public class TransformN5 implements Callable<Void>
 	@Option( names = { "-resolution-attribute"}, required = false, description = "Attribute storing resolution (pixel spacing).")
 	private String resolutionAttribute = "resolution";
 
-	private FinalInterval renderInterval;
+	private transient FinalInterval renderInterval;
 	
-	private AffineGet inputPixelToPhysical;
+	private transient AffineGet inputPixelToPhysical;
 
 	private static final int MAX_PARTITIONS = 15000;
 
 	public static void main(String[] args) throws Exception
 	{
-		/*
-		 * TESTS
-		 */
-//		String dfieldTestPath = "/home/john/tmp/n5Transform/dfield.nrrd";
-//		DeformationFieldTransform<FloatType> dfield = loadDfield( dfieldTestPath );
-		
-//		AffineTransform3D dfieldPix2Phys = dfieldPixelToPhysical(dfieldTestPath);
-//		System.out.println( dfieldPix2Phys );
-		
-//		double[] res = new double[ 3 ];
-//		dfield.apply( new double[]{ 320, 220, 14 } , res);
-//		System.out.println( "res: "  + Arrays.toString( res ));
-
-		CommandLine.call( new TransformN5(), args );
+		TransformN5 alg = new TransformN5();
+		CommandLine.call( alg, args );
 
 		System.exit(0);
 	}
 
-	
-//	public static DeformationFieldTransform<FloatType> loadDfield( String dfieldPath ) throws Exception
-//	{
-//		DfieldIoHelper dio = new DfieldIoHelper();
-//		RandomAccessibleInterval<FloatType> dfieldImg = dio.read( dfieldPath );
-//
-//		IOHelper io = new IOHelper();
-//		ValuePair<long[], double[]> sizeAndRes = io.readSizeAndResolution( dfieldPath );
-//		AffineTransform3D xfm = new AffineTransform3D();
-//		xfm.set( sizeAndRes.getB()[ 0 ], 0, 0);
-//		xfm.set( sizeAndRes.getB()[ 1 ], 1, 1);
-//		xfm.set( sizeAndRes.getB()[ 2 ], 2, 2);
-//
-//		System.out.println( dfieldImg );
-//
-//		return new DeformationFieldTransform<>(
-//				RealViews.affine(
-//					Views.interpolate(
-//						Views.extendBorder(Views.hyperSlice( dfieldImg, 3, 0 )),
-//						new NLinearInterpolatorFactory<>()), 
-//					xfm ),
-//				RealViews.affine(
-//					Views.interpolate(
-//						Views.extendBorder(Views.hyperSlice( dfieldImg, 3, 1 )),
-//						new NLinearInterpolatorFactory<>()), 
-//					xfm ),
-//				RealViews.affine(
-//					Views.interpolate(
-//						Views.extendBorder(Views.hyperSlice( dfieldImg, 3, 2 )),
-//						new NLinearInterpolatorFactory<>()),
-//					xfm ));
-//	}
-	
 	/**
 	 * Parses inputs to determine output size, resolution, etc.
 	 * 
@@ -157,16 +120,13 @@ public class TransformN5 implements Callable<Void>
 		System.out.println("setup");
 		if( referenceImagePath != null && !referenceImagePath.isEmpty() )
 		{
-			System.out.println("ref");
 			IOHelper io = new IOHelper();
 			io.setResolutionAttribute( resolutionAttribute );
 			io.setOffsetAttribute( offsetAttribute );
 
 			ValuePair< long[], double[] > sizeAndRes = io.readSizeAndResolution( new File( referenceImagePath ));
 			renderInterval = new FinalInterval( sizeAndRes.getA() );
-			
-			System.out.println( "res: " + Arrays.toString( sizeAndRes.b ));
-			
+
 			if ( outputResolution == null )
 				outputResolution = sizeAndRes.getB();
 		}
@@ -175,31 +135,26 @@ public class TransformN5 implements Callable<Void>
 			renderInterval = RenderTransformed.parseInterval( outputSize );
 
 		inputPixelToPhysical = IOHelper.pixelToPhysicalN5( n5, inDataset, resolutionAttribute, offsetAttribute );
-		System.out.println( "inputPixelToPhysical " + inputPixelToPhysical );
 	}
 
 	@Override
 	public Void call() throws Exception
 	{
-		System.out.println("call");
-
 		final N5WriterSupplier n5Supplier = () -> new N5FSWriter( n5Base.getAbsolutePath() );
 
 		setup( n5Supplier.get() );
 
-		
-//		try ( final JavaSparkContext sparkContext = new JavaSparkContext( new SparkConf()
-//				.setAppName( "TransformN5" )
-//				.set( "spark.serializer", "org.apache.spark.serializer.KryoSerializer" )
-//			) )
-//		{
+		try ( final JavaSparkContext sparkContext = new JavaSparkContext( new SparkConf()
+				.setAppName( "TransformN5" )
+				.set( "spark.serializer", "org.apache.spark.serializer.KryoSerializer" )
+			) )
+		{
 
 			transform(
-//					sparkContext,
-					null,
+					sparkContext,
 					n5Supplier,
 					inDataset,
-					inputPixelToPhysical,
+					inputPixelToPhysical.getRowPackedCopy(),
 					outputDataset,
 					Intervals.dimensionsAsLongArray( renderInterval ),
 					outputResolution,
@@ -207,8 +162,8 @@ public class TransformN5 implements Callable<Void>
 					interpolation,
 					transformFiles,
 					null );
+		}
 
-//		}
 		return null;
 	}
 
@@ -216,7 +171,7 @@ public class TransformN5 implements Callable<Void>
 			final JavaSparkContext sparkContext,
 			final N5WriterSupplier n5Supplier,
 			final String inputDatasetPath,
-			final AffineGet inputPixelToPhysical,
+			final double[] affineParams,
 			final String outputDatasetPath,
 			final long[] outputDimensions,
 			final double[] outputResolutions,
@@ -227,7 +182,7 @@ public class TransformN5 implements Callable<Void>
 			) throws IOException
 	{
 		transform( sparkContext, n5Supplier, 
-				inputDatasetPath, inputPixelToPhysical,
+				inputDatasetPath, affineParams,
 				outputDatasetPath, outputDimensions, outputResolutions, outputOffset,
 				interpolation, transformFiles, defaultType, null );
 	}
@@ -239,7 +194,7 @@ public class TransformN5 implements Callable<Void>
 			final JavaSparkContext sparkContext,
 			final N5WriterSupplier n5Supplier,
 			final String inputDatasetPath,
-			final AffineGet inputPixelToPhysical,
+			final double[] affineParams,
 			final String outputDatasetPath,
 			final long[] outputDimensions,
 			final double[] outputResolutions,
@@ -275,12 +230,8 @@ public class TransformN5 implements Callable<Void>
 		final long numDownsampledBlocks = Intervals.numElements( outputCellGrid.getGridDimensions() );
 		final List< Long > blockIndexes = LongStream.range( 0, numDownsampledBlocks ).boxed().collect( Collectors.toList() );
 
-//		sparkContext.parallelize( blockIndexes, Math.min( blockIndexes.size(), MAX_PARTITIONS ) ).foreach( blockIndex ->
-//		{
-
-		for( Long blockIndex : blockIndexes )
+		sparkContext.parallelize( blockIndexes, Math.min( blockIndexes.size(), MAX_PARTITIONS ) ).foreach( blockIndex ->
 		{
-			System.out.println("working on block: " + blockIndex );
 
 			final CellGrid cellGrid = new CellGrid( outputDimensions, outputBlockSize );
 			final long[] blockGridPosition = new long[ cellGrid.numDimensions() ];
@@ -299,40 +250,32 @@ public class TransformN5 implements Callable<Void>
 			/*
 			 * Load the transform
 			 */
-			RealTransformSequence totalTransform = new RealTransformSequence();
 
 			// contains the physical transformation
-			RealTransformSequence physicalTransform = TransformReader.readTransforms( transformFiles );
+			final RealTransformSequence physicalTransform = TransformReader.readTransforms( transformFiles );
+
 			// we need to tack on the conversion from physical to pixel space first
 			Scale resOutXfm = null;
+			final RealTransformSequence totalTransform;
 			if ( outputResolutions != null )
 			{
+				totalTransform = new RealTransformSequence();
 				resOutXfm = new Scale( outputResolutions );
-				//System.out.println( resOutXfm );
 				totalTransform.add( resOutXfm );
 				totalTransform.add( physicalTransform );
 			}
 			else 
+			{
 				totalTransform = physicalTransform;
+			}
 
-			totalTransform.add( inputPixelToPhysical.inverse());
+			totalTransform.add( paramsToAffine( affineParams ).inverse() );
 			
 			/*
 			 * Get the source and transform it
 			 */
 			final N5Writer n5Local = n5Supplier.get();
 			final RandomAccessibleInterval< T > source = N5Utils.open( n5Local, inputDatasetPath );
-	
-
-			/*
-			 * TEST WITH NO TRANSFORM
-			 */
-//			S defaultValue = (S)Util.getTypeFromInterval( source );
-//			final RandomAccessibleInterval< S > targetBlockRaw = new ArrayImgFactory<>( defaultValue ).create( targetInterval );
-//			IntervalView<S> targetBlock = Views.offset( targetBlockRaw, targetMin );
-//			final Interval sourceInterval = new FinalInterval( targetMin, targetMax );
-//			final RandomAccessibleInterval< T > sourceBlock = Views.offsetInterval( source, sourceInterval );
-//			LoopBuilder.setImages( sourceBlock, targetBlock ).forEachPixel( (s,t) -> t.setReal( s.getRealDouble() ));
 
 
 			S defaultValue;
@@ -351,13 +294,10 @@ public class TransformN5 implements Callable<Void>
 			final RandomAccessibleInterval< S > targetBlockRaw = new ArrayImgFactory<>( defaultValue ).create( targetInterval );
 			IntervalView<S> targetBlock = Views.translate( targetBlockRaw, targetMin );
 
-			System.out.println("tgt itvl : " + Util.printInterval( targetBlock ));
-			
 			// copy
 			RealTransformRealRandomAccessible<T,?>.RealTransformRealRandomAccess srcAccess = imgXfm.realRandomAccess();
 			Cursor<S> c = Views.iterable( targetBlock ).localizingCursor();
 
-			System.out.println("copy");
 			while( c.hasNext() )
 			{
 				c.fwd();
@@ -366,12 +306,37 @@ public class TransformN5 implements Callable<Void>
 			}
 
 			// write the block
-			System.out.println("write");
 			N5Utils.saveNonEmptyBlock( targetBlock, n5Local, outputDatasetPath, blockGridPosition, defaultValue );
+		} );
+	}
 
-			System.out.println("done\n");
+	public static AffineGet paramsToAffine( final double[] affineParams )
+	{
+		RealLocalizable p;
+		new Translation3D( Util. )
+		AffineTransform3D a;
+
+		int N = affineParams.length;
+		if ( N == 2 )
+		{
+			AffineTransform affine = new AffineTransform( 1 );
+			affine.set(affineParams);
+			return affine;
 		}
-//		} );	
+		else if ( N == 6 )
+		{
+			AffineTransform2D affine = new AffineTransform2D();
+			affine.set(affineParams);
+			return affine;
+		}
+		else if ( N == 12 )
+		{
+			AffineTransform3D affine = new AffineTransform3D();
+			affine.set(affineParams);
+			return affine;
+		}
+
+		return null;
 	}
 
 }
