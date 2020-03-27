@@ -122,7 +122,7 @@ public class TransformN5 implements Callable<Void>, Serializable
 		if( outputSize != null && !outputSize.isEmpty() )
 			renderInterval = RenderTransformed.parseInterval( outputSize );
 
-		inputPixelToPhysical = IOHelper.pixelToPhysicalN5( n5, inDataset, resolutionAttribute, offsetAttribute );
+		inputPixelToPhysical = IOHelper.pixelToPhysicalN5( n5, inDataset );
 	}
 
 	@Override

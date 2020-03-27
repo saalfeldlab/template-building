@@ -512,8 +512,7 @@ public class IOHelper implements Callable<Void>
 				RenderTransformed.getInterpolator( interp, img ));
 	}
 	
-	public static < A extends AffineGet & AffineSet > A pixelToPhysicalN5( final N5Reader n5, final String dataset,
-			final String resolutionAttribute, final String offsetAttribute )
+	public static AffineGet pixelToPhysicalN5( final N5Reader n5, final String dataset )
 	{
 		try {
 			if( n5.datasetExists( dataset ))
@@ -521,39 +520,61 @@ public class IOHelper implements Callable<Void>
 				long[] size = (long[])n5.getAttribute( dataset, "dimensions", long[].class );
 				int nd = size.length;
 
-				double[] resolutions = (double[])n5.getAttribute( dataset, resolutionAttribute, double[].class );
-				if( resolutions == null )
+//				double[] resolutions = (double[])n5.getAttribute( dataset, resolutionAttribute, double[].class );
+//				if( resolutions == null )
+//				{
+//					resolutions = new double[ size.length ];
+//					Arrays.fill( resolutions, 1.0 );
+//				}
+
+				Set<String> attrKeys = n5.listAttributes( dataset ).keySet();
+				double[] resolution = null;
+				for( ResolutionGet rg : resolutionGetters )
 				{
-					resolutions = new double[ size.length ];
-					Arrays.fill( resolutions, 1.0 );
+					if( attrKeys.contains( rg.getKey()))
+					{
+						ResolutionGet rgInstance = (ResolutionGet)n5.getAttribute( dataset, rg.getKey(), rg.getClass() );
+						resolution = rgInstance.getResolution();
+						break;
+					}
 				}
 
-				double[] offset = (double[])n5.getAttribute( dataset, offsetAttribute, double[].class );
+				if( resolution == null )
+				{
+					resolution = new double[ size.length ];
+					Arrays.fill( resolution, 1.0 );
+				}
+
+				// TODO implement
+//				double[] offset = (double[])n5.getAttribute( dataset, offsetAttribute, double[].class );
+				double[] offset = null;
 	
-				A affine;
 				if ( nd == 1 )
-					affine = (A)(new AffineTransform( 1 ));
-				else if ( nd == 2 && offset == null )
-					affine = (A)new Scale2D();
-				else if ( nd == 2 && offset != null )
-					affine = (A)(new AffineTransform2D());
-				else if ( nd == 3 && offset == null )
-					affine = (A)new Scale3D();
-				else if ( nd == 3 && offset != null )
-					affine = (A)(new AffineTransform3D());
-				else
-					return null;	
-
-				for( int i = 0; i < nd; i++ )
-					affine.set( resolutions[ i ], i, i );
-
-				if( offset != null )
 				{
-					for( int i = 0; i < nd; i++ )
-						affine.set( offset[ i ], i, i+1 );
+					AffineTransform affine = new AffineTransform( 1 );
+					affine.set( resolution[ 0] , 0, 0 );
+					//affine.set( offset[ 0 ], 0, 1 ); // TODO 
+					return affine;
 				}
-				
-				return affine;
+				else if ( nd == 2 && offset == null )
+				{
+					return new Scale2D( resolution );
+				}
+				else if ( nd == 3 && offset == null )
+				{
+					return new Scale3D( resolution );
+				}
+//				else if ( nd == 2 && offset != null )
+//				{
+//					AffineTransform2D affine = new AffineTransform2D();
+//				}
+////				else if ( nd == 3 && offset != null )
+//				{
+//					AffineTransform3D affine = new AffineTransform3D();
+//				}
+
+				return null;
+
 			}
 		}
 		catch( IOException e )
