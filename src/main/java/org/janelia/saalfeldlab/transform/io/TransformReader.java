@@ -268,8 +268,8 @@ public class TransformReader
 			{
 				DfieldIoHelper dfieldIo = new DfieldIoHelper();
 				// keep meta data
-				ANTSDeformationField dfieldResult = dfieldIo.readAsDeformationField( transformPath );
-				InvertibleDeformationFieldTransform< FloatType > invdef = new InvertibleDeformationFieldTransform< FloatType >( new DeformationFieldTransform< FloatType >( dfieldResult.getDefField() ) );
+				DeformationFieldTransform<FloatType> dfieldResult = dfieldIo.readAsDeformationField( transformPath );
+				InvertibleDeformationFieldTransform< FloatType > invdef = new InvertibleDeformationFieldTransform< FloatType >( dfieldResult );
 				setIterativeInverseParameters( invdef.getOptimzer(), transformPathFull );
 
 			if( invert )
@@ -302,7 +302,7 @@ public class TransformReader
 		DfieldIoHelper dfieldIo = new DfieldIoHelper();
 		try
 		{
-			ANTSDeformationField dfieldResult = dfieldIo.readAsDeformationField( transformPath );
+			DeformationFieldTransform<FloatType> dfieldResult = dfieldIo.readAsDeformationField( transformPath );
 			return dfieldResult;
 		}
 		catch ( Exception e )
