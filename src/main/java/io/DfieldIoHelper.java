@@ -11,6 +11,8 @@ import java.util.Arrays;
 import java.util.zip.GZIPOutputStream;
 
 import org.janelia.saalfeldlab.n5.GzipCompression;
+import org.janelia.saalfeldlab.n5.N5FSWriter;
+import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Reader;
 import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Writer;
@@ -72,7 +74,8 @@ public class DfieldIoHelper
 			final String outputPath ) throws Exception
 	{
 
-		if ( outputPath.endsWith( "h5" ) || outputPath.endsWith( "hdf5" ) )
+		if ( outputPath.contains( "h5" ) || outputPath.contains( "hdf5" ) ||
+			 outputPath.contains("n5" ))
 		{
 			RandomAccessibleInterval<T> dfield = vectorAxisPermute( dfieldIn, 3, 3 );
 
@@ -89,12 +92,26 @@ public class DfieldIoHelper
 			{
 				//WriteH5DisplacementField.write( dfield, outputPath, new int[] { 3, 32, 32, 32 }, spacing, null );
 
-				N5Writer n5Writer = new N5HDF5Writer( path, 3, 32, 32, 32 );
+				N5Writer n5Writer;
+				if ( outputPath.contains( "h5" ) || outputPath.contains( "hdf5" ))
+				{
+					n5Writer = new N5HDF5Writer( path, 3, 32, 32, 32 );
+				}
+				else if( outputPath.contains("n5" ))
+				{
+					n5Writer = new N5FSWriter( path);
+				}
+				else
+				{
+					System.err.println("Could not create an n5 writer from path: " + path );
+					n5Writer = null; // let the the null pointer be caught
+				}
+
 				N5DisplacementField.save(n5Writer, dataset, null, 
 						dfield, spacing, new int[]{ 3, 32, 32, 32},
 						new GzipCompression() );
 			}
-			catch ( IOException e )
+			catch ( Exception e )
 			{
 				e.printStackTrace();
 			}
@@ -302,7 +319,8 @@ public class DfieldIoHelper
 			unit = dfieldIp.getCalibration().getUnit();
 
 		}
-		else if ( fieldPath.contains( "h5" ) )
+		else if ( fieldPath.contains( "h5" ) || fieldPath.contains( "hdf5" ) || 
+				  fieldPath.contains( "n5" ))
 		{
 			String dataset = "dfield";
 			String filepath = fieldPath;
@@ -316,7 +334,20 @@ public class DfieldIoHelper
 
 			try
 			{
-				N5HDF5Reader n5 = new N5HDF5Reader( filepath, 32, 32, 32, 3 );
+				N5Reader n5;
+				if ( filepath.contains( "h5" ) || filepath.contains( "hdf5" ))
+				{
+					n5 = new N5HDF5Writer( filepath, 3, 32, 32, 32 );
+				}
+				else if( filepath.contains("n5" ))
+				{
+					n5 = new N5FSWriter( filepath );
+				}
+				else
+				{
+					System.err.println("Could not create an n5 writer from path: " + filepath );
+					n5 = null; // let the the null pointer be caught
+				}
 
 				dfieldRAI = (RandomAccessibleInterval<S>) N5DisplacementField.openField( n5, dataset, defaultType );
 				spacing = n5.getAttribute( dataset, N5DisplacementField.SPACING_ATTR, double[].class );
