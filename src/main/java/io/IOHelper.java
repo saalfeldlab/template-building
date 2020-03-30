@@ -26,10 +26,7 @@ import net.imglib2.RealRandomAccessible;
 import net.imglib2.img.display.imagej.ImageJFunctions;
 import net.imglib2.interpolation.InterpolatorFactory;
 import net.imglib2.realtransform.AffineGet;
-import net.imglib2.realtransform.AffineSet;
 import net.imglib2.realtransform.AffineTransform;
-import net.imglib2.realtransform.AffineTransform2D;
-import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.realtransform.RealViews;
 import net.imglib2.realtransform.Scale;
 import net.imglib2.realtransform.Scale2D;
@@ -81,7 +78,8 @@ public class IOHelper implements Callable<Void>
 	private String offsetAttribute;
 
 	public static ResolutionGet[] resolutionGetters = new ResolutionGet[]{
-			new Resolution(), new PixelResolution()
+			new Resolution(), new PixelResolution(),
+			new ElemSizeUmResolution()
 	};
 
 	final Logger logger = LoggerFactory.getLogger( IOHelper.class );
@@ -138,6 +136,32 @@ public class IOHelper implements Callable<Void>
 		return resolution;
 	}
 
+	public static double[] getResolution( final N5Reader n5, final String dataset )
+	{
+		Set<String> attrKeys;
+		try {
+			attrKeys = n5.listAttributes( dataset ).keySet();
+			double[] resolution = null;
+			for( ResolutionGet rg : resolutionGetters )
+			{
+				if( attrKeys.contains( rg.getKey()))
+				{
+					ResolutionGet rgInstance;
+					if( rg.isSimple() )
+						 rgInstance = rg.create( n5.getAttribute( dataset, rg.getKey(), double[].class ) );
+					else
+						 rgInstance = (ResolutionGet)n5.getAttribute( dataset, rg.getKey(), rg.getClass() );
+
+					resolution = rgInstance.getResolution();
+					return resolution;
+				}
+			}
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		return null;
+	}
+
 	public ValuePair< long[], double[] > readSizeAndResolution( String filePath )
 	{
 		if ( filePath.endsWith( "nii" ) )
@@ -180,6 +204,7 @@ public class IOHelper implements Callable<Void>
 				if( filePath.contains( "n5?" ))
 				{
 					n5 = new N5FSReader( file );
+					permute = false;
 				}
 				else
 				{
@@ -190,35 +215,14 @@ public class IOHelper implements Callable<Void>
 				{
 					long[] size = (long[])n5.getAttribute( dataset, "dimensions", long[].class );
 
-					Set<String> attrKeys = n5.listAttributes( dataset ).keySet();
-					double[] resolution = null;
-					for( ResolutionGet rg : resolutionGetters )
-					{
-						if( attrKeys.contains( rg.getKey()))
-						{
-							ResolutionGet rgInstance = (ResolutionGet)n5.getAttribute( dataset, rg.getKey(), rg.getClass() );
-							resolution = rgInstance.getResolution();
-							break;
-						}
-					}
-
+					double[] resolution = getResolution( n5, dataset );
 					if( resolution == null )
 					{
 						resolution = new double[ size.length ];
 						Arrays.fill( resolution, 1.0 );
 					}
 
-//					double[] resolutions = new double[ size.length ];
-//					Arrays.fill( resolutions, 1.0 );
-//					if( resolutionAttribute.equals( "resolution" ))
-//					{
-//						resolutions = n5.getAttribute( dataset, resolutionAttribute, double[].class );
-//					}
-//					else if( resolutionAttribute.equals( "pixelResolution"))
-//					{
-//						resolutions = (n5.getAttribute( dataset, resolutionAttribute, PixelResolution.class ).dimensions);
-//					}
-
+					// TODO implement this
 					//double[] offset = (double[])n5.getAttribute( filePath, offsetAttribute, double[].class );
 
 					return new ValuePair< long[], double[] >( size, resolution );
@@ -231,7 +235,6 @@ public class IOHelper implements Callable<Void>
 				e.printStackTrace();
 				return null;
 			}
-			
 		}
 		else
 		{
@@ -247,9 +250,9 @@ public class IOHelper implements Callable<Void>
 					reader.getSizeZ()
 				};
 				
-//				Object metastore = reader.getMetadataStoreRoot();
-//				System.out.println( metastore );
-				double[] resolutions = null;
+				Object metastore = reader.getMetadataStoreRoot();
+				System.out.println( metastore );
+				double[] resolutions = new double[ size.length ];
 
 				reader.close();
 				return new ValuePair< long[], double[] >( size, resolutions );
@@ -298,7 +301,8 @@ public class IOHelper implements Callable<Void>
 
 			ip = nr.load( imFile.getParent(), imFile.getName());
 		}
-		else if( filePathAndDataset.contains( ".h5" ))
+		else if( filePathAndDataset.contains( ".h5" )  ||
+				 filePathAndDataset.contains( ".n5" ) )
 		{
 			ip = toImagePlus( readRai( filePathAndDataset ));
 		}
@@ -406,7 +410,10 @@ public class IOHelper implements Callable<Void>
 	 */
 	public <T extends RealType<T> & NativeType<T>> RandomAccessibleInterval<T> readRai( String filePathAndDataset )
 	{
-		if( filePathAndDataset.contains( ".h5?" ) )
+		if ( filePathAndDataset.contains( "n5?" ) ||
+					filePathAndDataset.contains( "h5?" ) || 
+					filePathAndDataset.contains("hdf?") || 
+					filePathAndDataset.contains("hdf5?") )
 		{
 			String[] partList = filePathAndDataset.split( "\\?" );
 			String fpath = partList[ 0 ];
@@ -416,31 +423,41 @@ public class IOHelper implements Callable<Void>
 			logger.debug( "dset: " + dset );
 			
 			RandomAccessibleInterval<T> img = null;
-			N5HDF5Reader n5;
 			try
 			{
-				n5 = new N5HDF5Reader( fpath, 32, 32, 32 );
+				N5Reader n5;
+				if( filePathAndDataset.contains( "n5?" ))
+				{
+					n5 = new N5FSReader( fpath );
+					permute = false;
+				}
+				else
+				{
+					n5 = new N5HDF5Reader( fpath, 32, 32, 32 );
+				}
 
 				RandomAccessibleInterval<T> tmp = N5Utils.open( n5, dset );
+				resolution = getResolution( n5, dset );
+
 				if( permute )
 				{
 					System.out.println(" reversing dims ");
-					img = reverseDims( tmp );
+					img = reverseDims( tmp, resolution );
 				}
 				else 
 					img = tmp;
 
-				float[] rtmp = n5.getAttribute( dset, "element_size_um", float[].class );
-				if( rtmp != null )
-				{
-					resolution = new double[ 3 ];
-					// h5 attributes are usually listed zyx not xyz
-					resolution[ 0 ] = rtmp[ 2 ];
-					resolution[ 1 ] = rtmp[ 1 ];
-					resolution[ 2 ] = rtmp[ 0 ];
-				}
-				else
-					resolution = new double[]{ 1, 1, 1 };
+//				float[] rtmp = n5.getAttribute( dset, "element_size_um", float[].class );
+//				if( rtmp != null )
+//				{
+//					resolution = new double[ 3 ];
+//					// h5 attributes are usually listed zyx not xyz
+//					resolution[ 0 ] = rtmp[ 2 ];
+//					resolution[ 1 ] = rtmp[ 1 ];
+//					resolution[ 2 ] = rtmp[ 0 ];
+//				}
+//				else
+//					resolution = new double[]{ 1, 1, 1 };
 			}
 			catch ( IOException e )
 			{
@@ -492,15 +509,21 @@ public class IOHelper implements Callable<Void>
      * @param p the permutation
      * @return the permuted source
      */
-	public static final < T > IntervalView< T > reverseDims( RandomAccessibleInterval< T > source )
+	public static final < T > IntervalView< T > reverseDims( RandomAccessibleInterval< T > source, double[] res )
 	{
+		assert source.numDimensions() == res.length; 
+
 		final int n = source.numDimensions();
+		double[] tmp  = new double[ n ];
 
 		final int[] p = new int[ n ];
 		for ( int i = 0; i < n; ++i )
 		{
 			p[ i ] = n - 1 - i;
+			tmp[ i ] = res[ n - i - 1 ];
 		}
+		System.arraycopy( tmp, 0, res, 0, n );
+
 		return permute( source, p );
 	}
 	
@@ -667,6 +690,8 @@ public class IOHelper implements Callable<Void>
 	{
 		public String getKey();
 		public double[] getResolution();
+		public boolean isSimple();
+		public ResolutionGet create( double[] in );
 	}
 
 	public static class PixelResolution implements ResolutionGet
@@ -676,13 +701,33 @@ public class IOHelper implements Callable<Void>
 		public String unit;
 		public double[] getResolution(){ return dimensions; }
 		public String getKey(){ return key; };
+		public boolean isSimple(){ return false; }
+		public ResolutionGet create( double[] in ){ return null; }
 	}
 
 	public static class Resolution implements ResolutionGet
 	{
-		public static final String key = "resolutions";
-		public double[] resolutions;
-		public double[] getResolution(){ return resolutions; }
+		public static final String key = "resolution";
+		public static final boolean simple = true;
+		public Resolution(){}
+		public Resolution( double[] in ) { resolution = in; }
+		public double[] resolution;
+		public double[] getResolution(){ return resolution; }
 		public String getKey(){ return key; };
+		public boolean isSimple(){ return true; }
+		public ResolutionGet create( double[] in ){ return new Resolution( in ); }
+	}
+
+	public static class ElemSizeUmResolution implements ResolutionGet
+	{
+		public static final String key = "element_size_um";
+		public static final boolean simple = true;
+		public ElemSizeUmResolution(){}
+		public ElemSizeUmResolution( double[] in ) { element_size_um = in; }
+		public double[] element_size_um;
+		public double[] getResolution(){ return element_size_um; }
+		public String getKey(){ return key; };
+		public boolean isSimple(){ return true; }
+		public ResolutionGet create( double[] in ){ return new ElemSizeUmResolution( in ); }
 	}
 }
