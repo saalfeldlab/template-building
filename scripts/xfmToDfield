@@ -1,0 +1,5 @@
+#!/bin/bash
+
+BASEDIR=$(dirname "$0")
+cp=$(readlink -f $BASEDIR/../target/*with-dep*jar)
+java -cp "$cp" net.imglib2.realtransform.TransformToDeformationField "$@"
