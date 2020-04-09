@@ -78,8 +78,10 @@ public class IOHelper implements Callable<Void>
 	private String offsetAttribute;
 
 	public static ResolutionGet[] resolutionGetters = new ResolutionGet[]{
-			new Resolution(), new PixelResolution(),
-			new ElemSizeUmResolution()
+			new Resolution(), 
+			new PixelResolution(),
+			new ElemSizeUmResolution(), 
+			new TransformResolution()
 	};
 
 	final Logger logger = LoggerFactory.getLogger( IOHelper.class );
@@ -730,4 +732,30 @@ public class IOHelper implements Callable<Void>
 		public boolean isSimple(){ return true; }
 		public ResolutionGet create( double[] in ){ return new ElemSizeUmResolution( in ); }
 	}
+
+    public static class TransformResolution implements ResolutionGet
+    {
+        public static final String key = "transform";
+        public static final boolean simple = false;
+        public double[] scale;
+        public double[] translation;
+        public String[] units;
+        public TransformResolution(){}
+        public TransformResolution( double[] s, double[] t, String[] u )
+        {
+            scale = s;
+            translation = t;
+            units = u;
+        }
+        public double[] getResolution(){ return scale; }
+        public String getKey(){ return key; };
+        public boolean isSimple(){ return simple; }
+        public ResolutionGet create( double[] in )
+        {
+            String[] units = new String[ in.length ];
+            Arrays.fill( units, "pixel" );
+            return new TransformResolution( in, new double[in.length], units );
+        }
+    }
+
 }
