@@ -6,9 +6,13 @@ import java.util.Arrays;
 import java.util.Set;
 import java.util.concurrent.Callable;
 
+import org.janelia.saalfeldlab.n5.GzipCompression;
 import org.janelia.saalfeldlab.n5.N5FSReader;
+import org.janelia.saalfeldlab.n5.N5FSWriter;
 import org.janelia.saalfeldlab.n5.N5Reader;
+import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Reader;
+import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Writer;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -680,6 +684,49 @@ public class IOHelper implements Callable<Void>
 			File f = new File( outputFilePath );
 			Dfield_Nrrd_Writer writer = new Dfield_Nrrd_Writer();
 			writer.save( ip, f.getParent(), f.getName() );
+		}
+		else if( outputFilePath.contains( "hdf5" ) || outputFilePath.contains("h5") ||
+				outputFilePath.contains( "n5" )  )
+		{
+
+			String dataset =  "/volume/raw";
+			String path = outputFilePath;
+			if( outputFilePath.contains( ":" ))
+			{
+				String[] split = outputFilePath.split( ":" );
+				path = split[ 0 ];
+				dataset = split[ 1 ];
+			}
+
+
+			try
+			{
+				N5Writer n5Writer;
+				if ( outputFilePath.contains( "h5" ) || outputFilePath.contains( "hdf5" ))
+				{
+					n5Writer = new N5HDF5Writer( path, 3, 32, 32, 32 );
+				}
+				else if( outputFilePath.contains("n5" ))
+				{
+					n5Writer = new N5FSWriter( path);
+				}
+				else
+				{
+					System.err.println("Could not create an n5 writer from path: " + path );
+					n5Writer = null; // let the the null pointer be caught
+				}
+
+				// TODO add more options 
+				int[] blockSize = new int[]{ 32, 32, 32 };
+				GzipCompression compression = new GzipCompression();
+
+				RandomAccessibleInterval img = ImageJFunctions.wrap( ip );
+				N5Utils.save( img, n5Writer, dataset, blockSize, compression );
+			}
+			catch( Exception e )
+			{
+				e.printStackTrace();
+			}
 		}
 		else
 		{
