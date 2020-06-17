@@ -26,7 +26,7 @@ public class FieldOfView
 
 	public static enum PIN_POLICY{ MIN, MAX, CENTER };
 
-	public PIN_POLICY defaultPolicy = PIN_POLICY.CENTER;
+	public PIN_POLICY defaultPolicy = PIN_POLICY.MIN;
 	
 	private final int ndims;
 
@@ -410,30 +410,53 @@ public class FieldOfView
 		{
 			fov = FieldOfView.fromSpacingSize( sizeAndRes.get().b, new FinalInterval( sizeAndRes.get().a ));
 
-			pixelIntervalOpt.ifPresent( fov::setPixel );
+			if( pixelIntervalOpt.isPresent() )
+			{
+				fov.setPixel( pixelIntervalOpt.get() );
+				fov.updatePhysical();
+			}
 
 			if( minOpt.isPresent() && maxOpt.isPresent() )
+			{
 				fov.setPhysical( minOpt.get(), maxOpt.get() );
+				fov.updatePhysical();
+			}
 			else if( maxOpt.isPresent() )
+			{
 				fov.setPhysicalMax( maxOpt.get() );
+				fov.updatePhysical();
+			}
 
-			spacingOpt.ifPresent( fov::setSpacing );
+			if( spacingOpt.isPresent() )
+			{
+				fov.setSpacing( spacingOpt.get() );
+				fov.updatePixel();
+			}
 		}
 		else if( spacingOpt.isPresent() && pixelIntervalOpt.isPresent() )
 		{
 			fov = FieldOfView.fromSpacingSize( spacingOpt.get(), pixelIntervalOpt.get() );
 
 			if( minOpt.isPresent() && maxOpt.isPresent() )
+			{
 				fov.setPhysical( minOpt.get(), maxOpt.get() );
+				fov.updatePixel();
+			}
 			else if( maxOpt.isPresent() )
+			{
 				fov.setPhysicalMax( maxOpt.get() );
-
+				fov.updatePixel();
+			}
 		}
 		else if( maxOpt.isPresent() && pixelIntervalOpt.isPresent() )
 		{
 			fov = FieldOfView.fromPhysicalPixel( min, maxOpt.get(), pixelIntervalOpt.get() );
 
-			spacingOpt.ifPresent( fov::setSpacing );
+			if( spacingOpt.isPresent() )
+			{
+				fov.setSpacing( spacingOpt.get() );
+				fov.updatePixel();
+			}
 		}
 		else
 		{
@@ -640,11 +663,12 @@ public class FieldOfView
 		FieldOfView fovImgRes = FieldOfView.parse( 3, ref, empty, empty, empty, hires );
 		System.out.println( fovImgRes + "\n" );
 
-		FieldOfView fovImgSz = FieldOfView.parse( 3, ref, emptyD, emptyD, intervalWithOffset, emptyD );
+		FieldOfView fovImgSz = FieldOfView.parse( 3, ref, emptyD, emptyD, szInterval, emptyD );
 		System.out.println( fovImgSz + "\n" );
 
 		FieldOfView fovImgPixszPixoff = FieldOfView.parse( 3, ref, emptyD, emptyD, intervalWithOffset, emptyD );
 		System.out.println( fovImgPixszPixoff + "\n" );
+
 	}
 	
 }
