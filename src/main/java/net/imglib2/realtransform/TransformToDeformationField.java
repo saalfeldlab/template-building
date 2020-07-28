@@ -6,9 +6,11 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import org.janelia.saalfeldlab.transform.io.TransformReader;
 import org.slf4j.Logger;
@@ -104,7 +106,7 @@ public class TransformToDeformationField implements Callable<Void>
 			{
 				try
 				{
-					sizeAndRes = Optional.of( TransformReader.transformSizeAndRes( transformFile ));
+					sizeAndRes = Optional.of( TransformReader.transformSpatialSizeAndRes( transformFile ));
 				}
 				catch ( Exception e )
 				{
@@ -125,7 +127,6 @@ public class TransformToDeformationField implements Callable<Void>
 				Optional.ofNullable( renderInterval ),
 				Optional.ofNullable( outputResolution ));
 		fov.updatePixelToPhysicalTransform();
-
 
 		// contains the physical transformation
 		RealTransformSequence physicalTransform = TransformReader.readTransforms( transformFiles );
@@ -218,13 +219,11 @@ public class TransformToDeformationField implements Callable<Void>
 	public <T extends RealType<T> & NativeType<T>> void compare( 
 			final RealTransform transform, final RandomAccessibleInterval<T> dfield )
 	{
-
 		DeformationFieldTransform<T> dfieldTransform = new DeformationFieldTransform<>( dfield );
 		RealTransformSequence dfieldWithPix2Phys = new RealTransformSequence();
 		dfieldWithPix2Phys.add( new Scale( outputResolution ));
 		dfieldWithPix2Phys.add( dfieldTransform );
 
-		
 		RealPoint p = new RealPoint( transform.numSourceDimensions() );
 		RealPoint qOrig = new RealPoint( transform.numTargetDimensions() );
 		RealPoint qNew  = new RealPoint( transform.numTargetDimensions() );
@@ -272,6 +271,7 @@ public class TransformToDeformationField implements Callable<Void>
 
 					final RandomAccess< T > dfieldRa = dfield.randomAccess();
 					final IntervalIterator it = new IntervalIterator( Views.hyperSlice( dfield, vecdim, 0 ));
+
 					it.jumpFwd( start );
 					while( it.hasNext() )
 					{
@@ -293,25 +293,47 @@ public class TransformToDeformationField implements Callable<Void>
 							dfieldRa.setPosition( d, vecdim );
 							dfieldRa.get().setReal( q.getDoublePosition( d ) - p.getDoublePosition( d ) );
 						}
-					}	
+					}
 					return null;
 				}
-				
 			});
-
 		}
-		
+
 		try
 		{
 			List< Future< Void > > futures = exec.invokeAll( jobs );
-			exec.shutdown(); // wait for jobs to finish
+			for ( Future< Void > f : futures )
+			{
+				try
+				{
+					f.get();
+				}
+				catch ( ExecutionException e )
+				{
+					e.printStackTrace();
+				}
+			}
+
+			exec.shutdown();
+
+			// Wait a while for existing tasks to terminate
+			if ( !exec.awaitTermination( 60, TimeUnit.MINUTES ) )
+			{
+				exec.shutdownNow(); // Cancel currently executing tasks
+				// Wait a while for tasks to respond to being cancelled
+				if ( !exec.awaitTermination( 60, TimeUnit.SECONDS ) )
+					System.err.println( "Pool did not terminate" );
+			}
 		}
 		catch ( InterruptedException e )
 		{
 			e.printStackTrace();
+			// (Re-)Cancel if current thread also interrupted
+			exec.shutdownNow();
+			// Preserve interrupt status
+			Thread.currentThread().interrupt();
 		}
 	}
-
 	
 	public static <T extends RealType<T> & NativeType<T>> void transformToDeformationField( 
 			final RealTransform transform, final RandomAccessibleInterval<T> dfield, final AffineGet pixelToPhysical )
@@ -345,8 +367,6 @@ public class TransformToDeformationField implements Callable<Void>
 				dfieldRa.get().setReal( q.getDoublePosition( d ) - p.getDoublePosition( d ) );
 			}
 		}
-
 	}
-
 
 }

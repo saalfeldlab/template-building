@@ -19,6 +19,7 @@ import io.cmtk.CMTKLoadAffine;
 import io.nii.NiftiIo;
 import loci.formats.FormatException;
 import net.imglib2.FinalRealInterval;
+import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.RealInterval;
 import net.imglib2.interpolation.randomaccess.NLinearInterpolatorFactory;
 import net.imglib2.realtransform.AffineTransform;
@@ -37,6 +38,7 @@ import net.imglib2.realtransform.inverse.InverseRealTransformGradientDescent;
 import net.imglib2.realtransform.inverse.WrappedIterativeInvertibleRealTransform;
 import net.imglib2.type.numeric.real.FloatType;
 import net.imglib2.util.ValuePair;
+import net.imglib2.view.Views;
 import sc.fiji.io.Dfield_Nrrd_Reader;
 import sc.fiji.io.NrrdDfieldFileInfo;
 
@@ -265,13 +267,12 @@ public class TransformReader
 			{
 				DfieldIoHelper dfieldIo = new DfieldIoHelper();
 				// keep meta data
-				ANTSDeformationField dfieldResult = dfieldIo.readAsDeformationField( transformPath );
-				InvertibleDeformationFieldTransform< FloatType > invdef = new InvertibleDeformationFieldTransform< FloatType >( new DeformationFieldTransform< FloatType >( dfieldResult.getDefField() ) );
+				DeformationFieldTransform< FloatType > dfield = dfieldIo.readAsRealTransform( transformPath );
+				InvertibleDeformationFieldTransform< FloatType > invdef = new InvertibleDeformationFieldTransform< FloatType >( dfield );
 				setIterativeInverseParameters( invdef.getOptimzer(), transformPathFull );
 
 			if( invert )
 			{
-				System.out.println("INVERSE DEF FIELD");
 				return invdef.inverse();
 			}
 			else
@@ -497,6 +498,37 @@ public class TransformReader
 		}
 
 		return new FinalRealInterval( min, max );
+	}
+
+	public static ValuePair< long[], double[] > transformSpatialSizeAndRes( String transformArg ) throws FormatException, IOException
+	{
+		ValuePair< long[], double[] > sar = transformSizeAndRes( transformArg );
+		long[] sz = sar.getA();
+		double[] res = sar.getB();
+		int nd = sz.length;
+		int ndNew = nd - 1;
+
+		int vectorIndex = -1;
+		for ( int i = 0; i < nd; i++ )
+			if ( sz[ i ] == ndNew )
+				vectorIndex = i;
+
+		if ( vectorIndex < 0 )
+			return null;
+
+		long[] szSpatial = new long[ ndNew ];
+		double[] resSpatial = new double[ ndNew ];
+		int j = 0;
+		for ( int i = 0; i < nd; i++ )
+		{
+			if ( i != vectorIndex )
+			{
+				szSpatial[ j ] = sz[ i ];
+				resSpatial[ j ] = res[ i ];
+				j++;
+			}
+		}
+		return new ValuePair< long[], double[] >( szSpatial, resSpatial );
 	}
 
 	public static ValuePair< long[], double[] > transformSizeAndRes( String transformArg ) throws FormatException, IOException

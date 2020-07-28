@@ -239,12 +239,10 @@ public class RenderUtil
 	}
 
 	public static < T extends NumericType<T> > RandomAccessibleInterval<T> copyToImageStack( 
-			final RandomAccessible< T > ra,
+			final RandomAccessible< T > raible,
 			final RandomAccessibleInterval<T> target,
 			final int nThreads )
 	{
-		RandomAccessible< T > raible = ra;
-
 		// what dimension should we split across?
 		int nd = raible.numDimensions();
 		int tmp = nd - 1;
@@ -287,7 +285,7 @@ public class RenderUtil
 						final FinalInterval subItvl = getSubInterval( target, dim2split, start, end );
 						final IntervalView< T > subTgt = Views.interval( target, subItvl );
 						final Cursor< T > c = subTgt.cursor();
-						final RandomAccess< T > ra = raible.randomAccess().copyRandomAccess();
+						final RandomAccess< T > ra = raible.randomAccess();
 						while ( c.hasNext() )
 						{
 							c.fwd();
@@ -310,7 +308,7 @@ public class RenderUtil
 			threadPool.shutdown(); // wait for all jobs to finish
 
 		}
-		catch ( InterruptedException e1 )
+		catch ( Exception e1 )
 		{
 			e1.printStackTrace();
 		}
