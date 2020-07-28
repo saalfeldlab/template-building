@@ -7,7 +7,9 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.zip.GZIPOutputStream;
 
 import org.janelia.saalfeldlab.n5.GzipCompression;
@@ -179,9 +181,33 @@ public class DfieldIoHelper
 		}
 	}
 
-	public DeformationFieldTransform<FloatType> readAsDeformationField( final String fieldPath ) throws Exception
+	@SuppressWarnings( { "unchecked", "rawtypes" } )
+	public <T extends RealType<T>> DeformationFieldTransform< FloatType > readAsRealTransform( final String fieldPath )
 	{
-		return readAsDeformationField( fieldPath, new FloatType() );
+		try
+		{
+			RandomAccessibleInterval< FloatType > dfieldImgRaw = read( fieldPath );
+			RandomAccessibleInterval< FloatType > dfieldImg = N5DisplacementField.vectorAxisLast( dfieldImgRaw );
+			int nd = 3; // TODO generalize
+
+			RealRandomAccessible[] dfieldComponents = new RealRandomAccessible[ nd ];
+			Scale pixelToPhysical = new Scale( spacing );
+			for( int i = 0; i < nd; i++ )
+			{
+				dfieldComponents[ i ] = 
+						RealViews.affine(
+							Views.interpolate( 
+								Views.extendBorder( Views.hyperSlice( dfieldImg, nd, i )),
+								new NLinearInterpolatorFactory<>()),
+							pixelToPhysical.copy() );
+			}
+			return new DeformationFieldTransform<FloatType>( dfieldComponents );
+		}
+		catch ( Exception e )
+		{
+			e.printStackTrace();
+			return null;
+		}
 	}
 
 	@Deprecated
@@ -485,7 +511,7 @@ public class DfieldIoHelper
 		return N5DisplacementField.vectorAxisLast( tmpImg );
 	}
 
-	public static final < T extends RealType< T > > RandomAccessibleInterval< T > vectorAxisThird( RandomAccessibleInterval< T > source ) throws Exception
+	public static final < T extends RealType< T > > int[] vectorAxisThirdPermutation( RandomAccessibleInterval< T > source ) throws Exception
 	{
 		final int n = source.numDimensions();
 		int[] component = null;
@@ -497,7 +523,7 @@ public class DfieldIoHelper
 
 		if ( source.dimension( 2 ) == 3 )
 		{	
-			return source;
+			return null;
 		}
 		else if ( source.dimension( 3 ) == 3 )
 		{
@@ -507,7 +533,7 @@ public class DfieldIoHelper
 			component[ 2 ] = 3; 
 			component[ 3 ] = 2;
 
-			return N5DisplacementField.permute( source, component );
+			return component;
 		}
 		else if ( source.dimension( 0 ) == 3 )
 		{
@@ -517,12 +543,77 @@ public class DfieldIoHelper
 			component[ 2 ] = 0;
 			component[ 3 ] = 3;
 
-			return N5DisplacementField.permute( source, component );
+			return component;
 		}
 
 		throw new Exception( 
 				String.format( "Displacement fields must store vector components in the first or last dimension. " + 
 						"Found a %d-d volume; expect size [%d,...] or [...,%d]", n, ( n - 1 ), ( n - 1 ) ) );
+	}
+
+	public static final < T extends RealType< T > > RandomAccessibleInterval< T > vectorAxisThird( RandomAccessibleInterval< T > source ) throws Exception
+	{
+		int[] component = vectorAxisThirdPermutation( source );
+		if( component != null )
+			return N5DisplacementField.permute( source, component );
+
+		throw new Exception( "Some problem permuting" );
+	}
+
+	/**
+	 * Permutes the dimensions of the input {@link RandomAccessibleInterval} so that 
+	 * the first dimension of length dimLength is in dimension destinationDim in the output image.
+	 * Other dimensions are "shifted" so that the order of the remaining dimensions is preserved.
+	 * 
+	 * @param source
+	 * @param dimLength
+	 * @param destinationDim
+	 * @return the permutaion indexes
+	 * @throws Exception
+	 */
+	public static final < T extends RealType< T > > int[] vectorAxisPermutation(
+			final RandomAccessibleInterval< T > source,
+			final int dimLength,
+			final int destinationDim ) throws Exception
+	{
+		// the dimension of the vector field
+		final int n = source.numDimensions(); 
+
+		int currentVectorDim = -1;
+		for( int i = 0; i < n; i++ )
+		{
+			if( source.dimension( i ) == dimLength )
+				currentVectorDim = i;
+		}
+
+		if( currentVectorDim == destinationDim )
+			return null;
+
+		if( currentVectorDim < 0 )
+			throw new Exception( 
+					String.format( "Displacement fields must contain a dimension with a length of %d", dimLength ));
+
+		int j = 0;
+
+		int[] component = new int[ n ];
+		component[ currentVectorDim ] = destinationDim;
+
+		if( j == currentVectorDim )
+			j++;
+
+		for( int i = 0; i < n; i++ )
+		{
+			if( i != destinationDim )
+			{
+				component[ j ] = i;
+				j++;
+
+				if( j == currentVectorDim )
+					j++;
+			}
+		}
+
+		return component;
 	}
 
 	/**
