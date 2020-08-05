@@ -82,10 +82,10 @@ public class IOHelper implements Callable<Void>
 	private String offsetAttribute;
 
 	public static ResolutionGet[] resolutionGetters = new ResolutionGet[]{
+			new TransformResolution(),
 			new Resolution(), 
 			new PixelResolution(),
-			new ElemSizeUmResolution(), 
-			new TransformResolution()
+			new ElemSizeUmResolution()
 	};
 
 	final Logger logger = LoggerFactory.getLogger( IOHelper.class );
@@ -257,7 +257,6 @@ public class IOHelper implements Callable<Void>
 				};
 				
 				Object metastore = reader.getMetadataStoreRoot();
-				System.out.println( metastore );
 				double[] resolutions = new double[ size.length ];
 
 				reader.close();
@@ -447,7 +446,6 @@ public class IOHelper implements Callable<Void>
 
 				if( permute )
 				{
-					System.out.println(" reversing dims ");
 					img = reverseDims( tmp, resolution );
 				}
 				else 
@@ -469,6 +467,7 @@ public class IOHelper implements Callable<Void>
 			{
 				e.printStackTrace();
 			}
+
 			rai = img;
 			return img;
 		}
@@ -557,16 +556,7 @@ public class IOHelper implements Callable<Void>
 //				}
 
 				Set<String> attrKeys = n5.listAttributes( dataset ).keySet();
-				double[] resolution = null;
-				for( ResolutionGet rg : resolutionGetters )
-				{
-					if( attrKeys.contains( rg.getKey()))
-					{
-						ResolutionGet rgInstance = (ResolutionGet)n5.getAttribute( dataset, rg.getKey(), rg.getClass() );
-						resolution = rgInstance.getResolution();
-						break;
-					}
-				}
+				double[] resolution = getResolution( n5, dataset );
 
 				if( resolution == null )
 				{

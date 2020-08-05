@@ -74,6 +74,10 @@ public class TransformN5 implements Callable<Void>, Serializable
 			description = "The resolution at which to write the output. Overrides reference image." )
 	private double[] outputResolution;
 
+	@Option( names = { "-p", "--image-pixel-to-physical" }, required = false, split = ",", 
+			description = "The resolution at which to write the output. Overrides reference image." )
+	private double[] imagePixelToPhysical;
+
 	@Option( names = { "-f", "--reference" }, required = false, 
 			description = "A reference image specifying the output size and resolution." )
 	private String referenceImagePath;
@@ -105,13 +109,9 @@ public class TransformN5 implements Callable<Void>, Serializable
 	 */
 	public void setup( final N5Reader n5 )
 	{
-		System.out.println("setup");
 		if( referenceImagePath != null && !referenceImagePath.isEmpty() )
 		{
 			IOHelper io = new IOHelper();
-//			io.setResolutionAttribute( resolutionAttribute );
-//			io.setOffsetAttribute( offsetAttribute );
-
 			ValuePair< long[], double[] > sizeAndRes = io.readSizeAndResolution( new File( referenceImagePath ));
 			renderInterval = new FinalInterval( sizeAndRes.getA() );
 
@@ -122,7 +122,16 @@ public class TransformN5 implements Callable<Void>, Serializable
 		if( outputSize != null && !outputSize.isEmpty() )
 			renderInterval = RenderTransformed.parseInterval( outputSize );
 
-		inputPixelToPhysical = IOHelper.pixelToPhysicalN5( n5, inDataset );
+        if( imagePixelToPhysical != null )
+        {
+            AffineTransform3D tmp = new AffineTransform3D();
+            tmp.set( imagePixelToPhysical );
+            inputPixelToPhysical = tmp;
+        }
+        else
+        {
+            inputPixelToPhysical = IOHelper.pixelToPhysicalN5( n5, inDataset );
+        }
 	}
 
 	@Override

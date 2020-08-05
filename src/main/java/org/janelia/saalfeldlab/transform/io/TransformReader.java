@@ -271,7 +271,8 @@ public class TransformReader
 			{
 				DfieldIoHelper dfieldIo = new DfieldIoHelper();
 				// keep meta data
-				DeformationFieldTransform< FloatType > dfield = dfieldIo.readAsRealTransform( transformPath );
+				//DeformationFieldTransform< FloatType > dfield = dfieldIo.readAsRealTransform( transformPath );
+				DeformationFieldTransform< FloatType > dfield = dfieldIo.readAsDeformationField( transformPath, new FloatType() );
 				InvertibleDeformationFieldTransform< FloatType > invdef = new InvertibleDeformationFieldTransform< FloatType >( dfield );
 				setIterativeInverseParameters( invdef.getOptimzer(), transformPathFull );
 

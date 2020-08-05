@@ -444,14 +444,11 @@ public class DfieldIoHelper
 
 	public < T extends RealType< T > > RandomAccessibleInterval< FloatType > read( final String fieldPath ) throws Exception
 	{
-		System.out.println("reading deformation field: " + fieldPath );
-
 		ImagePlus dfieldIp = null;
 		if ( fieldPath.endsWith( "nii" ) )
 		{
 			try
 			{
-				System.out.println( "loading nii" );
 				dfieldIp = NiftiIo.readNifti( new File( fieldPath ) );
 
 				spacing = new double[] { dfieldIp.getCalibration().pixelWidth, dfieldIp.getCalibration().pixelHeight, dfieldIp.getCalibration().pixelDepth };
@@ -485,7 +482,7 @@ public class DfieldIoHelper
 			String dataset = params.inverse ? params.invdataset : params.fwddataset;
 			try
 			{
-				System.out.println("reading: " + params.path + " : " + dataset );
+				//System.out.println("reading: " + params.path + " : " + dataset );
 				N5HDF5Reader n5 = new N5HDF5Reader( params.path, 32, 32, 32, 3 );
 				RandomAccessibleInterval<FloatType> dfield = N5DisplacementField.openField( n5, dataset, new FloatType() );
 				spacing = n5.getAttribute( dataset, N5DisplacementField.SPACING_ATTR, double[].class );
@@ -499,6 +496,11 @@ public class DfieldIoHelper
 		else
 		{
 			dfieldIp = IJ.openImage( fieldPath );
+            if( dfieldIp == null )
+            {
+                System.err.println( "could not read transform from: " + fieldPath );
+                return null;
+            }
 			spacing = new double[]
 					{
 						dfieldIp.getCalibration().pixelWidth,
