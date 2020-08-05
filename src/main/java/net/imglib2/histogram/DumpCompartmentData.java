@@ -16,6 +16,7 @@ import java.util.stream.Collectors;
 
 import ij.IJ;
 import ij.ImagePlus;
+import io.IOHelper;
 import io.nii.NiftiIo;
 import loci.formats.FormatException;
 import net.imglib2.Cursor;
@@ -67,15 +68,17 @@ public class DumpCompartmentData
 		System.out.println( "imF          : " + imF );
 		System.out.println( "maskF        : " + maskF );
 		System.out.println( "compartmentF : " + compartmentF );
-		ImagePlus imp = null;
-		if( imF.endsWith( "nii" ))
-		{
-			imp = NiftiIo.readNifti( new File( imF ));
-		}
-		else
-		{
-			imp = IJ.openImage( imF );
-		}
+
+		IOHelper io = new IOHelper();
+		ImagePlus imp = io.readIp( new File( imF ));
+//		if( imF.endsWith( "nii" ))
+//		{
+//			imp = NiftiIo.readNifti( new File( imF ));
+//		}
+//		else
+//		{
+//			imp = IJ.openImage( imF );
+//		}
 	
 		IterableInterval<BoolType> maskImg = null;
 		if( maskF.endsWith( "nii" ))
