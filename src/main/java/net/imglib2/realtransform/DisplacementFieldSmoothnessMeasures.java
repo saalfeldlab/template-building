@@ -83,7 +83,7 @@ public class DisplacementFieldSmoothnessMeasures implements Callable<Void>
 		double[] resolution = new double[]{ 1, 1, 1 };
 		try
 		{
-			transform = dfieldIo.readAsDeformationField( inputTransformPath );
+			transform = dfieldIo.readAsAntsField( inputTransformPath );
 			resolution = transform.getResolution();
 			unit = transform.getUnit();
 			System.out.println( "resolution : " + Arrays.toString( resolution ));

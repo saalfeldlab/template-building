@@ -23,8 +23,8 @@ public class DfieldComparisons
 //		RandomAccessibleInterval< FloatType > dfield1 = dfieldIo.read( dfield1Path );
 //		RandomAccessibleInterval< FloatType > dfield2 = dfieldIo.read( dfield2Path );
 		
-		ANTSDeformationField obj1 = dfieldIo.readAsDeformationField( dfield1Path );
-		ANTSDeformationField obj2 = dfieldIo.readAsDeformationField( dfield2Path );
+		ANTSDeformationField obj1 = dfieldIo.readAsAntsField( dfield1Path );
+		ANTSDeformationField obj2 = dfieldIo.readAsAntsField( dfield2Path );
 
 		RandomAccessibleInterval< FloatType > dfield1 = obj1.getImg();
 		RandomAccessibleInterval< FloatType > dfield2 = obj2.getImg();

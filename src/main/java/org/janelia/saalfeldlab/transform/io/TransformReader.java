@@ -36,6 +36,7 @@ import net.imglib2.realtransform.ants.ANTSDeformationField;
 import net.imglib2.realtransform.ants.ANTSLoadAffine;
 import net.imglib2.realtransform.inverse.InverseRealTransformGradientDescent;
 import net.imglib2.realtransform.inverse.WrappedIterativeInvertibleRealTransform;
+import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.numeric.real.FloatType;
 import net.imglib2.util.ValuePair;
 import net.imglib2.view.Views;
@@ -63,6 +64,9 @@ public class TransformReader
 	public static RealTransformSequence readTransforms( List<String> transformList )
 	{
 		RealTransformSequence totalTransform = new RealTransformSequence();
+		if( transformList == null || transformList.size() < 1 )
+			return totalTransform;
+
 		for( String transform : transformList )
 		{
 			if( isInverse( transform ))
@@ -300,14 +304,15 @@ public class TransformReader
 		DfieldIoHelper dfieldIo = new DfieldIoHelper();
 		try
 		{
-			ANTSDeformationField dfieldResult = dfieldIo.readAsDeformationField( transformPath );
+			DeformationFieldTransform<FloatType> dfieldResult = dfieldIo.readAsDeformationField(
+					transformPath, new FloatType());
+//			DeformationFieldTransform<FloatType> dfieldResult = dfieldIo.readAsRealTransform( transformPath );
 			return dfieldResult;
 		}
 		catch ( Exception e )
 		{
 			e.printStackTrace();
 		}
-
 
 		return null;
 	}
