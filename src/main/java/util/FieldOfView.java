@@ -3,6 +3,7 @@ package util;
 import java.io.File;
 import java.util.Arrays;
 import java.util.Optional;
+import java.util.concurrent.Callable;
 
 import io.IOHelper;
 import net.imglib2.FinalInterval;
@@ -10,15 +11,19 @@ import net.imglib2.FinalRealInterval;
 import net.imglib2.Interval;
 import net.imglib2.RealInterval;
 import net.imglib2.RealLocalizable;
-import net.imglib2.RealPoint;
 import net.imglib2.RealPositionable;
 import net.imglib2.realtransform.AffineGet;
 import net.imglib2.realtransform.ScaleAndTranslation;
+import net.imglib2.realtransform.TransformToDeformationField;
+import net.imglib2.type.numeric.real.FloatType;
 import net.imglib2.util.Intervals;
 import net.imglib2.util.Util;
 import net.imglib2.util.ValuePair;
+import picocli.CommandLine;
+import picocli.CommandLine.Option;
+import process.RenderTransformed;
 
-public class FieldOfView
+public class FieldOfView implements Callable< Void >
 {
 	
 	// TODO what if the origin is not in the fov?
@@ -38,6 +43,37 @@ public class FieldOfView
 	
 	private AffineGet pixelToPhysical;
 	
+	private double delta = 1e-6;
+
+	@Option( names = { "-n", "--num-dimensions" }, required = true,
+			description = "Number of dimensions." )
+	private int ndimsArg;
+
+	@Option( names = { "-s", "--outputImageSize" }, required = false,
+			description = "Size / field of view of image output in pixels.  Comma separated, e.g. \"200,250,300\". "
+					+ "Overrides reference image."  )
+	private String outputSizeArg;
+
+	@Option( names = { "-m", "--interval-min", "--offset" }, required = false, split=",",
+			description = "Offset of the output interval in physical units. Overrides reference image." )
+	private double[] intervalMinArg;
+
+	@Option( names = { "-x", "--interval-max"  }, required = false, split=",",
+			description = "Maximum coordinate of output interval.  Overrides reference, and outputImageSize parameters." )
+	private double[] intervalMaxArg;
+
+//	@Option( names = { "-i", "--input-resolution" }, required = false, split = ",", 
+//			description = "The resolution of the input field of view. Overrides reference image." )
+//	private double[] inputResolutionArg;
+
+	@Option( names = { "-r", "--output-resolution" }, required = false, split = ",", 
+			description = "The resolution of the output space. Overrides reference image." )
+	private double[] outputResolutionArg;
+
+	@Option( names = { "-f", "--reference" }, required = false, 
+			description = "A reference image specifying the output size and resolution." )
+	private String referenceImagePath;	
+	
 	public FieldOfView( int ndims )
 	{ 
 		this.ndims = ndims;
@@ -51,7 +87,39 @@ public class FieldOfView
 		this.spacing = spacing;
 		updatePixelToPhysicalTransform();
 	}
-	
+
+	public static void main( String[] args )
+	{
+		CommandLine.call( new FieldOfView( 3 ), args );
+	}
+
+	@Override
+	public Void call()
+	{
+		// use size / resolution if the only input transform is a dfield
+		// ( and size / resolution is not given )
+		Optional< ValuePair< long[], double[] > > sizeAndRes = Optional.empty();
+		if ( referenceImagePath != null && !referenceImagePath.isEmpty() && new File( referenceImagePath ).exists() )
+		{
+			IOHelper io = new IOHelper();
+			sizeAndRes = Optional.of( io.readSizeAndResolution( new File( referenceImagePath ) ) );
+		}
+
+		if ( outputSizeArg != null && !outputSizeArg.isEmpty() )
+			pixelInterval = RenderTransformed.parseInterval( outputSizeArg );
+
+		FieldOfView fov = FieldOfView.parse( ndimsArg, sizeAndRes, Optional.ofNullable( intervalMinArg ), Optional.ofNullable( intervalMaxArg ), Optional.ofNullable( pixelInterval ), Optional.ofNullable( outputResolutionArg ) );
+		fov.updatePixelToPhysicalTransform();
+
+		// we need to tack on the conversion from pixel to physical space first
+		pixelToPhysical = fov.getPixelToPhysicalTransform();
+		pixelInterval = fov.getPixel();
+		spacing = fov.getSpacing();
+
+		System.out.println( fov );
+		return null;
+	}
+
 	public RealInterval getPhysical()
 	{
 		return physicalInterval;
@@ -190,10 +258,20 @@ public class FieldOfView
 		long[] sz = new long[ ndims ];
 		for( int i = 0; i < ndims; i++ )
 		{
-			sz[ i ] = (long)Math.ceil( w[ i ] / spacing[ i ] );
+			double y = w[ i ] / spacing[ i ];
+			double yc = Math.ceil( y );
+			if ( Math.abs( yc - y ) > delta )
+			{
+				System.out.println( "no add");
+				sz[ i ] = (long)yc;
+			}
+			else
+			{
+				System.out.println( "add one");
+				sz[ i ] = 1 + (long)yc;
+			}
 		}
 		pixelInterval = new FinalInterval( sz );
-		updatePhysical( policy );
 	}
 	
 	public void updatePhysical()
@@ -457,6 +535,9 @@ public class FieldOfView
 				fov.setSpacing( spacingOpt.get() );
 				fov.updatePixel();
 			}
+		}else if( maxOpt.isPresent() && spacingOpt.isPresent() )
+		{
+			fov = FieldOfView.fromPhysicalSpacing( min, maxOpt.get(), spacingOpt.get() );
 		}
 		else
 		{
@@ -472,12 +553,12 @@ public class FieldOfView
 		FieldOfView copy = new FieldOfView( physicalInterval, pixelInterval, spacing );
 		return copy;
 	}
-	
+
 	public static FieldOfView fromSpacingSize( final double[] spacing, final Interval size )
 	{
 		FieldOfView fov = new FieldOfView( size.numDimensions() );
 		fov.setSpacing( spacing );
-		fov.setPhysicalMax( physicalSize( spacing, size ));
+		fov.setPhysicalMax( physicalSize( spacing, size ) );
 		fov.setPixel( size );
 
 		return fov;
@@ -494,7 +575,7 @@ public class FieldOfView
 	public static FieldOfView fromSpacingPhysical( final double[] spacing, final double[] min, final double[] max )
 	{
 		FieldOfView fov = new FieldOfView( spacing.length );
-		if( min != null )
+		if ( min != null )
 			fov.setPhysical( min, max );
 		else
 			fov.setPhysicalMax( max );
@@ -504,7 +585,7 @@ public class FieldOfView
 
 		return fov;
 	}
-	
+
 	/**
 	 * Assumes origin at zero
 	 */
@@ -516,16 +597,29 @@ public class FieldOfView
 	public static FieldOfView fromPhysicalPixel( final double[] min, final double[] max, final Interval size )
 	{
 		FieldOfView fov = new FieldOfView( size.numDimensions() );
-		if( min != null )
+		if ( min != null )
 			fov.setPhysical( min, max );
 		else
 			fov.setPhysicalMax( max );
-		
+
 		fov.setPixel( size );
 		fov.updateSpacing();
 		return fov;
 	}
-	
+
+	public static FieldOfView fromPhysicalSpacing( final double[] min, final double[] max, final double[] spacing )
+	{
+		FieldOfView fov = new FieldOfView( max.length );
+		if ( min != null )
+			fov.setPhysical( min, max );
+		else
+			fov.setPhysicalMax( max );
+
+		fov.setSpacing( spacing );
+		fov.updatePixel();
+		return fov;
+	}
+
 	/**
 	 * Assumes pixelInterval is zeroMin
 	 */
@@ -637,38 +731,5 @@ public class FieldOfView
 		return true;
 	}
 	
-	public static void main( String[] args )
-	{
-		String referenceImagePath = "/groups/saalfeld/public/jrc2018/demo_tests/JRC2018F_small.nrrd";
-
-		Optional empty = Optional.empty();
-		Optional<double[]> emptyD = Optional.empty();
-		Optional<long[]> emptyL = Optional.empty();
-		Optional<Interval> emptyI = Optional.empty();
-
-		Optional<long[]> pixOffset = Optional.of( new long[]{ 200, 100, 50 });
-		Optional<Interval> szInterval = Optional.of( new FinalInterval( new long[]{ 50, 50, 50 }));
-		Optional<Interval> intervalWithOffset = Optional.of( 
-				new FinalInterval( new long[]{ 200, 100, 50}, new long[]{ 249, 149, 99 }));
-
-		Optional<double[]> hires = Optional.of( new double[]{ 0.6, 0.6, 0.6 });
-
-		IOHelper io = new IOHelper();
-		ValuePair< long[], double[] > sizeAndRes = io.readSizeAndResolution( new File( referenceImagePath ) );
-		Optional<ValuePair< long[], double[] >> ref = Optional.of( sizeAndRes );
-
-		FieldOfView fovImg = FieldOfView.parse( 3, ref, empty, empty, empty, empty );
-		System.out.println( fovImg + "\n" );
-
-		FieldOfView fovImgRes = FieldOfView.parse( 3, ref, empty, empty, empty, hires );
-		System.out.println( fovImgRes + "\n" );
-
-		FieldOfView fovImgSz = FieldOfView.parse( 3, ref, emptyD, emptyD, szInterval, emptyD );
-		System.out.println( fovImgSz + "\n" );
-
-		FieldOfView fovImgPixszPixoff = FieldOfView.parse( 3, ref, emptyD, emptyD, intervalWithOffset, emptyD );
-		System.out.println( fovImgPixszPixoff + "\n" );
-
-	}
 	
 }
