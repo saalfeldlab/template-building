@@ -561,8 +561,6 @@ public class DfieldIoHelper
 
 	public < T extends RealType< T > > RandomAccessibleInterval< FloatType > read( final String fieldPath ) throws Exception
 	{
-		System.out.println("reading deformation field: " + fieldPath );
-
 		ImagePlus dfieldIp = null;
 		if ( fieldPath.endsWith( "nii" ) )
 		{
@@ -623,6 +621,11 @@ public class DfieldIoHelper
 		else
 		{
 			dfieldIp = IJ.openImage( fieldPath );
+            if( dfieldIp == null )
+            {
+                System.err.println( "could not read transform from: " + fieldPath );
+                return null;
+            }
 			spacing = new double[]
 					{
 						dfieldIp.getCalibration().pixelWidth,
