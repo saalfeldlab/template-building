@@ -2,6 +2,7 @@ package io;
 
 import static org.junit.Assert.*;
 
+import java.io.IOException;
 import java.lang.reflect.Field;
 
 import org.janelia.saalfeldlab.transform.io.TransformReader;
@@ -67,8 +68,17 @@ public class TransformFileParseTest
 		String fileDatasetInv = String.join( "?", TEST_H5_FILE, TEST_H5_DATASET_A, inv );
 
 
-		H5TransformParameters params = TransformReader.H5TransformParameters.parse( fileDataset );
-		H5TransformParameters invparams = TransformReader.H5TransformParameters.parse( fileDatasetInv );
+		H5TransformParameters params = null;
+		H5TransformParameters invparams = null;
+		try
+		{
+			params = TransformReader.H5TransformParameters.parse( fileDataset );
+			invparams = TransformReader.H5TransformParameters.parse( fileDatasetInv );
+		}
+		catch ( IOException e )
+		{
+			fail( "parsing failure" );
+		}
 		
 		assertTrue( "params not inverted", !params.inverse );
 		assertEquals( "params dataset", TEST_H5_DATASET_AFWD, params.fwddataset );
