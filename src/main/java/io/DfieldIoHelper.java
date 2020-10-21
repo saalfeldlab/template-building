@@ -7,22 +7,22 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
+import java.util.Optional;
 import java.util.zip.GZIPOutputStream;
 
+import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.GzipCompression;
+import org.janelia.saalfeldlab.n5.N5FSReader;
 import org.janelia.saalfeldlab.n5.N5FSWriter;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Reader;
 import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Writer;
 import org.janelia.saalfeldlab.n5.imglib2.N5DisplacementField;
+import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
 import org.janelia.saalfeldlab.transform.io.TransformReader;
 import org.janelia.saalfeldlab.transform.io.TransformReader.H5TransformParameters;
 
-import bdv.util.BdvFunctions;
 import ij.IJ;
 import ij.ImagePlus;
 import io.nii.NiftiIo;
@@ -58,17 +58,135 @@ public class DfieldIoHelper
 	public static final String MULT_KEY = "multiplier";
 
 	public double[] spacing;
+
+	private AffineGet affine; // store the affine
 	
 	public static void main( String[] args ) throws Exception
 	{
 		String dfieldIn = args[ 0 ];
 		String dfieldOut = args[ 1 ];
-		
-		DfieldIoHelper io = new DfieldIoHelper();
 
-		RandomAccessibleInterval< FloatType > dfield = io.read( dfieldIn );
+		if( isN5TransformBase( dfieldIn ) && isN5TransformBase( dfieldOut ))
+		{
+			convertN5Transform( dfieldIn, dfieldOut );
+		}
+		else
+		{
+			DfieldIoHelper io = new DfieldIoHelper();
+			RandomAccessibleInterval< FloatType > dfield = io.read( dfieldIn );
+			io.write( dfield, dfieldOut );
+		}
+	}
 
-		io.write( dfield, dfieldOut );
+	public static boolean isN5TransformBase( final String path )
+	{
+		return path.endsWith( "h5" ) || 
+				path.endsWith( "hdf5" ) || 
+				path.endsWith( "hdf" ) || 
+				path.endsWith( "n5" );
+	}
+
+	public static N5Reader getN5Reader( final String path ) throws IOException
+	{
+		if ( path.contains( "h5" ) || path.contains( "hdf5" ) || path.contains( "hdf" ))
+		{
+			return new N5HDF5Reader( path, 3, 32, 32, 32 );
+		}
+		else if( path.contains("n5" ))
+		{
+			return new N5FSReader( path);
+		}
+		return null;
+	}
+
+	public static N5Writer getN5Writer( final String path ) throws IOException
+	{
+		if ( path.contains( "h5" ) || path.contains( "hdf5" ) || path.contains( "hdf" ))
+		{
+			return new N5HDF5Writer( path, 3, 32, 32, 32 );
+		}
+		else if( path.contains("n5" ))
+		{
+			return new N5FSWriter( path);
+		}
+		return null;
+	}
+
+	public static void convertN5Transform( final String pathIn, final String pathOut )
+	{
+		try
+		{
+			N5Reader n5in = getN5Reader( pathIn );
+			N5Writer n5out = getN5Writer( pathOut );
+
+			if( n5in.datasetExists( "/dfield" ))
+				convertN5TransformDataset( n5in, n5out, "/dfield" );
+
+			if( n5in.datasetExists( "/invdfield" ))
+				convertN5TransformDataset( n5in, n5out, "/invdfield" );
+
+			int i = 0;
+			boolean tryNext = true;
+			while( tryNext )
+			{
+				// continue to next scale level if either of these converstions take place
+				String fwdDataset = String.format( "/%d/dfield", i );
+				String invDataset = String.format( "/%d/dfield", i );
+
+				tryNext = false;
+				if( n5in.datasetExists( fwdDataset ))
+				{
+					convertN5TransformDataset( n5in, n5out, fwdDataset );
+					tryNext = true;
+				}
+
+				if( n5in.datasetExists( invDataset ))
+				{
+					convertN5TransformDataset( n5in, n5out, invDataset );
+					tryNext = true;
+				}
+
+				i++;
+			}
+		}
+		catch ( IOException e )
+		{
+			e.printStackTrace();
+		}
+	}
+
+	public static < T extends RealType< T > & NativeType< T > > void convertN5TransformDataset(
+			final N5Reader n5in,
+			final N5Writer n5out,
+			final String dataset )
+	{
+		System.out.println( "converting dataset: " + dataset );
+		try
+		{
+			DatasetAttributes attrs = n5in.getDatasetAttributes( dataset );
+			RandomAccessibleInterval< T > dfield = ( RandomAccessibleInterval< T > )N5Utils.open( n5in, dataset );
+
+			// save dfield
+			N5Utils.save( dfield, n5out, dataset, attrs.getBlockSize(), attrs.getCompression() );
+
+			// save other attributes
+			double[] affineParams  =  n5in.getAttribute( dataset, N5DisplacementField.AFFINE_ATTR, double[].class );
+			if( affineParams != null )
+				n5out.setAttribute( dataset, N5DisplacementField.AFFINE_ATTR, affineParams );
+
+			double[] spacingParams  =  n5in.getAttribute( dataset, N5DisplacementField.SPACING_ATTR, double[].class );
+			if( spacingParams != null )
+				n5out.setAttribute( dataset, N5DisplacementField.SPACING_ATTR, spacingParams );
+
+			Double quanitizationParam = n5in.getAttribute( dataset, N5DisplacementField.MULTIPLIER_ATTR, Double.class );
+			if( quanitizationParam != null )
+				n5out.setAttribute( dataset, N5DisplacementField.MULTIPLIER_ATTR, quanitizationParam );
+
+		}
+		catch ( IOException e )
+		{
+			e.printStackTrace();
+		}
 	}
 
 	public < T extends RealType< T > & NativeType< T > > void write( 
@@ -76,7 +194,9 @@ public class DfieldIoHelper
 			final String outputPath ) throws Exception
 	{
 
-		if ( outputPath.contains( "h5" ) || outputPath.contains( "hdf5" ) ||
+		if ( outputPath.contains( "h5" ) || 
+			 outputPath.contains( "hdf5" ) ||
+			 outputPath.contains( "hdf" ) ||
 			 outputPath.contains("n5" ))
 		{
 			RandomAccessibleInterval<T> dfield = vectorAxisPermute( dfieldIn, 3, 3 );
@@ -93,9 +213,8 @@ public class DfieldIoHelper
 			try
 			{
 				//WriteH5DisplacementField.write( dfield, outputPath, new int[] { 3, 32, 32, 32 }, spacing, null );
-
 				N5Writer n5Writer;
-				if ( outputPath.contains( "h5" ) || outputPath.contains( "hdf5" ))
+				if ( outputPath.contains( "h5" ) || outputPath.contains( "hdf5" ) || outputPath.contains( "hdf" ))
 				{
 					n5Writer = new N5HDF5Writer( path, 3, 32, 32, 32 );
 				}
@@ -109,7 +228,7 @@ public class DfieldIoHelper
 					n5Writer = null; // let the the null pointer be caught
 				}
 
-				N5DisplacementField.save(n5Writer, dataset, null, 
+				N5DisplacementField.save(n5Writer, dataset, affine, 
 						dfield, spacing, new int[]{ 3, 32, 32, 32},
 						new GzipCompression() );
 			}
@@ -220,7 +339,6 @@ public class DfieldIoHelper
 	@SuppressWarnings("unchecked")
 	public <T extends RealType< T > & NativeType< T > > ANTSDeformationField readAsAntsField( final String fieldPath, final T defaultType ) throws Exception
 	{
-		
 		RandomAccessibleInterval<FloatType> dfieldRAI = null;
 		ImagePlus dfieldIp = null;
 		double[] spacing = null;
@@ -306,7 +424,6 @@ public class DfieldIoHelper
 	@SuppressWarnings("unchecked")
 	public < S extends RealType<S>, T extends RealType< T > & NativeType< T > > DeformationFieldTransform<S> readAsDeformationField( final String fieldPath, final T defaultType ) throws Exception
 	{
-		
 		RandomAccessibleInterval<S> dfieldRAI = null;
 		ImagePlus dfieldIp = null;
 		double[] spacing = null;
@@ -451,9 +568,7 @@ public class DfieldIoHelper
 		{
 			try
 			{
-				System.out.println( "loading nii" );
 				dfieldIp = NiftiIo.readNifti( new File( fieldPath ) );
-
 				spacing = new double[] { dfieldIp.getCalibration().pixelWidth, dfieldIp.getCalibration().pixelHeight, dfieldIp.getCalibration().pixelDepth };
 
 			}
@@ -479,15 +594,24 @@ public class DfieldIoHelper
 					dfieldIp.getCalibration().pixelDepth };
 
 		}
-		else if ( fieldPath.contains( "h5" ) )
+		else if ( 	fieldPath.contains( "h5" ) || 
+					fieldPath.contains( "hdf5" ) ||
+					fieldPath.contains( "hdf" ) || 
+					fieldPath.contains( "n5" ) )
 		{
 			H5TransformParameters params = TransformReader.H5TransformParameters.parse(fieldPath);
 			String dataset = params.inverse ? params.invdataset : params.fwddataset;
 			try
 			{
 				System.out.println("reading: " + params.path + " : " + dataset );
-				N5HDF5Reader n5 = new N5HDF5Reader( params.path, 32, 32, 32, 3 );
+				N5Reader n5;
+				if( fieldPath.contains( "n5" ))
+					n5 = new N5FSReader( params.path );
+				else
+					n5 = new N5HDF5Reader( params.path, 32, 32, 32, 3 );
+
 				RandomAccessibleInterval<FloatType> dfield = N5DisplacementField.openField( n5, dataset, new FloatType() );
+				affine = N5DisplacementField.openAffine( n5, dataset );
 				spacing = n5.getAttribute( dataset, N5DisplacementField.SPACING_ATTR, double[].class );
 				return dfield;
 			}
@@ -506,9 +630,16 @@ public class DfieldIoHelper
 						dfieldIp.getCalibration().pixelDepth
 					};
 		}
+		
 
 		Img< FloatType > tmpImg = ImageJFunctions.wrapFloat( dfieldIp );
-		return N5DisplacementField.vectorAxisLast( tmpImg );
+		RandomAccessibleInterval<FloatType> img;
+		if( tmpImg.numDimensions() == 4 && tmpImg.dimension( 2 ) == 3 )
+			img = Views.permute( tmpImg, 2, 3 );
+		else
+			img = tmpImg;
+			
+		return N5DisplacementField.vectorAxisLast( img );
 	}
 
 	public static final < T extends RealType< T > > int[] vectorAxisThirdPermutation( RandomAccessibleInterval< T > source ) throws Exception
