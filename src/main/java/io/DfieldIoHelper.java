@@ -7,6 +7,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
+import java.util.Arrays;
 import java.util.Optional;
 import java.util.zip.GZIPOutputStream;
 
@@ -494,6 +495,12 @@ public class DfieldIoHelper
 
 				dfieldRAI = (RandomAccessibleInterval<S>) N5DisplacementField.openField( n5, dataset, defaultType );
 				spacing = n5.getAttribute( dataset, N5DisplacementField.SPACING_ATTR, double[].class );
+
+				if( spacing == null )
+				{
+					spacing = new double[ dfieldRAI.numDimensions() - 1 ];
+					Arrays.fill( spacing, 1.0 );
+				}
 			}
 			catch ( Exception e )
 			{
@@ -518,7 +525,13 @@ public class DfieldIoHelper
 
 		}
 
-		RandomAccessibleInterval< S > fieldPermuted = DfieldIoHelper.vectorAxisPermute( dfieldRAI, 3, 3 );
+		final RandomAccessibleInterval< S > fieldPermuted;
+		if( dfieldRAI.numDimensions() == 4 )
+			fieldPermuted = DfieldIoHelper.vectorAxisPermute( dfieldRAI, 3, 3 );
+		else if ( dfieldRAI.numDimensions() == 3 )
+			fieldPermuted = DfieldIoHelper.vectorAxisPermute( dfieldRAI, 2, 2 );
+		else
+			fieldPermuted = null;
 
 //		return new ANTSDeformationField( fieldPermuted, spacing, unit );
 		

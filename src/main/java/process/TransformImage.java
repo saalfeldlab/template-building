@@ -155,6 +155,7 @@ public class TransformImage<T extends RealType<T> & NativeType<T>> implements Ca
 	{
 		logger.debug( "output resolution : " + Arrays.toString( outputResolution ));
 		logger.debug( "output size       : " + Util.printInterval( renderInterval ));
+		final int nd = renderInterval.numDimensions();
 
 		IOHelper io = new IOHelper();
 		//RandomAccessibleInterval<T> rai = io.getRai();
@@ -184,7 +185,10 @@ public class TransformImage<T extends RealType<T> & NativeType<T>> implements Ca
 		ImagePlus ipout = imgout.getImagePlus();
 		ipout.getCalibration().pixelWidth = outputResolution[ 0 ];
 		ipout.getCalibration().pixelHeight = outputResolution[ 1 ];
-		ipout.getCalibration().pixelDepth = outputResolution[ 2 ];
+
+		if( nd > 2 )
+			ipout.getCalibration().pixelDepth = outputResolution[ 2 ];
+
 		if ( io.getIp() != null )
 			ipout.getCalibration().setUnit( io.getIp().getCalibration().getUnit() );
 

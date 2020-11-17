@@ -211,7 +211,6 @@ public class TransformReader
 						AffineTransform3D xfm = ANTSLoadAffine.loadAffine( transformPath );
 						if( invert )
 						{
-							System.out.println("inverting");
 							return xfm.inverse().copy();
 						}
 						return xfm;
@@ -222,12 +221,9 @@ public class TransformReader
 				}
 				else
 				{
-					System.out.println("Reading imglib2 transform file");
 					AffineTransform xfm = AffineImglib2IO.readXfm( 3, new File( transformPath ) );
-					System.out.println( Arrays.toString(xfm.getRowPackedCopy() ));
 					if( invert )
 					{
-						System.out.println("inverting");
 						return xfm.inverse().copy();
 					}
 					return xfm;
@@ -298,11 +294,19 @@ public class TransformReader
 
 	public static RealTransform read( String transformPath )
 	{
-
 		InvertibleRealTransform result = readInvertible( transformPath );
 		if( result != null )
 			return result;
 
+		if( transformPath.contains( ".h5" ) || 
+			transformPath.contains( ".hdf5" ) ||
+			transformPath.contains( ".hdf" ) ||
+			transformPath.contains( ".n5" )) 
+		{
+			RealTransform xfm = readH5( transformPath );
+			if( xfm != null )
+				return xfm;
+		}
 		// try reading as dfield
 		DfieldIoHelper dfieldIo = new DfieldIoHelper();
 		try
@@ -364,6 +368,13 @@ public class TransformReader
 			e.printStackTrace();
 			return null;
 		}
+
+		return readH5Invertible( transformArg, params );
+	}
+
+	public static InvertibleRealTransform readH5Invertible( String transformArg, H5TransformParameters params )
+	{
+		N5Reader n5 = params.n5;
 
 		if ( params.affineOnly )
 		{
@@ -451,7 +462,7 @@ public class TransformReader
 				return null;
 			}	
 		}
-		else
+		else if( params.inverse )
 		{
 			try
 			{
@@ -471,6 +482,18 @@ public class TransformReader
 				e.printStackTrace();
 				return null;
 			}	
+		}
+		else
+		{
+			try
+			{
+				return N5DisplacementField.open( n5, params.fwddataset, false );
+			}
+			catch ( Exception e )
+			{
+				e.printStackTrace();
+				return null;
+			}
 		}
 	}
 	

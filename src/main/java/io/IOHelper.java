@@ -3,6 +3,8 @@ package io;
 import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.Hashtable;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.Callable;
 
@@ -21,8 +23,10 @@ import ij.IJ;
 import ij.ImagePlus;
 import io.nii.NiftiIo;
 import io.nii.Nifti_Writer;
+import loci.formats.CoreMetadata;
 import loci.formats.FormatException;
 import loci.formats.ImageReader;
+import loci.formats.meta.MetadataStore;
 import loci.plugins.BF;
 import net.imglib2.RandomAccessible;
 import net.imglib2.RandomAccessibleInterval;
@@ -250,14 +254,29 @@ public class IOHelper implements Callable<Void>
 				
 				reader.setId( filePath );
 				
-				long[] size =  new long[]{ 
-					reader.getSizeX(),
-					reader.getSizeY(),
-					reader.getSizeZ()
-				};
-				
-				Object metastore = reader.getMetadataStoreRoot();
+				int nz = reader.getSizeZ();
+				long[] size;
+				if( nz <= 1 )
+				{
+					size = new long[] { reader.getSizeX(), reader.getSizeY() };
+				}
+				else
+				{
+					size = new long[] { reader.getSizeX(), reader.getSizeY(), reader.getSizeZ() };
+				}
+
+				Hashtable< String, Object > globalMeta = reader.getGlobalMetadata();
 				double[] resolutions = new double[ size.length ];
+				Arrays.fill( resolutions, 1.0 );
+
+				if( globalMeta.containsKey( "XResolution" ) && resolutions.length > 0 )
+					resolutions[ 0 ] = 1 / ((double)globalMeta.get( "XResolution" ));
+
+				if( globalMeta.containsKey( "YResolution" ) && resolutions.length > 1 )
+					resolutions[ 1 ] = 1 / ((double)globalMeta.get( "YResolution" ));
+
+				if( globalMeta.containsKey( "ZResolution" ) && resolutions.length > 2 )
+					resolutions[ 2 ] = 1 / ((double)globalMeta.get( "ZResolution" ));
 
 				reader.close();
 				return new ValuePair< long[], double[] >( size, resolutions );
@@ -334,11 +353,14 @@ public class IOHelper implements Callable<Void>
 				}
 			}
 		}
-		
-		resolution = new double[ 3 ];
+
+		int nd = ip.getNSlices() > 1 ? 3 : 2;
+		resolution = new double[ nd ];
 		resolution[ 0 ] = ip.getCalibration().pixelWidth;
 		resolution[ 1 ] = ip.getCalibration().pixelHeight;
-		resolution[ 2 ] = ip.getCalibration().pixelDepth;
+
+		if( nd > 2)
+			resolution[ 2 ] = ip.getCalibration().pixelDepth;
 
 		return ip;
 	}
@@ -675,8 +697,8 @@ public class IOHelper implements Callable<Void>
 			Dfield_Nrrd_Writer writer = new Dfield_Nrrd_Writer();
 			writer.save( ip, f.getParent(), f.getName() );
 		}
-		else if( outputFilePath.contains( "hdf5" ) || outputFilePath.contains("h5") ||
-				outputFilePath.contains( "n5" )  )
+		else if( outputFilePath.endsWith( "hdf5" ) || outputFilePath.endsWith("h5") || outputFilePath.endsWith( "n5" ) ||
+				 outputFilePath.contains( "hdf5:" ) || outputFilePath.contains("h5:") || outputFilePath.contains( "n5:" ))
 		{
 
 			String dataset =  "/volume/raw";
