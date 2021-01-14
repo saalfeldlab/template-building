@@ -21,7 +21,6 @@ import io.cmtk.CMTKLoadAffine;
 import io.nii.NiftiIo;
 import loci.formats.FormatException;
 import net.imglib2.FinalRealInterval;
-import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.RealInterval;
 import net.imglib2.interpolation.randomaccess.NLinearInterpolatorFactory;
 import net.imglib2.realtransform.AffineTransform;
@@ -323,7 +322,7 @@ public class TransformReader
 
 		return null;
 	}
-	
+
 	/**
 	 * Returns a {@link RealTransform} whose path and dataset are given by the specified h5 argument string.
 	 *
@@ -708,7 +707,12 @@ public class TransformReader
 					invdataset = "/0/" + N5DisplacementField.INVERSE_ATTR;
 				}
 			}
-			else if( n5.datasetExists( baseDataset + "/" + N5DisplacementField.FORWARD_ATTR ) && 
+			else if( n5.datasetExists( baseDataset ))
+			{
+				fwddataset = baseDataset;
+				invdataset = "";
+			}
+			else if( n5.datasetExists( baseDataset + "/" + N5DisplacementField.FORWARD_ATTR ) &&
 					 n5.datasetExists( baseDataset + "/" + N5DisplacementField.INVERSE_ATTR ))
 			{
 				fwddataset = baseDataset + "/" + N5DisplacementField.FORWARD_ATTR;
