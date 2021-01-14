@@ -1,4 +1,4 @@
-package forBiic;
+package demos.forBiic;
 
 import bdv.util.Bdv;
 import bdv.util.BdvFunctions;
