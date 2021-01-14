@@ -21,5 +21,16 @@ do
 done
 
 
+cd jgo
+
+echo " "
+
+for f in *
+do
+    echo $f
+    sed -i "s/^version=\".*\"/version=\"$version\"/g" $f
+done
+
+
 cd $startdir
 

@@ -1,2 +1,3 @@
 #!/bin/bash
-jgo.sh org.scijava:saalfeldlab-template-building:0.1.1-SNAPSHOT:net.imglib2.realtransform.TransformToDeformationField "$@"
+version="0.2.0-SNAPSHOT"
+jgo.sh org.scijava:saalfeldlab-template-building:$version:net.imglib2.realtransform.TransformToDeformationField "$@"
