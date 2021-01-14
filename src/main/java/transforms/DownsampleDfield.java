@@ -27,7 +27,7 @@ import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import process.DownsampleGaussian;
 
-@Command( version = "0.1.1-SNAPSHOT" )
+@Command( version = "0.2.0-SNAPSHOT" )
 public class DownsampleDfield implements Callable<Void>
 {
 

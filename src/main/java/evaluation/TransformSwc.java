@@ -19,7 +19,7 @@ import net.imglib2.realtransform.RealTransform;
 import net.imglib2.realtransform.RealTransformSequence;
 
 
-@Command( version = "0.1.1-SNAPSHOT" )
+@Command( version = "0.2.0-SNAPSHOT" )
 public class TransformSwc implements Callable< Void >
 {
 

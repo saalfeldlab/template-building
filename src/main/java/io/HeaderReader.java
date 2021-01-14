@@ -13,7 +13,7 @@ import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 
-@Command( version = "0.1.1-SNAPSHOT" )
+@Command( version = "0.2.0-SNAPSHOT" )
 public class HeaderReader implements Callable<Void>
 {
 	@Option(names = {"--input", "-i"}, description = "Input image file" )

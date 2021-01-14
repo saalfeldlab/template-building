@@ -58,7 +58,7 @@ import process.RenderTransformed;
 import sc.fiji.io.Dfield_Nrrd_Reader;
 import sc.fiji.io.Dfield_Nrrd_Writer;
 
-@Command( version = "0.1.1-SNAPSHOT" )
+@Command( version = "0.2.0-SNAPSHOT" )
 public class IOHelper implements Callable<Void>
 {
 

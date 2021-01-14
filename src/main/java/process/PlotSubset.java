@@ -42,7 +42,7 @@ import picocli.CommandLine.Option;
  * Makes a sorted plot of image intensities in the given interval
  *
  */
-@Command( version = "0.1.1-SNAPSHOT" )
+@Command( version = "0.2.0-SNAPSHOT" )
 public class PlotSubset implements Callable<Void>
 {
 

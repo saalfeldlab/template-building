@@ -47,7 +47,7 @@ import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import util.FieldOfView;
 
-@Command( version = "0.0.1-SNAPSHOT" )
+@Command( version = "0.2.0-SNAPSHOT" )
 public class TransformN5 implements Callable<Void>, Serializable
 {
 	private static final long serialVersionUID = 2341611842505632347L;

@@ -45,7 +45,7 @@ import util.RenderUtil;
  * @param <T>
  *
  */
-@Command( version = "0.1.1-SNAPSHOT" )
+@Command( version = "0.2.0-SNAPSHOT" )
 public class TransformImage<T extends RealType<T> & NativeType<T>> implements Callable< Void >, BiConsumer< String, String >
 {
 
