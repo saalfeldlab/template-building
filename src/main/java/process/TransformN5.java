@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.Callable;
 import java.util.stream.Collectors;
 import java.util.stream.LongStream;
@@ -44,6 +45,7 @@ import net.imglib2.view.Views;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
+import util.FieldOfView;
 
 @Command( version = "0.0.1-SNAPSHOT" )
 public class TransformN5 implements Callable<Void>, Serializable
@@ -109,18 +111,25 @@ public class TransformN5 implements Callable<Void>, Serializable
 	 */
 	public void setup( final N5Reader n5 )
 	{
+
+
+
+		ValuePair< long[], double[] > sizeAndRes = null;
 		if( referenceImagePath != null && !referenceImagePath.isEmpty() )
 		{
 			IOHelper io = new IOHelper();
-			ValuePair< long[], double[] > sizeAndRes = io.readSizeAndResolution( new File( referenceImagePath ));
+			sizeAndRes = io.readSizeAndResolution( new File( referenceImagePath ));
 			renderInterval = new FinalInterval( sizeAndRes.getA() );
 
 			if ( outputResolution == null )
 				outputResolution = sizeAndRes.getB();
 		}
-		
-		if( outputSize != null && !outputSize.isEmpty() )
-			renderInterval = RenderTransformed.parseInterval( outputSize );
+
+		FieldOfView fov = FieldOfView.parse( 3, sizeAndRes, 
+				null,
+				null,
+				renderInterval, 
+				outputResolution );
 
         if( imagePixelToPhysical != null )
         {
@@ -160,7 +169,6 @@ public class TransformN5 implements Callable<Void>, Serializable
 					transformFiles,
 					null );
 		}
-
 		return null;
 	}
 

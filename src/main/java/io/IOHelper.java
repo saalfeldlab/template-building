@@ -579,7 +579,21 @@ public class IOHelper implements Callable<Void>
 //				}
 
 				Set<String> attrKeys = n5.listAttributes( dataset ).keySet();
-				double[] resolution = getResolution( n5, dataset );
+				double[] resolution = null;
+				for( ResolutionGet rg : resolutionGetters )
+				{
+					if( attrKeys.contains( rg.getKey()))
+					{
+						ResolutionGet rgInstance;
+						if( rg.isSimple())
+							rgInstance = rg.create( n5.getAttribute( dataset, rg.getKey(), double[].class ));
+						else
+							rgInstance = (ResolutionGet)n5.getAttribute( dataset, rg.getKey(), rg.getClass() );
+
+						resolution = rgInstance.getResolution();
+						break;
+					}
+				}
 
 				if( resolution == null )
 				{
@@ -622,7 +636,7 @@ public class IOHelper implements Callable<Void>
 		catch( IOException e )
 		{
 			e.printStackTrace();
-		}	
+		}
 		return null;
 	}
 

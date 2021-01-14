@@ -574,7 +574,8 @@ public class TransformReader
 
 			NrrdDfieldFileInfo hdr = reader.getHeaderInfo( tmp.getParent(), tmp.getName() );
 			spacing = new double[] { hdr.pixelWidth, hdr.pixelHeight, hdr.pixelDepth };
-			dims = new long[] { hdr.sizes[ 1 ], hdr.sizes[ 2 ], hdr.sizes[ 3 ], hdr.sizes[0] };
+//			dims = new long[] { hdr.sizes[ 1 ], hdr.sizes[ 2 ], hdr.sizes[ 3 ], hdr.sizes[0] };
+			dims = new long[] { hdr.sizes[ 1 ], hdr.sizes[ 2 ], hdr.sizes[ 3 ] };
 			return new ValuePair<>( dims, spacing );
 		}
 		else if ( transformArg.contains( ".nii" ) )
