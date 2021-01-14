@@ -64,7 +64,7 @@ public class TransformReader
 		RealTransformSequence totalTransform = new RealTransformSequence();
 		if( transformList == null || transformList.size() < 1 )
 			return totalTransform;
-	
+
 		for( String transform : transformList )
 		{
 			if( isInverse( transform ))

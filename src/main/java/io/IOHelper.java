@@ -266,6 +266,7 @@ public class IOHelper implements Callable<Void>
 				}
 
 				Hashtable< String, Object > globalMeta = reader.getGlobalMetadata();
+
 				double[] resolutions = new double[ size.length ];
 				Arrays.fill( resolutions, 1.0 );
 
