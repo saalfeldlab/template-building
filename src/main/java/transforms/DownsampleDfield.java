@@ -80,7 +80,7 @@ public class DownsampleDfield implements Callable<Void>
 		ANTSDeformationField dfieldobj;
 		try
 		{
-			dfieldobj = io.readAsDeformationField( fieldPath );
+			dfieldobj = io.readAsAntsField( fieldPath );
 		}
 		catch ( Exception e1 )
 		{

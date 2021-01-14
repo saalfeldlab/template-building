@@ -66,7 +66,7 @@ public class DisplacementFieldMagnitude implements Callable< Void >
 		DfieldIoHelper dio = new DfieldIoHelper();
 		try
 		{
-			setDfield( dio.readAsDeformationField( inputPath ) );
+			setDfield( dio.readAsAntsField( inputPath ) );
 		}
 		catch ( Exception e )
 		{

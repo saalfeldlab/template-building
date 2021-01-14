@@ -106,7 +106,7 @@ public class AffineFromDisplacement<T> implements Callable< Void >
 			ANTSDeformationField dfield = null;
 			try
 			{
-				dfield = dfieldIo.readAsDeformationField( dfieldPath );
+				dfield = dfieldIo.readAsAntsField( dfieldPath );
 			}
 			catch ( Exception e )
 			{
