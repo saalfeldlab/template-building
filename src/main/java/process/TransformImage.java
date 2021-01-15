@@ -1,6 +1,7 @@
 package process;
 
 import java.io.File;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -153,13 +154,16 @@ public class TransformImage<T extends RealType<T> & NativeType<T>> implements Ca
 
 	public < T extends RealType< T > & NativeType< T > > void process( String inputPath, String outputPath )
 	{
+		File inputFile = Paths.get( inputPath ).toFile();
+		File outputFile = Paths.get( outputPath ).toFile();
+
 		logger.debug( "output resolution : " + Arrays.toString( outputResolution ));
 		logger.debug( "output size       : " + Util.printInterval( renderInterval ));
 		final int nd = renderInterval.numDimensions();
 
 		IOHelper io = new IOHelper();
 		//RandomAccessibleInterval<T> rai = io.getRai();
-		RealRandomAccessible< T > img = io.readPhysical( inputPath, interpolation );
+		RealRandomAccessible< T > img = io.readPhysical( inputFile, interpolation );
 		IntervalView< T > imgXfm = Views.interval( 
 				Views.raster( new RealTransformRandomAccessible<>( img, totalTransform ) ),
 				renderInterval );
@@ -192,7 +196,7 @@ public class TransformImage<T extends RealType<T> & NativeType<T>> implements Ca
 		if ( io.getIp() != null )
 			ipout.getCalibration().setUnit( io.getIp().getCalibration().getUnit() );
 
-		IOHelper.write( ipout, outputPath );
+		IOHelper.write( ipout, outputFile );
 	}
 
 }
