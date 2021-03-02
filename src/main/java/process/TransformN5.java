@@ -111,9 +111,39 @@ public class TransformN5 implements Callable<Void>, Serializable
 	 */
 	public void setup( final N5Reader n5 )
 	{
+		ValuePair< long[], double[] > sizeAndRes = null;
+		if( referenceImagePath != null && !referenceImagePath.isEmpty() )
+		{
+			IOHelper io = new IOHelper();
+			sizeAndRes = io.readSizeAndResolution( new File( referenceImagePath ));
+			renderInterval = new FinalInterval( sizeAndRes.getA() );
 
+			if ( outputResolution == null )
+				outputResolution = sizeAndRes.getB();
+		}
 
+        if( outputSize != null && !outputSize.isEmpty() )
+            renderInterval = RenderTransformed.parseInterval( outputSize );
 
+        if( imagePixelToPhysical != null )
+        {
+            AffineTransform3D tmp = new AffineTransform3D();
+            tmp.set( imagePixelToPhysical );
+            inputPixelToPhysical = tmp;
+        }
+        else
+        {
+            inputPixelToPhysical = IOHelper.pixelToPhysicalN5( n5, inDataset );
+        }
+	}
+
+	/**
+	 * Parses inputs to determine output size, resolution, etc.
+	 * 
+	 *  
+	 */
+	public void setupExperimental( final N5Reader n5 )
+	{
 		ValuePair< long[], double[] > sizeAndRes = null;
 		if( referenceImagePath != null && !referenceImagePath.isEmpty() )
 		{

@@ -148,6 +148,7 @@ public class IOHelper implements Callable<Void>
 
 	public static double[] getResolution( final N5Reader n5, final String dataset )
 	{
+        System.out.println("IOHelper.getResolution");
 		Set<String> attrKeys;
 		try {
 			attrKeys = n5.listAttributes( dataset ).keySet();
@@ -166,8 +167,8 @@ public class IOHelper implements Callable<Void>
 					return resolution;
 				}
 			}
-		} catch (IOException e) {
-			e.printStackTrace();
+		} catch (Exception e) {
+			//e.printStackTrace();
 		}
 		return null;
 	}
@@ -580,20 +581,23 @@ public class IOHelper implements Callable<Void>
 
 				Set<String> attrKeys = n5.listAttributes( dataset ).keySet();
 				double[] resolution = null;
-				for( ResolutionGet rg : resolutionGetters )
-				{
-					if( attrKeys.contains( rg.getKey()))
-					{
-						ResolutionGet rgInstance;
-						if( rg.isSimple())
-							rgInstance = rg.create( n5.getAttribute( dataset, rg.getKey(), double[].class ));
-						else
-							rgInstance = (ResolutionGet)n5.getAttribute( dataset, rg.getKey(), rg.getClass() );
+                try
+                {
+                    for( ResolutionGet rg : resolutionGetters )
+                    {
+                        if( attrKeys.contains( rg.getKey()))
+                        {
+                            ResolutionGet rgInstance;
+                            if( rg.isSimple())
+                                rgInstance = rg.create( n5.getAttribute( dataset, rg.getKey(), double[].class ));
+                            else
+                                rgInstance = (ResolutionGet)n5.getAttribute( dataset, rg.getKey(), rg.getClass() );
 
-						resolution = rgInstance.getResolution();
-						break;
-					}
-				}
+                            resolution = rgInstance.getResolution();
+                            break;
+                        }
+                    }
+                } catch( Exception e ){}
 
 				if( resolution == null )
 				{

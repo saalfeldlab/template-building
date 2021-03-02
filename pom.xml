@@ -39,6 +39,16 @@
 		<groupId>ome</groupId>
 		<artifactId>bio-formats_plugins</artifactId>
 		<version>6.1.1</version>
+        <exclusions>
+           <exclusion>
+                <groupId>com.fasterxml.jackson.core</groupId>
+                <artifactId>jackson-core</artifactId>
+            </exclusion>
+            <exclusion>
+                <groupId>com.fasterxml.jackson.core</groupId>
+                <artifactId>jackson-databind</artifactId>
+            </exclusion>
+        </exclusions>
 	</dependency>
 	<dependency>
 		<groupId>ome</groupId>
@@ -49,6 +59,14 @@
 				<groupId>ch.systems.cisd</groupId>
 				<artifactId>jhdf5</artifactId>
 			</exclusion>
+            <exclusion>
+                <groupId>com.fasterxml.jackson.core</groupId>
+                <artifactId>jackson-core</artifactId>
+            </exclusion>
+            <exclusion>
+                <groupId>com.fasterxml.jackson.core</groupId>
+                <artifactId>jackson-databind</artifactId>
+            </exclusion>
 		</exclusions>
 	</dependency>
 	<dependency>
@@ -135,6 +153,12 @@
 			<groupId>org.janelia.saalfeldlab</groupId>
 			<artifactId>n5-utils</artifactId>
 			<version>0.0.5</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>com.fasterxml.jackson.core</groupId>
+                    <artifactId>jackson-databind</artifactId>
+                </exclusion>
+            </exclusions>
 		</dependency>
 	  <dependency>
 	  	<groupId>junit</groupId>
