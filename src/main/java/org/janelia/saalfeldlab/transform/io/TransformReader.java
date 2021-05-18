@@ -7,6 +7,8 @@ import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.List;
 
+import org.janelia.saalfeldlab.n5.N5FSReader;
+import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Reader;
 import org.janelia.saalfeldlab.n5.imglib2.N5DisplacementField;
 import org.slf4j.Logger;
@@ -19,7 +21,6 @@ import io.cmtk.CMTKLoadAffine;
 import io.nii.NiftiIo;
 import loci.formats.FormatException;
 import net.imglib2.FinalRealInterval;
-import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.RealInterval;
 import net.imglib2.interpolation.randomaccess.NLinearInterpolatorFactory;
 import net.imglib2.realtransform.AffineTransform;
@@ -32,13 +33,11 @@ import net.imglib2.realtransform.RealTransform;
 import net.imglib2.realtransform.RealTransformSequence;
 import net.imglib2.realtransform.Scale3D;
 import net.imglib2.realtransform.ThinplateSplineTransform;
-import net.imglib2.realtransform.ants.ANTSDeformationField;
 import net.imglib2.realtransform.ants.ANTSLoadAffine;
 import net.imglib2.realtransform.inverse.InverseRealTransformGradientDescent;
 import net.imglib2.realtransform.inverse.WrappedIterativeInvertibleRealTransform;
 import net.imglib2.type.numeric.real.FloatType;
 import net.imglib2.util.ValuePair;
-import net.imglib2.view.Views;
 import sc.fiji.io.Dfield_Nrrd_Reader;
 import sc.fiji.io.NrrdDfieldFileInfo;
 
@@ -63,6 +62,9 @@ public class TransformReader
 	public static RealTransformSequence readTransforms( List<String> transformList )
 	{
 		RealTransformSequence totalTransform = new RealTransformSequence();
+		if( transformList == null || transformList.size() < 1 )
+			return totalTransform;
+
 		for( String transform : transformList )
 		{
 			if( isInverse( transform ))
@@ -208,7 +210,6 @@ public class TransformReader
 						AffineTransform3D xfm = ANTSLoadAffine.loadAffine( transformPath );
 						if( invert )
 						{
-							System.out.println("inverting");
 							return xfm.inverse().copy();
 						}
 						return xfm;
@@ -219,12 +220,9 @@ public class TransformReader
 				}
 				else
 				{
-					System.out.println("Reading imglib2 transform file");
 					AffineTransform xfm = AffineImglib2IO.readXfm( 3, new File( transformPath ) );
-					System.out.println( Arrays.toString(xfm.getRowPackedCopy() ));
 					if( invert )
 					{
-						System.out.println("inverting");
 						return xfm.inverse().copy();
 					}
 					return xfm;
@@ -235,7 +233,10 @@ public class TransformReader
 				e.printStackTrace();
 			}
 		}
-		else if( transformPath.contains( ".h5" ) || transformPath.contains( ".hdf5" )) 
+		else if( transformPath.contains( ".h5" ) || 
+				 transformPath.contains( ".hdf5" ) ||
+				 transformPath.contains( ".hdf" ) ||
+				 transformPath.contains( ".n5" )) 
 		{
 			return readH5Invertible( transformPathFull );
 		}
@@ -267,7 +268,8 @@ public class TransformReader
 			{
 				DfieldIoHelper dfieldIo = new DfieldIoHelper();
 				// keep meta data
-				DeformationFieldTransform< FloatType > dfield = dfieldIo.readAsRealTransform( transformPath );
+				//DeformationFieldTransform< FloatType > dfield = dfieldIo.readAsRealTransform( transformPath );
+				DeformationFieldTransform< FloatType > dfield = dfieldIo.readAsDeformationField( transformPath, new FloatType() );
 				InvertibleDeformationFieldTransform< FloatType > invdef = new InvertibleDeformationFieldTransform< FloatType >( dfield );
 				setIterativeInverseParameters( invdef.getOptimzer(), transformPathFull );
 
@@ -291,16 +293,26 @@ public class TransformReader
 
 	public static RealTransform read( String transformPath )
 	{
-
 		InvertibleRealTransform result = readInvertible( transformPath );
 		if( result != null )
 			return result;
 
+		if( transformPath.contains( ".h5" ) || 
+			transformPath.contains( ".hdf5" ) ||
+			transformPath.contains( ".hdf" ) ||
+			transformPath.contains( ".n5" )) 
+		{
+			RealTransform xfm = readH5( transformPath );
+			if( xfm != null )
+				return xfm;
+		}
 		// try reading as dfield
 		DfieldIoHelper dfieldIo = new DfieldIoHelper();
 		try
 		{
-			ANTSDeformationField dfieldResult = dfieldIo.readAsDeformationField( transformPath );
+			DeformationFieldTransform<FloatType> dfieldResult = dfieldIo.readAsDeformationField(
+					transformPath, new FloatType());
+//			DeformationFieldTransform<FloatType> dfieldResult = dfieldIo.readAsRealTransform( transformPath );
 			return dfieldResult;
 		}
 		catch ( Exception e )
@@ -308,16 +320,15 @@ public class TransformReader
 			e.printStackTrace();
 		}
 
-
 		return null;
 	}
-	
+
 	/**
 	 * Returns a {@link RealTransform} whose path and dataset are given by the specified h5 argument string.
 	 *
 	 * Strings of the form "path?dataset_root?i" are permitted, where:
 	 *  <p> 
-	 * 	path is the path to an hdf5 file.
+	 * 	path is the path to an hdf5 file or n5 container
 	 *	<p> 
 	 *  dataset_root is the parent dataset to the transformation or transformations 
 	 *  (note that dfield and invdfield are required dataset names).
@@ -342,14 +353,14 @@ public class TransformReader
 	 * @param transformArg the path / dataset. 
 	 * @return the transform 
 	 */
-	public static InvertibleRealTransform readH5Invertible( String transformArg ) {
-
-		H5TransformParameters params = H5TransformParameters.parse( transformArg );
-
-		N5HDF5Reader n5;
+	public static InvertibleRealTransform readH5Invertible( String transformArg )
+	{
+		H5TransformParameters params;
+		N5Reader n5;
 		try
 		{
-			n5 = new N5HDF5Reader( params.path, 32, 32, 32, 3 );
+			params = H5TransformParameters.parse( transformArg );
+			n5 = params.n5;
 		}
 		catch ( IOException e )
 		{
@@ -357,10 +368,15 @@ public class TransformReader
 			return null;
 		}
 
-	
+		return readH5Invertible( transformArg, params );
+	}
+
+	public static InvertibleRealTransform readH5Invertible( String transformArg, H5TransformParameters params )
+	{
+		N5Reader n5 = params.n5;
+
 		if ( params.affineOnly )
 		{
-			System.out.println("h5 transform affine only");
 			String dataset = params.inverse ? params.invdataset : params.fwddataset;
 			try
 			{
@@ -396,12 +412,12 @@ public class TransformReader
 
 	public static RealTransform readH5( String transformArg ) {
 
-		H5TransformParameters params = H5TransformParameters.parse( transformArg );
-
-		N5HDF5Reader n5;
+		H5TransformParameters params;
+		N5Reader n5;
 		try
 		{
-			n5 = new N5HDF5Reader( params.path, 32, 32, 32, 3 );
+			params = H5TransformParameters.parse( transformArg );
+			n5 = params.n5;
 		}
 		catch ( IOException e )
 		{
@@ -445,7 +461,7 @@ public class TransformReader
 				return null;
 			}	
 		}
-		else
+		else if( params.inverse )
 		{
 			try
 			{
@@ -465,6 +481,18 @@ public class TransformReader
 				e.printStackTrace();
 				return null;
 			}	
+		}
+		else
+		{
+			try
+			{
+				return N5DisplacementField.open( n5, params.fwddataset, false );
+			}
+			catch ( Exception e )
+			{
+				e.printStackTrace();
+				return null;
+			}
 		}
 	}
 	
@@ -546,7 +574,8 @@ public class TransformReader
 
 			NrrdDfieldFileInfo hdr = reader.getHeaderInfo( tmp.getParent(), tmp.getName() );
 			spacing = new double[] { hdr.pixelWidth, hdr.pixelHeight, hdr.pixelDepth };
-			dims = new long[] { hdr.sizes[ 1 ], hdr.sizes[ 2 ], hdr.sizes[ 3 ], hdr.sizes[0] };
+//			dims = new long[] { hdr.sizes[ 1 ], hdr.sizes[ 2 ], hdr.sizes[ 3 ], hdr.sizes[0] };
+			dims = new long[] { hdr.sizes[ 1 ], hdr.sizes[ 2 ], hdr.sizes[ 3 ] };
 			return new ValuePair<>( dims, spacing );
 		}
 		else if ( transformArg.contains( ".nii" ) )
@@ -575,6 +604,38 @@ public class TransformReader
 			return new ValuePair<>( max, new double[] { 1, 1, 1 } );
 		}
 	}
+	
+	public static N5Reader getN5Reader( final String path )
+	{
+		N5Reader n5 = null;
+		if( path.contains(  ".n5" ))
+		{
+			try
+			{
+				n5 = new N5FSReader( path );
+			}
+			catch ( IOException e )
+			{
+				e.printStackTrace();
+				return null;
+			}
+		}
+		else if( path.contains( ".h5" ) ||
+				path.contains( ".hdf5" ) ||
+				path.contains( ".hdf" ))
+		{
+			try
+			{
+				n5 = new N5HDF5Reader( path, 32, 32, 32, 3 );
+			}
+			catch ( IOException e )
+			{
+				e.printStackTrace();
+				return null;
+			}
+		}
+		return n5;
+	}
 
 	public static class H5TransformParameters
 	{
@@ -584,6 +645,7 @@ public class TransformReader
 		public final boolean inverse;
 		public final boolean affineOnly;
 		public final boolean deformationOnly;
+		public final N5Reader n5;
 		
 		public H5TransformParameters(
 			String path,
@@ -591,7 +653,8 @@ public class TransformReader
 			String invdataset,
 			boolean inverse,
 			boolean affineOnly,
-			boolean deformationOnly )
+			boolean deformationOnly,
+			N5Reader n5 )
 		{
 			this.path = path;
 			this.fwddataset = fwddataset;
@@ -599,9 +662,10 @@ public class TransformReader
 			this.inverse = inverse;
 			this.affineOnly = affineOnly;
 			this.deformationOnly = deformationOnly;
+			this.n5 = n5;
 		}
 	
-		public static H5TransformParameters parse( final String transformArg )
+		public static H5TransformParameters parse( final String transformArg ) throws IOException
 		{
 			String path = transformArg;
 			String baseDataset = "";
@@ -625,17 +689,8 @@ public class TransformReader
 						deformationOnly = true;
 			}
 
-			N5HDF5Reader n5;
-			try
-			{
-				n5 = new N5HDF5Reader( path, 32, 32, 32, 3 );
-			}
-			catch ( IOException e )
-			{
-				e.printStackTrace();
-				return null;
-			}
-			
+			N5Reader n5 = getN5Reader( path );
+
 			String fwddataset = "";
 			String invdataset = "";
 			if( baseDataset.isEmpty() )
@@ -653,14 +708,19 @@ public class TransformReader
 					invdataset = "/0/" + N5DisplacementField.INVERSE_ATTR;
 				}
 			}
-			else if( n5.datasetExists( baseDataset + "/" + N5DisplacementField.FORWARD_ATTR ) && 
+			else if( n5.datasetExists( baseDataset ))
+			{
+				fwddataset = baseDataset;
+				invdataset = "";
+			}
+			else if( n5.datasetExists( baseDataset + "/" + N5DisplacementField.FORWARD_ATTR ) &&
 					 n5.datasetExists( baseDataset + "/" + N5DisplacementField.INVERSE_ATTR ))
 			{
 				fwddataset = baseDataset + "/" + N5DisplacementField.FORWARD_ATTR;
 				invdataset = baseDataset + "/" + N5DisplacementField.INVERSE_ATTR;
 			}
 
-			return new H5TransformParameters( path, fwddataset, invdataset, inverse, affineOnly, deformationOnly );
+			return new H5TransformParameters( path, fwddataset, invdataset, inverse, affineOnly, deformationOnly, n5 );
 		}
 	}
 

@@ -40,7 +40,7 @@ import util.RenderUtil;
  * Makes a sorted plot of image intensities in the given interval
  *
  */
-@Command( version = "0.1.1-SNAPSHOT" )
+@Command( version = "0.2.0-SNAPSHOT" )
 public class PerWindowRayleigh implements Callable<Void>
 {
 	@Option(names = {"--width", "-w"}, description = "Width of interval", split="," )

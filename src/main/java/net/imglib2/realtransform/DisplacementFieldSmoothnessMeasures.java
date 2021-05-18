@@ -24,7 +24,7 @@ import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 
-@Command( version = "0.1.1-SNAPSHOT" )
+@Command( version = "0.2.0-SNAPSHOT" )
 public class DisplacementFieldSmoothnessMeasures implements Callable<Void>
 {
 	
@@ -83,7 +83,7 @@ public class DisplacementFieldSmoothnessMeasures implements Callable<Void>
 		double[] resolution = new double[]{ 1, 1, 1 };
 		try
 		{
-			transform = dfieldIo.readAsDeformationField( inputTransformPath );
+			transform = dfieldIo.readAsAntsField( inputTransformPath );
 			resolution = transform.getResolution();
 			unit = transform.getUnit();
 			System.out.println( "resolution : " + Arrays.toString( resolution ));

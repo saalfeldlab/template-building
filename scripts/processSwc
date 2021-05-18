@@ -2,6 +2,6 @@
 
 BASEDIR=$(dirname "$0")
 #cp=`cat "$BASEDIR/theclasspath.cp"`
-cp=`cat "$BASEDIR/gaussDs.cp"`
+cp=`cat "$BASEDIR/classpath.cp"`
 
-/misc/local/jdk1.8.0_102/bin/java -cp "$cp" -Xmx64g evaluation.SwcProcess $@
+java -cp "$cp" -Xmx64g evaluation.SwcProcess $@

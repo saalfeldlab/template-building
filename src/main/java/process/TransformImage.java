@@ -1,6 +1,7 @@
 package process;
 
 import java.io.File;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -45,8 +46,8 @@ import util.RenderUtil;
  * @param <T>
  *
  */
-@Command( version = "0.1.1-SNAPSHOT" )
-public class TransformImage<T extends RealType<T> & NativeType<T>> implements Callable< Void >, BiConsumer< File, File >
+@Command( version = "0.2.0-SNAPSHOT" )
+public class TransformImage<T extends RealType<T> & NativeType<T>> implements Callable< Void >, BiConsumer< String, String >
 {
 
 	@Option( names = { "-i", "--input" }, required = true, description = "Image file to transform" )
@@ -139,26 +140,30 @@ public class TransformImage<T extends RealType<T> & NativeType<T>> implements Ca
 
 		for ( int i = 0; i < outputFiles.size(); i++ )
 		{
-			File input = new File( inputFiles.get( i ));
-			File output = new File( outputFiles.get( i ));
-			accept( input, output );
+//			File input = new File( inputFiles.get( i ));
+//			File output = new File( outputFiles.get( i ));
+			accept( inputFiles.get( i ), outputFiles.get( i ) );
 		}
 		return null;
 	}
 
-	public void accept( File input, File output )
+	public void accept( String input, String output )
 	{
 		process( input, output );
 	}
 
-	public < T extends RealType< T > & NativeType< T > > void process( File input, File output )
+	public < T extends RealType< T > & NativeType< T > > void process( String inputPath, String outputPath )
 	{
+		File inputFile = Paths.get( inputPath ).toFile();
+		File outputFile = Paths.get( outputPath ).toFile();
+
 		logger.debug( "output resolution : " + Arrays.toString( outputResolution ));
 		logger.debug( "output size       : " + Util.printInterval( renderInterval ));
+		final int nd = renderInterval.numDimensions();
 
 		IOHelper io = new IOHelper();
 		//RandomAccessibleInterval<T> rai = io.getRai();
-		RealRandomAccessible< T > img = io.readPhysical( input, interpolation );
+		RealRandomAccessible< T > img = io.readPhysical( inputFile, interpolation );
 		IntervalView< T > imgXfm = Views.interval( 
 				Views.raster( new RealTransformRandomAccessible<>( img, totalTransform ) ),
 				renderInterval );
@@ -180,15 +185,18 @@ public class TransformImage<T extends RealType<T> & NativeType<T>> implements Ca
 			return;
 		}
 
-		logger.info( "writing to: " + output );
+		logger.info( "writing to: " + outputPath );
 		ImagePlus ipout = imgout.getImagePlus();
 		ipout.getCalibration().pixelWidth = outputResolution[ 0 ];
 		ipout.getCalibration().pixelHeight = outputResolution[ 1 ];
-		ipout.getCalibration().pixelDepth = outputResolution[ 2 ];
+
+		if( nd > 2 )
+			ipout.getCalibration().pixelDepth = outputResolution[ 2 ];
+
 		if ( io.getIp() != null )
 			ipout.getCalibration().setUnit( io.getIp().getCalibration().getUnit() );
 
-		IOHelper.write( ipout, output );
+		IOHelper.write( ipout, outputFile );
 	}
 
 }

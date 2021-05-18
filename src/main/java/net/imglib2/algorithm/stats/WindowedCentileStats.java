@@ -34,7 +34,7 @@ import util.RenderUtil;
 /* *
  * Computes centiles over RandomAccessibleIntervals 
  */
-@Command( version = "0.1.1-SNAPSHOT" )
+@Command( version = "0.2.0-SNAPSHOT" )
 public class WindowedCentileStats implements Callable<Void>
 {
 

@@ -18,5 +18,5 @@ then
 fi
 
 BASEDIR=$(dirname "$0")
-cp=`cat "$BASEDIR/gaussDs.cp"`
+cp=`cat "$BASEDIR/classpath.cp"`
 java -cp "$cp" $javaOpts process.DownsampleGaussian "$@"

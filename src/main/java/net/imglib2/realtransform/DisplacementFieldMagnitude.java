@@ -23,7 +23,7 @@ import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 
-@Command( version = "0.1.1-SNAPSHOT" )
+@Command( version = "0.2.0-SNAPSHOT" )
 public class DisplacementFieldMagnitude implements Callable< Void >
 {
 	@Option( names = { "-i", "--input" }, required = true, description = "Displacement field input." )
@@ -66,7 +66,7 @@ public class DisplacementFieldMagnitude implements Callable< Void >
 		DfieldIoHelper dio = new DfieldIoHelper();
 		try
 		{
-			setDfield( dio.readAsDeformationField( inputPath ) );
+			setDfield( dio.readAsAntsField( inputPath ) );
 		}
 		catch ( Exception e )
 		{

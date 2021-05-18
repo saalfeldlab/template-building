@@ -3,7 +3,6 @@ package util;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -11,7 +10,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.function.BiConsumer;
 
-import com.google.common.collect.Streams;
 
 import ij.IJ;
 import net.imglib2.Cursor;
@@ -23,11 +21,8 @@ import net.imglib2.RandomAccessible;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.RealInterval;
 import net.imglib2.realtransform.RealTransform;
-import net.imglib2.type.Type;
-import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.NumericType;
 import net.imglib2.type.numeric.RealType;
-import net.imglib2.type.numeric.integer.IntType;
 import net.imglib2.view.IntervalView;
 import net.imglib2.view.Views;
 import net.imglib2.view.composite.Composite;
@@ -263,7 +258,6 @@ public class RenderUtil
 		for( int i = 1; i < nThreads; i++ )
 		{
 			splitPoints[ i ] = splitPoints[ i - 1 ] + del;
-			System.out.println( "splitPoints[i]: " + splitPoints[ i ] ); 
 		}
 //		System.out.println( "dim2split: " + dim2split );
 //		System.out.println( "split points: " + XfmUtils.printArray( splitPoints ));

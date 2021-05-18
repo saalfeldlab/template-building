@@ -58,7 +58,7 @@ public class Pixel2PhysicalDisplacementField<T extends RealType<T> & NativeType<
 		ANTSDeformationField dfield = null;
 		try
 		{
-			dfield = dfieldIo.readAsDeformationField( dfieldPath );
+			dfield = dfieldIo.readAsAntsField( dfieldPath );
 		}
 		catch ( Exception e )
 		{
