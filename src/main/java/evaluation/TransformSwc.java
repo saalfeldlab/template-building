@@ -194,7 +194,7 @@ public class TransformSwc implements Callable< Void >
 
 		// a copy of pt with the new position
 		SwcPoint pnew = pt.setPosition( pxfm[ 0 ], pxfm[ 1 ], pxfm[ 2 ] );
-		pnew.setRadius( pt.radius * radiusScale );
+		pnew = pnew.setRadius( pt.radius * radiusScale );
 		return pnew;
 	}
 
