@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.Hashtable;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.Callable;
 
@@ -41,6 +42,7 @@ import net.imglib2.realtransform.Scale2D;
 import net.imglib2.realtransform.Scale3D;
 import net.imglib2.transform.integer.MixedTransform;
 import net.imglib2.type.NativeType;
+import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.NumericType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.numeric.integer.UnsignedByteType;
@@ -48,6 +50,7 @@ import net.imglib2.type.numeric.integer.UnsignedShortType;
 import net.imglib2.type.numeric.real.FloatType;
 import net.imglib2.util.Util;
 import net.imglib2.util.ValuePair;
+import net.imglib2.view.ExtendedRandomAccessibleInterval;
 import net.imglib2.view.IntervalView;
 import net.imglib2.view.MixedTransformView;
 import net.imglib2.view.Views;
@@ -126,6 +129,36 @@ public class IOHelper implements Callable<Void>
 		IOHelper.write( ip, outputFilePath );
 
 		return null;
+	}
+
+	public static <T extends NumericType<T>> ExtendedRandomAccessibleInterval< T, RandomAccessibleInterval< T > > extend( RandomAccessibleInterval<T> img, String option )
+	{
+		switch( option )
+		{
+		case "mirror":
+			return Views.extendMirrorSingle( img );
+		case "mirror2":
+			return Views.extendMirrorDouble( img );
+		case "border":
+			return Views.extendBorder( img );
+		}
+
+		T type = Util.getTypeFromInterval( img );
+
+		if( type instanceof IntegerType )
+		{
+			type = Util.getTypeFromInterval( img );
+			int v = Integer.parseInt( option );
+			((IntegerType)type).setInteger( v );
+		}
+		else if( type instanceof RealType )
+		{
+			type = Util.getTypeFromInterval( img );
+			double v = Double.parseDouble( option );
+			((RealType)type).setReal( v );
+		}
+
+		return Views.extendValue( img, type );
 	}
 
 	public ValuePair< long[], double[] > readSizeAndResolution( File file )
@@ -648,9 +681,17 @@ public class IOHelper implements Callable<Void>
 			final File file,
 			final String interp )
 	{
+		return readPhysical( file, interp, "0" );
+	}
+
+	public < T extends RealType< T > & NativeType< T > > RealRandomAccessible< T > readPhysical( 
+			final File file,
+			final String interp,
+			final String extendOption )
+	{
 		try
 		{
-			return readPhysical( file.getCanonicalPath(), interp );
+			return readPhysical( file.getCanonicalPath(), interp, extendOption );
 		}
 		catch ( IOException e )
 		{
@@ -663,8 +704,16 @@ public class IOHelper implements Callable<Void>
 			final String filePathAndDataset,
 			final String interp )
 	{
+		return readPhysical( filePathAndDataset, interp, "0" );
+	}
+
+	public < T extends RealType< T > & NativeType< T > > RealRandomAccessible< T > readPhysical( 
+			final String filePathAndDataset,
+			final String interp,
+			final String extendOption )
+	{
 		RandomAccessibleInterval< T > rai = readRai( filePathAndDataset );
-		RealRandomAccessible< T > realimgpixel = interpolate( Views.extendZero( rai ), interp );
+		RealRandomAccessible< T > realimgpixel = interpolate( extend( rai, extendOption ), interp );
 		if( resolution == null )
 			return realimgpixel;
 
