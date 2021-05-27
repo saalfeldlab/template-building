@@ -77,7 +77,7 @@ public class TransformImage<T extends RealType<T> & NativeType<T>> implements Ca
 
 	@Option( names = { "-e", "--extend-option" }, required = false, 
 			description = "Extending out-of-bounds options. [boundary, mirror, mirror2, (numerical-value)]" )
-	private String extendOption;
+	private String extendOption = "0";
 
 	@Option( names = { "-j", "--nThreads" }, required = false, description = "Number of rendering threads (default=1)" )
 	private int nThreads = 1;

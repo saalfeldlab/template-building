@@ -197,6 +197,7 @@ public class IOHelper implements Callable<Void>
 						 rgInstance = (ResolutionGet)n5.getAttribute( dataset, rg.getKey(), rg.getClass() );
 
 					resolution = rgInstance.getResolution();
+					System.out.println( "  resolution: " + Arrays.toString( resolution ));
 					return resolution;
 				}
 			}
@@ -627,6 +628,7 @@ public class IOHelper implements Callable<Void>
                                 rgInstance = (ResolutionGet)n5.getAttribute( dataset, rg.getKey(), rg.getClass() );
 
                             resolution = rgInstance.getResolution();
+                            System.out.println( "PARSED RESOLUTION: " + Arrays.toString( resolution ));
                             break;
                         }
                     }
@@ -812,7 +814,6 @@ public class IOHelper implements Callable<Void>
 		{
 			IJ.save( ip, outputFilePath );
 		}
-			
 	}
 
 	public static interface ResolutionGet
