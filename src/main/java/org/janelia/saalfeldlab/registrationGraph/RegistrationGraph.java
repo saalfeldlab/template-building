@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import com.google.gson.Gson;
 
@@ -41,7 +42,18 @@ public class RegistrationGraph
 
 	public Optional<RegistrationPath> path(final Space from, final Space to ) {
 
-		return allPaths( from ).stream().filter( p -> p.getEnd().equals(to)).findFirst();
+		return allPaths( from ).stream().filter( p -> p.getEnd().equals(to))
+				.reduce( (x,y) -> {
+					if( x.getCost() < y.getCost() )
+						return x;
+					else
+						return y;
+				});
+	}
+
+	public List<RegistrationPath> paths(final Space from, final Space to ) {
+
+		return allPaths( from ).stream().filter( p -> p.getEnd().equals(to)).collect(Collectors.toList());
 	}
 
 	public List<RegistrationPath> allPaths(final Space from) {

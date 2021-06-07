@@ -18,7 +18,7 @@ public class Transform
 	
 	private final String name;
 
-	private final double priority;
+	private final double cost;
 	
 	private final String path;
 
@@ -32,13 +32,13 @@ public class Transform
 		this( path, src, dst, name, 1.0 );
 	}
 
-	public Transform( final String path, final Space src, final Space dst, final String name, final double priority )
+	public Transform( final String path, final Space src, final Space dst, final String name, final double cost )
 	{
 		this.path = path;
 		this.src = src;
 		this.dst = dst;
 		this.name = name;
-		this.priority = priority;
+		this.cost = cost;
 	}
 	
 	public String getName()
@@ -61,9 +61,9 @@ public class Transform
 		return dst;
 	}
 	
-	public double getPriority()
+	public double getCost()
 	{
-		return priority;
+		return cost;
 	}
 
 	public String toString()

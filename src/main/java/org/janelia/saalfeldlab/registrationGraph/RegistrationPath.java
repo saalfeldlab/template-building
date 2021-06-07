@@ -51,6 +51,11 @@ public class RegistrationPath {
 		return end;
 	}
 
+	public double getCost()
+	{
+		return flatTransforms().stream().mapToDouble( Transform::getCost ).sum();
+	}
+
 	/**
 	 * Does this path run through the given space.
 	 * 
