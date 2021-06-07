@@ -35,9 +35,30 @@ public class TransformDatabase implements Callable<Void> {
 			description = "Path to output database (json), defaults to the input." )
 	private String outdatabasePath;
 
-	@Option( names = { "-a", "--add" }, required = false,
-			description = "Add transform" )
-	private List<String> transformsToAdd;
+//	@Option( names = { "--add" }, required = false,
+//			description = "Add transform" )
+//	private boolean add;
+
+	@Option( names = { "-p","--path" }, required = false,
+			description = "Path to transform" )
+	private String path;
+
+	@Option( names = { "-n","--name" }, required = false,
+			description = "Name of transform" )
+	private String name;
+
+	@Option( names = { "-s","--start" }, required = false,
+			description = "Start space of transform" )
+	private String start;
+
+	@Option( names = { "-e","--end" }, required = false,
+			description = "End space of transform" )
+	private String end;
+
+	@Option( names = { "-c","--cost" }, required = false,
+			description = "Cost of transform (default = 1.0)." )
+	private double cost = 1.0;
+
 
 	private List<Transform> transforms;
 
@@ -63,7 +84,7 @@ public class TransformDatabase implements Callable<Void> {
 
 	public TransformDatabase(final List<Transform> transforms) {
 
-		this.transforms = transforms;
+		this.transforms = new ArrayList<>( transforms ) ;
 		transformSet = new HashSet<>();
 		spaceMap = new HashMap<>();
 
@@ -108,16 +129,19 @@ public class TransformDatabase implements Callable<Void> {
 	@Override
 	public Void call() throws Exception {
 		
-		File dbF = new File( databasePath );
+		final File dbF = new File( databasePath );
+
+		final File dbOutF;
+		if( outdatabasePath != null)
+			dbOutF = new File( outdatabasePath );
+		else
+			dbOutF = new File( databasePath );
 
 		Transform[] transforms = null;
 		if( dbF.exists() )
 			transforms = gson.fromJson(new FileReader( new File( databasePath )), Transform[].class );
 		else
 			System.out.println( "creating new file" );
-		
-		System.out.println( transforms );
-		System.out.println( transforms.length );
 
 		TransformDatabase db;
 		if( transforms != null )
@@ -125,14 +149,14 @@ public class TransformDatabase implements Callable<Void> {
 		else
 			db = new TransformDatabase();
 
-		if( transformsToAdd != null )
-		{
-			for( String tString : transformsToAdd )
-			{
-				Transform t = Transform.fromString(tString, spaceMap);
-				db.add( t );
-			}
-		}
+
+		if (path != null)
+			if (name == null)
+				db.add(new Transform(path, new Space(start), new Space(end), start + "_" + end, cost));
+			else
+				db.add(new Transform(path, new Space(start), new Space(end), name, cost));
+
+		db.save(dbOutF);
 
 		return null;
 	}

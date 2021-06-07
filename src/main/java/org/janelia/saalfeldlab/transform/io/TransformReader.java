@@ -6,11 +6,18 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
 import org.janelia.saalfeldlab.n5.N5FSReader;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Reader;
 import org.janelia.saalfeldlab.n5.imglib2.N5DisplacementField;
+import org.janelia.saalfeldlab.registrationGraph.RegistrationGraph;
+import org.janelia.saalfeldlab.registrationGraph.RegistrationPath;
+import org.janelia.saalfeldlab.registrationGraph.Space;
+import org.janelia.saalfeldlab.registrationGraph.Transform;
+import org.janelia.saalfeldlab.registrationGraph.persistence.TransformDatabase;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -74,6 +81,20 @@ public class TransformReader
 		}
 	
 		return totalTransform;
+	}
+
+	public static RealTransformSequence readTransforms( File transformDb, String startSpace, String endSpace )
+	{
+		final TransformDatabase db = TransformDatabase.load( transformDb );
+		final RegistrationGraph regGraph = new RegistrationGraph( db.getTransforms() );
+		Optional<RegistrationPath> pathOpt = regGraph.path(new Space(startSpace), new Space(endSpace));
+
+		if( !pathOpt.isPresent() )
+			return null;
+
+		final RegistrationPath path = pathOpt.get();
+		final List<String> transformPaths = path.flatTransforms().stream().map( Transform::getPath ).collect( Collectors.toList() );
+		return readTransforms( transformPaths );
 	}
 	
 	private static boolean isInverse( final String transform )

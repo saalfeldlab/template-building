@@ -59,7 +59,16 @@ public class TransformImage<T extends RealType<T> & NativeType<T>> implements Ca
 	@Option( names = { "-t", "--transform" }, required = false, description = "Transformation file." )
 	private List< String > transformFiles = new ArrayList<>();
 
-	@Option( names = { "--interpolation" }, required = false, description = "Interpolation {LINEAR, NEAREST, LANCZOS}" )
+	@Option( names = { "-a", "--moving-space" }, required = false, description = "Moving space name." )
+	private String startSpace;
+
+	@Option( names = { "-z", "--target-space" }, required = false, description = "Target space name." )
+	private String endSpace;
+
+	@Option( names = { "-d", "--transform-db" }, required = false, description = "Transform database (json)." )
+	private String transformDb;
+
+	@Option( names = { "-n", "--interpolation" }, required = false, description = "Interpolation {LINEAR, NEAREST, LANCZOS}" )
 	private String interpolation = "LINEAR";
 
 	@Option( names = { "-s", "--outputImageSize" }, required = false,
@@ -116,7 +125,16 @@ public class TransformImage<T extends RealType<T> & NativeType<T>> implements Ca
 			renderInterval = RenderTransformed.parseInterval( outputSize );
 
 		// contains the physical transformation
-		RealTransformSequence physicalTransform = TransformReader.readTransforms( transformFiles );
+		final RealTransformSequence physicalTransform;
+		if( startSpace != null )
+		{
+			// need the transform from target to moving space for rendering images
+			physicalTransform = TransformReader.readTransforms( new File( transformDb ), endSpace, startSpace );
+		}
+		else
+		{
+			physicalTransform = TransformReader.readTransforms( transformFiles );
+		}
 
 		// we need to tack on the conversion from physical to pixel space first
 		Scale resOutXfm = null;
@@ -135,6 +153,13 @@ public class TransformImage<T extends RealType<T> & NativeType<T>> implements Ca
 	public Void call()
 	{
 		assert outputFiles.size() == inputFiles.size();
+
+		final boolean isStartEndSpec = startSpace != null && endSpace != null;
+		if( (transformFiles != null && transformFiles.size() > 0) && isStartEndSpec )
+		{
+			System.err.println( "Must specify only transform list or start-end spaces." );
+			return null;
+		}
 
 		setup();
 
