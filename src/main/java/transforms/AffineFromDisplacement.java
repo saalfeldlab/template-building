@@ -43,7 +43,6 @@ import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.numeric.real.FloatType;
 import net.imglib2.util.Intervals;
 import net.imglib2.util.Util;
-import net.imglib2.view.IntervalView;
 import net.imglib2.view.SubsampleIntervalView;
 import net.imglib2.view.Views;
 import net.imglib2.view.composite.Composite;
@@ -53,6 +52,17 @@ import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 
+/**
+ * Estimates an affine transform from a displacement field. 
+ * 
+ * Optionally exports that displacement field (d_new) with the affine "removed".
+ * Removing the affine means that the resul (d_new) followed by the affine
+ * is equivalent to the original displacement field.
+ * 
+ * @author John Bogovic
+ *
+ * @param <T> displacement field type
+ */
 @Command( version = "0.1.1-SNAPSHOT")
 public class AffineFromDisplacement<T> implements Callable< Void >
 {
@@ -161,87 +171,12 @@ public class AffineFromDisplacement<T> implements Callable< Void >
 			}
 	}
 
-
-	public static void oldmain( String[] args ) throws NotEnoughDataPointsException, IllDefinedDataPointsException
-	{
-		int argIdx = 0;
-
-		boolean doWarp = true;
-		if( args[ argIdx ].equals( FLAG_SKIP_WARP ))
-		{
-			doWarp = false;
-			argIdx++;
-		}
-
-		String outPath = args[ argIdx++ ];
-		String filePath = args[ argIdx++ ];
-
-		int step = Integer.parseInt( args[ argIdx++ ] );
-
-		ImagePlus imp = null;
-		double[] resolution = new double[3];
-		Img< FloatType > displacement = null;
-		if( filePath.endsWith( "nii" ))
-		{
-			try
-			{
-				imp = NiftiIo.readNifti( new File( filePath ) );
-			} catch ( FormatException e )
-			{
-				e.printStackTrace();
-			} catch ( IOException e )
-			{
-				e.printStackTrace();
-			}
-		}
-		else
-		{
-			imp = IJ.openImage( filePath );
-		}
-		resolution[ 0 ] = imp.getCalibration().pixelWidth;
-		resolution[ 1 ] = imp.getCalibration().pixelHeight;
-		resolution[ 2 ] = imp.getCalibration().pixelDepth;
-
-		displacement = ImageJFunctions.convertFloat( imp );
-
-		if ( displacement == null )
-		{
-			System.err.println( "Failed to load displacement field" );
-			return;
-		}
-
-		System.out.println(
-				"DISPLACEMENT INTERVAL: " + Util.printInterval( displacement ) );
-		
-
-		AffineTransform3D affine = estimateAffine( displacement, resolution, step, true );
-		System.out.println( affine );
-
-		try
-		{
-			AffineImglib2IO.writeXfm( new File( outPath + "_affine.txt" ), affine );
-		} catch ( IOException e )
-		{
-			e.printStackTrace();
-		}
-
-		if ( doWarp )
-		{
-			System.out.println( "removing affine part from warp" );
-			removeAffineComponentLegacy( displacement, affine, true );
-			System.out.println( "saving warp" );
-
-
-//				IJ.save( ImageJFunctions.wrap( displacement, "warp" ),
-//						outPath + "_warp.tif" );
-
-			Nifti_Writer.writeDisplacementField3d( imp, new File( outPath + "_warp.nii") );
-//			}
-		}
-	}
-
 	/**
 	 * Removes the affine part from a displacement field 
+	 * 
+	 * The resulting displacement field is such that the result followed by the affine
+	 * is identical to the original displacement field.
+	 * 
 	 * @param displacementField the displacement field 
 	 * @param affine the affine part 
 	 * @param filter if true, ignores vectors in the field equal to (0,0,0)
@@ -535,38 +470,6 @@ public class AffineFromDisplacement<T> implements Callable< Void >
 				vector.get( i ).setReal(
 						 affineResult.getDoublePosition( i ) - c.getDoublePosition( i ) );
 
-		}
-	}
-
-	public static <T extends RealType< T >> void removeAffineComponentWRONG(
-			RandomAccessibleInterval< T > displacementField, AffineTransform3D affine,
-			boolean filter )
-	{
-
-		CompositeIntervalView< T, ? extends GenericComposite< T > > vectorField = Views
-				.collapse( displacementField );
-		Cursor< ? extends GenericComposite< T > > c = Views.flatIterable( vectorField )
-				.cursor();
-
-		RealPoint affineResult = new RealPoint( 3 );
-		while ( c.hasNext() )
-		{
-			GenericComposite< T > vector = c.next();
-
-			if ( filter && 
-					vector.get( 0 ).getRealDouble() == 0 && 
-					vector.get( 1 ).getRealDouble() == 0 && 
-					vector.get( 2 ).getRealDouble() == 0 )
-			{
-				continue;
-			}
-
-			affine.apply( c, affineResult );
-
-			for ( int i = 0; i < 2; i++ )
-				vector.get( i ).setReal(
-						c.getDoublePosition( i ) + vector.get( i ).getRealDouble()
-								- affineResult.getDoublePosition( i ) );
 		}
 	}
 
