@@ -5,28 +5,44 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
+import java.util.concurrent.Callable;
 
-import org.janelia.saalfeldlab.n5.N5Reader;
-import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Reader;
-import org.janelia.saalfeldlab.n5.imglib2.N5DisplacementField;
 import org.janelia.saalfeldlab.transform.io.TransformReader;
 
-import io.cmtk.CMTKLoadAffine;
 import net.imglib2.realtransform.AffineGet;
-import net.imglib2.realtransform.AffineTransform;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.realtransform.ants.ANTSLoadAffine;
+import picocli.CommandLine;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
 
-public class ConvertAffine {
+@Command( version = "0.1.1-SNAPSHOT")
+public class ConvertAffine implements Callable< Void > {
+
+	@Option( names = { "-i", "--input" }, required = true, description = "Input affine file")
+	private File inF;
+
+	@Option( names = { "-o", "--output" }, required = true, description = "Output affine file" )
+	private File outF;
+
+	@Option( names = { "--invert" }, required = false, description = "Invert" )
+	private Boolean invert;
 
 	public static void main(String[] args) throws IOException
 	{
-		String input = args[ 0 ];
-		String output = args[ 1 ];
+		new CommandLine(new ConvertAffine()).execute(args);
+		System.exit(0);
+	}
 
-		AffineGet inaffine = load( input );
-		System.out.println( inaffine );
-		write( inaffine, output );
+	@Override
+	public Void call() throws Exception {
+		AffineGet inaffine = load( inF.getAbsolutePath()  );
+		if( invert )
+			write( inaffine.inverse(), outF.getAbsolutePath() );
+		else
+			write( inaffine, outF.getAbsolutePath() );
+
+		return null;
 	}
 	
 	public static AffineGet load( final String input ) throws IOException
