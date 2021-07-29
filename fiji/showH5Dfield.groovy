@@ -1,5 +1,6 @@
 #@ File (label="Container path", style="both") n5H5ZarrContainer
 #@ String (label="Dataset") dataset
+#@ Boolean (label="Unquantize", value=true) unquantize
 
 import net.imglib2.*;
 import net.imglib2.converter.*;
@@ -28,5 +29,9 @@ class QuantConverter implements Converter<ShortType,FloatType>
 }
 
 src_perm = N5DisplacementField.vectorAxisLast(src);
-src_converted = Converters.convertRAI(src_perm, new QuantConverter(m), new FloatType());
+if( unquantize )
+	src_converted = Converters.convertRAI(src_perm, new QuantConverter(m), new FloatType());
+else
+	src_converted = Converters.convertRAI(src_perm, new QuantConverter(1.0), new FloatType());
+
 ImageJFunctions.wrap( src_converted, "src_conv" ).show()
