@@ -1,7 +1,6 @@
 package transforms;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedList;
@@ -12,26 +11,24 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
-import ij.IJ;
-import ij.ImagePlus;
 import io.AffineImglib2IO;
 import io.DfieldIoHelper;
-import io.nii.NiftiIo;
-import io.nii.Nifti_Writer;
-import loci.formats.FormatException;
+import io.IOHelper;
 import mpicbg.models.AffineModel3D;
 import mpicbg.models.IllDefinedDataPointsException;
 import mpicbg.models.NotEnoughDataPointsException;
 import mpicbg.models.Point;
 import mpicbg.models.PointMatch;
 import net.imglib2.Cursor;
+import net.imglib2.FinalInterval;
 import net.imglib2.Interval;
+import net.imglib2.RandomAccess;
+import net.imglib2.RandomAccessible;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.RealPoint;
 import net.imglib2.RealRandomAccess;
 import net.imglib2.RealRandomAccessible;
-import net.imglib2.img.Img;
-import net.imglib2.img.display.imagej.ImageJFunctions;
+import net.imglib2.converter.Converters;
 import net.imglib2.img.imageplus.ImagePlusImg;
 import net.imglib2.img.imageplus.ImagePlusImgFactory;
 import net.imglib2.realtransform.AffineGet;
@@ -39,10 +36,12 @@ import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.realtransform.Scale3D;
 import net.imglib2.realtransform.ants.ANTSDeformationField;
 import net.imglib2.type.NativeType;
+import net.imglib2.type.logic.BoolType;
 import net.imglib2.type.numeric.RealType;
-import net.imglib2.type.numeric.real.FloatType;
+import net.imglib2.util.ConstantUtils;
 import net.imglib2.util.Intervals;
 import net.imglib2.util.Util;
+import net.imglib2.view.ExtendedRandomAccessibleInterval;
 import net.imglib2.view.SubsampleIntervalView;
 import net.imglib2.view.Views;
 import net.imglib2.view.composite.Composite;
@@ -85,10 +84,17 @@ public class AffineFromDisplacement<T> implements Callable< Void >
 	private int nThreads = 1;
 
 	@Option( names = { "--do-warp" }, required = false, description = "Write displacementfield with affine part removed" )
-	private Boolean doWarp = true;
+	private Boolean doWarp = false;
 
 	@Option( names = { "--filter" }, required = false, description = "Filter: ignore (0,0,0) vectors" )
 	private Boolean filter = true;
+
+	@Option( names = { "-m", "--mask" }, required = false, description = "Mask for affine estimation. "
+			+ "Only coordinates where mask > threshold are used to estimate affine" )
+	private String maskPath;
+
+	@Option( names = { "-t", "--mask-threshold" }, required = false, description = "Mask threshold (default = 0)" )
+	private Double threshold = 0.0;
 
 	public AffineFromDisplacement() { }
 	
@@ -99,17 +105,26 @@ public class AffineFromDisplacement<T> implements Callable< Void >
 		System.exit(0);
 	}
 
+	public static <T extends RealType<T>> RandomAccessible<BoolType> buildMask( String maskPath, double threshold ) {
+
+		if( maskPath != null ) {
+		IOHelper io = new IOHelper();
+			RandomAccessibleInterval<T> maskRaw = (RandomAccessibleInterval<T>) io.readRai(maskPath);
+			ExtendedRandomAccessibleInterval<T, RandomAccessibleInterval<T>> maskExt = Views.extendBorder( maskRaw );
+			return Converters.convert(maskExt, (t,b) -> b.set( t.getRealDouble() > threshold), new BoolType());
+		}
+		else {
+			return ConstantUtils.constantRandomAccessible( new BoolType( true ), 3);
+		}
+	}
+
 	public Void call()
 	{
+		final RandomAccessible<BoolType> mask = buildMask( maskPath, threshold ) ;
 
 		DfieldIoHelper dfieldIo = new DfieldIoHelper();
 		for( String dfieldPath : inputFiles )
 		{
-			
-//			File inFile = new File( dfieldPath );
-//			System.out.println( inFile.getName() );
-			
-
 			String outputPrefix = dfieldPath.substring( 0, dfieldPath.lastIndexOf( '.' ));
 			System.out.println( "out prefix: " + outputPrefix );
 			
@@ -117,17 +132,18 @@ public class AffineFromDisplacement<T> implements Callable< Void >
 			try
 			{
 				dfield = dfieldIo.readAsAntsField( dfieldPath );
+				System.out.println( "dfield: " + dfield );
 			}
 			catch ( Exception e )
 			{
 				e.printStackTrace();
 				continue;
 			}
-			
+
 			AffineTransform3D affine;
 			try
 			{
-				affine = estimateAffine( dfield.getImg(), dfield.getResolution(), step, true );
+				affine = estimateAffine( dfield.getImg(), mask, dfield.getResolution(), step, true );
 				System.out.println( affine );
 				AffineImglib2IO.writeXfm( new File( outputPrefix + affineSuffix ), affine );
 			}
@@ -139,6 +155,7 @@ public class AffineFromDisplacement<T> implements Callable< Void >
 			
 			if( doWarp )
 			{
+				System.out.println( "do warp" );
 				removeAffineComponentAndWrite( 
 						new File( outputPrefix + dfieldSuffix),
 						affine, dfield.getImg(), Util.getTypeFromInterval( dfield.getImg() ),
@@ -475,6 +492,7 @@ public class AffineFromDisplacement<T> implements Callable< Void >
 
 	public static <T extends RealType< T >> AffineTransform3D estimateAffine(
 			final RandomAccessibleInterval< T > displacementField,
+			final RandomAccessible< BoolType > mask,
 			final double[] resolution,
 			int step, boolean filter )
 					throws NotEnoughDataPointsException, IllDefinedDataPointsException
@@ -494,19 +512,23 @@ public class AffineFromDisplacement<T> implements Callable< Void >
 		SubsampleIntervalView< ? extends GenericComposite< T > > vectorField = Views.subsample( tmp, step );
 		System.out.println( "sub INTERVAL: " + Util.printInterval( vectorField ));
 
-		Cursor< ? extends GenericComposite< T > > c = Views.flatIterable( vectorField ).cursor();
+		final Cursor< ? extends GenericComposite< T > > c = Views.flatIterable( vectorField ).localizingCursor();
+		final RandomAccess<BoolType> maskRa = Views.subsample(mask, step).randomAccess();
 
-		int i = 0;
 		ArrayList<PointMatch> matches = new ArrayList<PointMatch>( (int)Intervals.numElements( vectorField ));
 		int numSkipped = 0;
+
 		while( c.hasNext())
 		{
 			GenericComposite< T > vector = c.next();
+			maskRa.setPosition(c);
+			boolean use = maskRa.get().get();
 
-			if( filter &&
+			if(	!use ||  
+					(filter &&
 					vector.get( 0 ).getRealDouble() == 0  && 
 					vector.get( 1 ).getRealDouble() == 0  && 
-					vector.get( 2 ).getRealDouble() == 0 )
+					vector.get( 2 ).getRealDouble() == 0) )
 			{
 				numSkipped++;
 				continue;
