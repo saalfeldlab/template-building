@@ -330,6 +330,20 @@ public class DfieldIoHelper
 		}
 	}
 
+	public static <T extends RealType<T>> DeformationFieldTransform<T> toDeformationField(
+			final RandomAccessibleInterval<T> dfieldImg, final AffineGet pixelToPhysical) {
+
+		int nd = dfieldImg.numDimensions() - 1;
+		@SuppressWarnings("unchecked")
+		RealRandomAccessible<T>[] dfieldComponents = new RealRandomAccessible[ nd ];
+		for (int i = 0; i < nd; i++) {
+			dfieldComponents[i] = RealViews
+					.affine(Views.interpolate(Views.extendBorder(Views.hyperSlice(dfieldImg, nd, i)),
+							new NLinearInterpolatorFactory<>()), pixelToPhysical.copy());
+		}
+		return new DeformationFieldTransform<T>(dfieldComponents);
+	}
+
 	@Deprecated
 	public ANTSDeformationField readAsAntsField( final String fieldPath ) throws Exception
 	{

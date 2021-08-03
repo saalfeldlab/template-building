@@ -29,8 +29,11 @@ import loci.formats.FormatException;
 import loci.formats.ImageReader;
 import loci.formats.meta.MetadataStore;
 import loci.plugins.BF;
+import net.imglib2.Dimensions;
+import net.imglib2.FinalRealInterval;
 import net.imglib2.RandomAccessible;
 import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.RealInterval;
 import net.imglib2.RealRandomAccessible;
 import net.imglib2.img.display.imagej.ImageJFunctions;
 import net.imglib2.interpolation.InterpolatorFactory;
@@ -885,5 +888,27 @@ public class IOHelper implements Callable<Void>
             return new TransformResolution( in, new double[in.length], units );
         }
     }
+
+	public static RealInterval toRealInterval(Dimensions dims, double[] spacing) {
+		final int nd = dims.numDimensions();
+		final double[] min = new double[nd];
+		final double[] max = new double[nd];
+		for (int i = 0; i < nd; i++) {
+			max[i] = dims.dimension(i) * spacing[i];
+		}
+
+		return new FinalRealInterval(min, max);
+	}
+
+	public static RealInterval toRealInterval(long[] dim, double[] spacing) {
+		final int nd = dim.length;
+		final double[] min = new double[nd];
+		final double[] max = new double[nd];
+		for (int i = 0; i < nd; i++) {
+			max[i] = dim[i] * spacing[i];
+		}
+
+		return new FinalRealInterval(min, max);
+	}
 
 }

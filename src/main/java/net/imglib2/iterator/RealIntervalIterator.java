@@ -35,9 +35,9 @@
 package net.imglib2.iterator;
 
 import net.imglib2.AbstractRealInterval;
+import net.imglib2.Cursor;
 import net.imglib2.FinalRealInterval;
 import net.imglib2.Interval;
-import net.imglib2.Iterator;
 import net.imglib2.RealInterval;
 import net.imglib2.RealLocalizable;
 import net.imglib2.util.Util;
@@ -50,7 +50,7 @@ import net.imglib2.util.Util;
  * @author Stephan Preibisch
  * @author Stephan Saalfeld
  */
-public class RealIntervalIterator extends AbstractRealInterval implements Iterator, RealLocalizable
+public class RealIntervalIterator extends AbstractRealInterval implements Cursor<RealLocalizable>, RealLocalizable
 {
 
 	final protected double[] step;
@@ -159,4 +159,30 @@ public class RealIntervalIterator extends AbstractRealInterval implements Iterat
 		location[ d ] += step[ d ];
 	}
 
+	@Override
+	public RealLocalizable get() {
+		return this;
+	}
+
+	@Override
+	public RealLocalizable next() {
+		fwd();
+		return get();
+	}
+
+	@Override
+	public long getLongPosition(int d) {
+		// TODO implement
+		return -1;
+	}
+
+	@Override
+	public RealIntervalIterator copyCursor() {
+		return copy();
+	}
+
+	@Override
+	public RealIntervalIterator copy() {
+		return this;
+	}
 }
