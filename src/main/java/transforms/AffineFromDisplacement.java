@@ -20,7 +20,6 @@ import mpicbg.models.NotEnoughDataPointsException;
 import mpicbg.models.Point;
 import mpicbg.models.PointMatch;
 import net.imglib2.Cursor;
-import net.imglib2.FinalInterval;
 import net.imglib2.Interval;
 import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessible;
@@ -63,11 +62,8 @@ import picocli.CommandLine.Option;
  * @param <T> displacement field type
  */
 @Command( version = "0.1.1-SNAPSHOT")
-public class AffineFromDisplacement<T> implements Callable< Void >
+public class AffineFromDisplacement<T extends RealType<T> & NativeType<T>> implements Callable< Void >
 {
-	public static final String FLAG_SKIP_WARP  = "--skip-warp";
-	
-	
 	@Option( names = { "-i", "--input" }, required = true, description = "Input displacement field" )
 	private List< String > inputFiles = new ArrayList<>();
 
@@ -486,7 +482,6 @@ public class AffineFromDisplacement<T> implements Callable< Void >
 			for ( int i = 0; i < 3; i++ )
 				vector.get( i ).setReal(
 						 affineResult.getDoublePosition( i ) - c.getDoublePosition( i ) );
-
 		}
 	}
 
@@ -604,4 +599,3 @@ public class AffineFromDisplacement<T> implements Callable< Void >
 	}	
 
 }
-
