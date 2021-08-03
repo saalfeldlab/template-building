@@ -4,12 +4,16 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.Callable;
+import java.util.stream.DoubleStream;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 import org.janelia.saalfeldlab.transform.io.TransformReader;
 
 import net.imglib2.FinalRealInterval;
 import net.imglib2.RealLocalizable;
 import net.imglib2.RealPoint;
+import net.imglib2.iterator.IteratorToStream;
 import net.imglib2.iterator.RealIntervalIterator;
 import net.imglib2.realtransform.RealTransform;
 import net.imglib2.realtransform.RealTransformSequence;
@@ -168,4 +172,46 @@ public class TransformComparison implements Callable< Void >
 		for( int d = 0; d < 3; d++ )
 			err[ d ] = tmpA.getDoublePosition( d ) - tmpB.getDoublePosition( d );
 	}
+
+	/**
+	 * @param ptStream strem of points
+	 * @param transformA first transform
+	 * @param transformB second transform
+	 * @return Stream of error magnitudes
+	 */
+	public static DoubleStream errorStream( 
+            final Stream<RealLocalizable> ptStream,
+            final RealTransform transformA,
+            final RealTransform transformB )
+	{
+		final int nd = transformA.numTargetDimensions();
+		return ptStream.mapToDouble( p -> {
+			final RealPoint tmpA = new RealPoint( nd );
+			final RealPoint tmpB = new RealPoint( nd );
+
+			transformA.apply( p, tmpA );
+			transformB.apply( p, tmpB );
+
+			double sqrErr = 0.0;
+			for( int d = 0; d < nd; d++ ) {
+				double del = tmpA.getDoublePosition( d ) - tmpB.getDoublePosition( d );
+				sqrErr += del*del;
+			}
+			return Math.sqrt( sqrErr );
+		});
+	}
+
+	/**
+	 * @param ptStream  stream of points
+	 * @param transformA first transform
+	 * @param transformB second transform
+	 * @return Stream of error magnitudes
+	 */
+	public static DoubleStream errorStream(final RealIntervalIterator ptIterator, final RealTransform transformA,
+			final RealTransform transformB) {
+
+		Iterable<RealLocalizable> it = () -> new IteratorToStream<>(ptIterator);
+		return errorStream(StreamSupport.stream(it.spliterator(), false), transformA, transformB);
+	}
+
 }
