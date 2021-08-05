@@ -16,12 +16,15 @@ import bigwarp.BigWarpExporter;
 import evaluation.TransformComparison;
 import io.DfieldIoHelper;
 import io.IOHelper;
+import io.WriteH5DisplacementField;
 import net.imglib2.Cursor;
 import net.imglib2.Dimensions;
 import net.imglib2.FinalInterval;
 import net.imglib2.Interval;
 import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.converter.Converter;
+import net.imglib2.converter.Converters;
 import net.imglib2.img.array.ArrayCursor;
 import net.imglib2.img.array.ArrayImg;
 import net.imglib2.img.array.ArrayImgFactory;
@@ -38,7 +41,11 @@ import net.imglib2.realtransform.RealViews;
 import net.imglib2.realtransform.Scale;
 import net.imglib2.realtransform.ants.ANTSDeformationField;
 import net.imglib2.type.NativeType;
+import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.RealType;
+import net.imglib2.type.numeric.integer.ByteType;
+import net.imglib2.type.numeric.integer.ShortType;
+import net.imglib2.type.numeric.real.DoubleType;
 import net.imglib2.type.numeric.real.FloatType;
 import net.imglib2.util.Intervals;
 import net.imglib2.util.Util;
@@ -51,7 +58,8 @@ import process.DownsampleGaussian;
 import transforms.DownsampleDfieldErrors.SumMax;
 
 @Command( version = "0.2.0-SNAPSHOT" )
-public class DownsampleDfield implements Callable<Void>
+public class DownsampleDfield< T extends RealType<T>, O extends RealType<O> & NativeType<O>, Q extends IntegerType<Q> & NativeType<Q>> 
+	implements Callable<Void>
 {
 	public static enum DownsamplingMethod { SAMPLE, AVERAGE, GAUSSIAN };
 
@@ -87,17 +95,39 @@ public class DownsampleDfield implements Callable<Void>
 	@Option( names = { "--max-error", "-e" }, required = false, description = "Maximum error for estimation (default = 0.5)")
 	private double maxError = Double.NaN;
 
-	@Option( names = { "--downsample", "-d" }, required = false, description = "Downsample by factors until error is less than max error.")
+	@Option( names = { "--downsample-recursive", "-d" }, required = false, description = "Downsample by factors until error is less than max error.")
 	private boolean doDownsampling = false;
+
+	@Option( names = {"-q", "--quantization-type"}, required = false, description = "Quantize to type (infer,short,byte)" )
+	private String quantizationType = "";
+
+	@Option( names = {"-c", "--clip"}, required = false, description = "Clip float values to maxError." )
+	private boolean clip = false;
 
 	public static void main( String[] args ) {
 		CommandLine.call( new DownsampleDfield(), args );
 	}
 
+	@SuppressWarnings("unchecked")
 	public Void call() {
 		
 		if( doDownsampling && Double.isNaN(maxError)) {
 			System.err.println( "Must specify a maxError if downsample is selected." );
+			return null;
+		}
+
+		if( clip && Double.isNaN(maxError)) {
+			System.err.println( "Must specify a maxError if clip is selected." );
+			return null;
+		}
+
+		if (!quantizationType.isEmpty() && Double.isNaN(maxError)) {
+			System.err.println("Must specify a maxError if quantization is chosen.");
+			return null;
+		}
+
+		if ( !quantizationType.isEmpty() && !DfieldIoHelper.isN5TransformBase( outputPath )) {
+			System.err.println("Quantization options only valid for h5/n5 containers.");
 			return null;
 		}
 
@@ -128,13 +158,27 @@ public class DownsampleDfield implements Callable<Void>
 		final double[] sourceSigmas = DownsampleGaussian.checkAndFillArrays( sourceSigmasIn, nd, "source sigmas" );
 		final double[] targetSigmas = DownsampleGaussian.checkAndFillArrays( targetSigmasIn, nd, "target sigmas" );
 
-		RandomAccessibleInterval< FloatType > dfieldDown;
+		RandomAccessibleInterval< O > dfieldDown;
 		if (doDownsampling) {
+
 			dfieldDown = downsampleDisplacementFieldToError(dfield, factorsArg,
-					DownsamplingMethod.valueOf(method.toUpperCase()), sourceSigmas, targetSigmas, maxError, nThreads);
+					DownsamplingMethod.valueOf(method.toUpperCase()), sourceSigmas, targetSigmas, maxError,
+					quantizationType, nThreads);
+//			Object q = getQuantizationType( dfield );
+//			dfieldDown = downsampleDisplacementFieldToError( dfield, factorsArg,
+//					DownsamplingMethod.valueOf(method.toUpperCase()), sourceSigmas, targetSigmas, maxError, 
+//					q, nThreads);
 		} else {
-			dfieldDown = downsampleDisplacementField(dfield, factorsArg,
-					DownsamplingMethod.valueOf(method.toUpperCase()), sourceSigmas, targetSigmas, nThreads);
+			RandomAccessibleInterval<O> dfieldTmp = (RandomAccessibleInterval<O>) downsampleDisplacementField(dfield, factorsArg,
+					DownsamplingMethod.valueOf(method.toUpperCase()), sourceSigmas, targetSigmas, 
+					nThreads);
+
+			if (!quantizationType.isEmpty()) {
+				Q q = getQuantizationType(dfieldTmp);
+				System.out.println( "converting to: " + quantizationType );
+				dfieldDown = (RandomAccessibleInterval<O>) quantize(dfieldTmp, q, maxError);
+			} else
+				dfieldDown = dfieldTmp;
 		}
 
 //		if ( sample )
@@ -156,9 +200,17 @@ public class DownsampleDfield implements Callable<Void>
 			final RealIntervalIterator it = new RealIntervalIterator( 
 					IOHelper.toRealInterval( Views.hyperSlice(dfield, 3, 0), resIn ), resIn );
 
+			RandomAccessibleInterval<T> dfieldToUse;
+			if (!quantizationType.isEmpty()) {
+				dfieldToUse = (RandomAccessibleInterval<T>) unquantize( (RandomAccessibleInterval<Q>) dfieldDown, maxError );
+			}
+			else {
+				dfieldToUse = (RandomAccessibleInterval<T>) dfieldDown;
+			}
+
 			final DoubleStream errStream = TransformComparison.errorStream(it,
 					DfieldIoHelper.toDeformationField(dfield, new Scale( resIn )),
-					DfieldIoHelper.toDeformationField(dfieldDown, new Scale( resOut)));
+					DfieldIoHelper.toDeformationField(dfieldToUse, new Scale( resOut)));
 
 			final SumMax sm = new SumMax( 0, Double.MIN_VALUE );
 			errStream.forEach( x -> {
@@ -191,44 +243,54 @@ public class DownsampleDfield implements Callable<Void>
 
 		DfieldIoHelper out = new DfieldIoHelper();
 		out.spacing = resOut;
-		try
-		{
+		try {
 			out.write( dfieldDown, outputPath );
 		}
-		catch ( Exception e )
-		{
+		catch ( Exception e ) {
 			e.printStackTrace();
 		}
 
 		return null;
 	}
 
-	public <T extends RealType<T> & NativeType<T>> RandomAccessibleInterval< T > downsampleDisplacementFieldToError(
+	@SuppressWarnings("unchecked")
+	public <T extends RealType<T> & NativeType<T>, S extends RealType<S> & NativeType<S>, Q extends IntegerType<Q> & NativeType<Q>> 
+		RandomAccessibleInterval<S> downsampleDisplacementFieldToError(
 			final RandomAccessibleInterval< T > dfield, 
 			final double[] factors,
 			final DownsamplingMethod method,
 			final double[] sourceSigmas, 
 			final double[] targetSigmas, 
 			final double maxError,
+			final String quantizationType,
 			int nThreads )
 	{
+		Q q = getQuantizationType(dfield, quantizationType, maxError );
+
 		final Scale orig = new Scale(new double[] { 1, 1, 1 });
 		final Scale down = orig.copy();
 
-		final int maxDownsamplingSteps = 2;
+		final int maxDownsamplingSteps = 8;
 
 		final Scale factor = new Scale(factors);
 		double error = 0;
-		RandomAccessibleInterval<T> dfieldOut = dfield;
+		RandomAccessibleInterval<S> dfieldOut = (RandomAccessibleInterval<S>) dfield;
 
 		int i = 0;
 		while (error < maxError && i < maxDownsamplingSteps ) {
 
 			i++;
 
-			final RandomAccessibleInterval< T > dfieldDown = downsampleDisplacementField(
+			final RandomAccessibleInterval< S > dfieldDown;
+			final RandomAccessibleInterval< T > dfieldDownTmp = (RandomAccessibleInterval<T>) downsampleDisplacementField(
 					dfieldOut, factors, method,
 					sourceSigmas, targetSigmas, nThreads );
+
+			if( q == null )
+				dfieldDown = (RandomAccessibleInterval<S>) dfieldDownTmp;
+			else
+				dfieldDown = (RandomAccessibleInterval<S>) quantize( dfieldDownTmp, q, maxError );
+
 
 			down.preConcatenate(factor);
 
@@ -244,14 +306,109 @@ public class DownsampleDfield implements Callable<Void>
 			System.out.println( "err: " + err );
 			error = err;
 			if (error < maxError)
-				dfieldOut = dfieldDown;
+				dfieldOut = (RandomAccessibleInterval<S>) dfieldDown;
 
 			// if error is larger than threshold, break and return current dfield
 		}
 		return dfieldOut;
 	}
 
-	public static <T extends RealType<T> & NativeType<T>> RandomAccessibleInterval< T > downsampleDisplacementField(
+	@SuppressWarnings("unchecked")
+	public static <T extends RealType<T> & NativeType<T>, S extends RealType<S> & NativeType<S>> S inferBestQuantizationType(
+			final RandomAccessibleInterval<T> dfield, 
+			final double maxError ) {
+
+		final int nd = dfield.numDimensions() - 1;
+		final double quantizationMultiplier = 2 * Math.sqrt(maxError * maxError / nd);
+		System.out.println( "quantizationMultiplier " + quantizationMultiplier );
+		final double maxCoordDisplacement = WriteH5DisplacementField.getMaxAbs( Views.flatIterable(dfield) );
+
+		// check if bytes work?
+		if (quantizationMultiplier * 127.0 > maxCoordDisplacement)
+			return (S) new ByteType();
+		else if (quantizationMultiplier * 32767.0 > maxCoordDisplacement)
+			return (S) new ShortType();
+		else
+			return null;
+	}
+
+	public static <T extends RealType<T> & NativeType<T>, Q extends NativeType<Q> & IntegerType<Q>> Q getQuantizationType(
+			final RandomAccessibleInterval<T> dfield,
+			final String quantizationType,
+			final double maxError )
+	{
+		if( quantizationType.toUpperCase().equals("INFER"))
+			return inferBestQuantizationType( dfield, maxError );
+		else if( quantizationType.toUpperCase().equals("SHORT"))
+			return (Q) new ShortType();
+		else if( quantizationType.toUpperCase().equals("BYTE"))
+			return (Q) new ByteType();
+		else
+			return null;
+	}
+
+	public Q getQuantizationType(
+			final RandomAccessibleInterval<O> dfield )
+	{
+		if( quantizationType.toUpperCase().equals("INFER"))
+			return inferBestQuantizationType( dfield, maxError );
+		else if( quantizationType.toUpperCase().equals("SHORT"))
+			return (Q) new ShortType();
+		else if( quantizationType.toUpperCase().equals("BYTE"))
+			return (Q) new ByteType();
+		else
+			return null;
+	}
+
+	public static <T extends RealType<T> & NativeType<T>, Q extends NativeType<Q> & IntegerType<Q>> 
+		RandomAccessibleInterval<Q> quantize(
+			final RandomAccessibleInterval<T> dfield,
+			final Q outputType,
+			final double maxError ) {
+
+		assert( outputType != null );
+
+		final int nd = dfield.numDimensions() - 1;
+		final double quantizationMultiplier = 2 * Math.sqrt(maxError * maxError / nd);
+		return convertQuantize( dfield, outputType, quantizationMultiplier );
+	}
+
+	@SuppressWarnings("unchecked")
+	public static <T extends RealType<T> & NativeType<T>, Q extends NativeType<Q> & IntegerType<Q>> RandomAccessibleInterval<T> unquantize(
+			final RandomAccessibleInterval<Q> dfield, final double maxError) {
+
+		final int nd = dfield.numDimensions() - 1;
+		final double quantizationMultiplier = 2 * Math.sqrt(maxError * maxError / nd);
+		return (RandomAccessibleInterval<T>) convertUnquantize(dfield, new DoubleType(), quantizationMultiplier);
+	}
+
+	public static <T extends RealType<T> & NativeType<T>, Q extends NativeType<Q> & IntegerType<Q>> 
+		RandomAccessibleInterval<Q> convertQuantize(
+			final RandomAccessibleInterval<T> dfield,
+			final Q outputType,
+			final double m) {
+
+		return Converters.convert(dfield, new Converter<T, Q>() {
+			@Override
+			public void convert(final T input, final Q output) {
+				output.setInteger(Math.round(input.getRealDouble() / m));
+			}
+		}, outputType.copy());
+	}
+
+	public static <T extends RealType<T>, Q extends IntegerType<Q>> RandomAccessibleInterval<T> convertUnquantize(
+			final RandomAccessibleInterval<Q> dfield, final T outputType, final double m) {
+
+		return Converters.convert(dfield, new Converter<Q, T>() {
+			@Override
+			public void convert(final Q input, final T output) {
+				output.setReal( input.getRealDouble() * m  );
+			}
+		}, outputType.copy());
+	}
+
+	public static <T extends RealType<T> & NativeType<T>, Q extends NativeType<Q> & IntegerType<Q>> 
+		RandomAccessibleInterval< T > downsampleDisplacementField(
 			final RandomAccessibleInterval< T > dfield, 
 			final double[] factors,
 			final DownsamplingMethod method,

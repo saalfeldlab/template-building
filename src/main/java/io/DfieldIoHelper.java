@@ -8,7 +8,6 @@ import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
 import java.util.Arrays;
-import java.util.Optional;
 import java.util.zip.GZIPOutputStream;
 
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
@@ -79,12 +78,16 @@ public class DfieldIoHelper
 		}
 	}
 
+	public void setSpacing( final double[] spacing ) {
+		this.spacing = spacing;
+	}
+
 	public static boolean isN5TransformBase( final String path )
 	{
-		return path.endsWith( "h5" ) || 
-				path.endsWith( "hdf5" ) || 
-				path.endsWith( "hdf" ) || 
-				path.endsWith( "n5" );
+		return path.contains( "h5" ) ||
+				path.contains( "hdf5" ) ||
+				path.contains( "hdf" ) ||
+				path.contains( "n5" );
 	}
 
 	public static N5Reader getN5Reader( final String path ) throws IOException
@@ -210,7 +213,7 @@ public class DfieldIoHelper
 				path = split[ 0 ];
 				dataset = split[ 1 ];
 			}
-					
+
 			try
 			{
 				//WriteH5DisplacementField.write( dfield, outputPath, new int[] { 3, 32, 32, 32 }, spacing, null );
@@ -230,7 +233,7 @@ public class DfieldIoHelper
 				}
 
 				N5DisplacementField.save(n5Writer, dataset, affine, 
-						dfield, spacing, new int[]{ 3, 32, 32, 32},
+						dfield, spacing, new int[]{ 3, 32, 32, 32 },
 						new GzipCompression() );
 			}
 			catch ( Exception e )

@@ -48,7 +48,7 @@ import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import transforms.DownsampleDfield.DownsamplingMethod;
 
-@Command( version = "0.1.1-SNAPSHOT")
+@Command( version = "0.2.0-SNAPSHOT")
 public class DownsampleDfieldErrors implements Callable<Void>
 {
 
