@@ -72,7 +72,7 @@ public class FlipVariancePointPairsJFRC2013 extends EstimateLeftRightVariance_JF
 			totalXfmFlip.applyInverse( xSrcFlip, xFlip );
 			
 			ltm.add( xSrc, false );
-			ltm.setPoint( i, true, xSrcFlip );
+			ltm.setPoint( i, true, xSrcFlip, null );
 			ltm.setValueAt( String.format( "( %f, %f, %f )", x[0], x[1], x[2] ), 
 					i, 0 );
 			
