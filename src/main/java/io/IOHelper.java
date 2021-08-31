@@ -871,22 +871,35 @@ public class IOHelper implements Callable<Void>
         public double[] scale;
         public double[] translation;
         public String[] units;
+        public String[] axes;
         public TransformResolution(){}
-        public TransformResolution( double[] s, double[] t, String[] u )
+        public TransformResolution( double[] s, double[] t, String[] u, String[] a )
         {
             scale = s;
             translation = t;
             units = u;
+            axes = a;
         }
-        public double[] getResolution(){ return scale; }
+        public double[] getResolution(){ return reverse(scale); }
         public String getKey(){ return key; };
         public boolean isSimple(){ return simple; }
-        public ResolutionGet create( double[] in )
-        {
-            String[] units = new String[ in.length ];
-            Arrays.fill( units, "pixel" );
-            return new TransformResolution( in, new double[in.length], units );
-        }
+
+		public ResolutionGet create(double[] in) {
+			int N = in.length;
+			String[] units = new String[N];
+			Arrays.fill(units, "pixel");
+			return new TransformResolution(reverse(in), new double[in.length], units, new String[] { "z", "y", "x" });
+		}
+
+		public static double[] reverse(double[] in) {
+			int N = in.length;
+			double[] out = new double[N];
+			int j = N - 1;
+			for (int i = 0; i < N; i++) {
+				out[j--] = in[i];
+			}
+			return out;
+		}
     }
 
 	public static RealInterval toRealInterval(Dimensions dims, double[] spacing) {
