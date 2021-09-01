@@ -8,6 +8,7 @@ import loci.formats.FormatException;
 import loci.formats.in.DfieldNiftiReader;
 import loci.plugins.util.ImageProcessorReader;
 import net.imglib2.util.ValuePair;
+import util.FieldOfView;
 import ij.ImagePlus;
 import ij.ImageStack;
 import ij.process.ImageProcessor;
@@ -18,6 +19,12 @@ public class NiftiIo
 	public static final String KEY_YRES = "Voxel height";
 	public static final String KEY_ZRES = "Slice thickness";
 	
+	public static FieldOfView readFieldOfView( File f ) throws FormatException, IOException
+	{
+		ValuePair<long[], double[]> sr = readSizeAndResolution(f);
+		return FieldOfView.fromSpacingDims(sr.b, sr.a);
+	}
+
 	public static ValuePair< long[], double[] > readSizeAndResolution( File f ) throws FormatException, IOException
 	{
 		DfieldNiftiReader reader = new DfieldNiftiReader();

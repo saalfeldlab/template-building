@@ -28,6 +28,7 @@ import ij.io.OpenDialog;
 import ij.measure.Calibration;
 import ij.plugin.PlugIn;
 import net.imglib2.util.ValuePair;
+import util.FieldOfView;
 
 import java.io.File;
 import java.io.IOException;
@@ -96,11 +97,19 @@ public class Dfield_Nrrd_Reader extends ImagePlus implements PlugIn
 
 	public ValuePair< long[], double[] > readSizeAndResolution( File f ) throws IOException
 	{
-
 		NrrdDfieldFileInfo fi = getHeaderInfo( f.getParent() + File.separator, f.getName() );
 		long[] size = new long[] { fi.sizes[ 0 ], fi.sizes[ 1 ], fi.sizes[ 2 ] };
 		double[] res = new double[] { fi.pixelWidth, fi.pixelHeight, fi.pixelDepth };
 		return new ValuePair<>( size, res );
+	}
+
+	public FieldOfView readFieldOfView( File f ) throws IOException
+	{
+		NrrdDfieldFileInfo fi = getHeaderInfo( f.getParent() + File.separator, f.getName() );
+		long[] size = new long[] { fi.sizes[ 0 ], fi.sizes[ 1 ], fi.sizes[ 2 ] };
+		double[] res = new double[] { fi.pixelWidth, fi.pixelHeight, fi.pixelDepth };
+		double[] offset = fi.getSpaceOrigin();
+		return new FieldOfView( offset, res, size );
 	}
 
 	public ImagePlus load(String directory, String fileName) {    

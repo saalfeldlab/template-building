@@ -5,18 +5,26 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.Hashtable;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.Callable;
 
 import org.janelia.saalfeldlab.n5.GzipCompression;
+import org.janelia.saalfeldlab.n5.N5DatasetDiscoverer;
 import org.janelia.saalfeldlab.n5.N5FSReader;
 import org.janelia.saalfeldlab.n5.N5FSWriter;
 import org.janelia.saalfeldlab.n5.N5Reader;
+import org.janelia.saalfeldlab.n5.N5TreeNode;
 import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Reader;
 import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Writer;
+import org.janelia.saalfeldlab.n5.ij.N5Factory;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
+import org.janelia.saalfeldlab.n5.metadata.N5CosemMetadataParser;
+import org.janelia.saalfeldlab.n5.metadata.N5Metadata;
+import org.janelia.saalfeldlab.n5.metadata.N5MetadataParser;
+import org.janelia.saalfeldlab.n5.metadata.N5SingleScaleMetadataParser;
+import org.janelia.saalfeldlab.n5.metadata.SpatialMetadata;
+import org.janelia.saalfeldlab.n5.metadata.imagej.ImagePlusLegacyMetadataParser;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -43,6 +51,7 @@ import net.imglib2.realtransform.RealViews;
 import net.imglib2.realtransform.Scale;
 import net.imglib2.realtransform.Scale2D;
 import net.imglib2.realtransform.Scale3D;
+import net.imglib2.realtransform.ScaleAndTranslation;
 import net.imglib2.transform.integer.MixedTransform;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.IntegerType;
@@ -63,6 +72,7 @@ import picocli.CommandLine.Option;
 import process.RenderTransformed;
 import sc.fiji.io.Dfield_Nrrd_Reader;
 import sc.fiji.io.Dfield_Nrrd_Writer;
+import util.FieldOfView;
 
 @Command( version = "0.2.0-SNAPSHOT" )
 public class IOHelper implements Callable<Void>
@@ -71,6 +81,7 @@ public class IOHelper implements Callable<Void>
 	ImagePlus ip;
 	RandomAccessibleInterval< ? > rai;
 	double[] resolution;
+	double[] offset;
 
 	@Option(names = {"--input", "-i"}, description = "Input image file" )
 	private String inputFilePath;
@@ -97,6 +108,11 @@ public class IOHelper implements Callable<Void>
 			new PixelResolution(),
 			new ElemSizeUmResolution()
 	};
+
+	public static final List<N5MetadataParser<?>> PARSERS = Arrays.asList(
+			new ImagePlusLegacyMetadataParser(),
+			new N5CosemMetadataParser(),
+			new N5SingleScaleMetadataParser());
 
 	final Logger logger = LoggerFactory.getLogger( IOHelper.class );
 	
@@ -182,6 +198,24 @@ public class IOHelper implements Callable<Void>
 		return resolution;
 	}
 
+	public double[] getOffset()
+	{
+		return offset;
+	}
+
+	public AffineGet getPixelToPhysicalTransform()
+	{
+		double[] res = resolution != null ? resolution : new double[] { 1, 1, 1 };
+		double[] off = offset != null ? offset : new double[] { 0, 0, 0 };
+		return new ScaleAndTranslation( res, off );
+	}
+
+	/**
+	 * Use {@link N5Metadata} and {@link N5DatasetDiscoverer} instead. 
+	 * 
+	 * @deprecated
+	 */
+	@Deprecated
 	public static double[] getResolution( final N5Reader n5, final String dataset )
 	{
         System.out.println("IOHelper.getResolution");
@@ -210,6 +244,56 @@ public class IOHelper implements Callable<Void>
 		return null;
 	}
 
+	public FieldOfView readFov( String filePath ) {
+
+		if ( filePath.endsWith( "nii" ) )
+		{
+			try
+			{
+				ValuePair<long[], double[]> sizeRes = NiftiIo.readSizeAndResolution( new File( filePath ) );
+				return FieldOfView.fromSpacingDims( sizeRes.b, sizeRes.a );
+			}
+			catch ( FormatException e ) { }
+			catch ( IOException e ) { }
+		}
+		else if ( filePath.endsWith( "nrrd" ) )
+		{
+			Dfield_Nrrd_Reader nr = new Dfield_Nrrd_Reader();
+			try
+			{
+				return nr.readFieldOfView(new File( filePath ));
+			}
+			catch ( IOException e ) { }
+		}
+		else if ( filePath.contains( "n5?" ) ||
+				filePath.contains( "h5?" ) || filePath.contains("hdf?") || filePath.contains("hdf5?") )
+		{
+			String[] parts = filePath.split( "\\?" );
+			String base = parts[ 0 ];
+			String dataset = parts[ 1 ];
+
+			try {
+				N5Reader n5 = new N5Factory().openReader(base);
+				if( n5.datasetExists( dataset ))
+				{
+					long[] size = (long[])n5.getAttribute( dataset, "dimensions", long[].class );
+
+					N5TreeNode node = new N5DatasetDiscoverer(PARSERS, null).parse( dataset );
+					resolution = resolutionFromMetadata( node.getMetadata() );
+					offset = offsetFromMetadata( node.getMetadata() );
+
+					if( resolution == null )
+						resolution = getResolution( n5, dataset );
+
+					return new FieldOfView( offset, resolution, size );
+				}
+			} catch (IOException e) {
+			}
+		}
+		return null;
+	}
+
+	@Deprecated
 	public ValuePair< long[], double[] > readSizeAndResolution( String filePath )
 	{
 		if ( filePath.endsWith( "nii" ) )
@@ -503,7 +587,12 @@ public class IOHelper implements Callable<Void>
 				}
 
 				RandomAccessibleInterval<T> tmp = N5Utils.open( n5, dset );
-				resolution = getResolution( n5, dset );
+
+				N5TreeNode node = new N5DatasetDiscoverer(PARSERS, null).parse( dset );
+				resolution = resolutionFromMetadata( node.getMetadata() );
+
+				if( resolution == null )
+					resolution = getResolution( n5, dset );
 
 				if( permute )
 				{
@@ -539,6 +628,44 @@ public class IOHelper implements Callable<Void>
 		}
 	}
 	
+	public static double[] resolutionFromMetadata( N5Metadata meta )
+	{
+		if( meta == null )
+			return null;
+		else if ( meta instanceof SpatialMetadata )
+		{
+			SpatialMetadata sm = (SpatialMetadata)meta;
+			AffineGet xfm = sm.spatialTransform();
+			int nd = xfm.numDimensions();
+			double[] res = new double[ nd ];
+			for( int i = 0; i < nd; i++ )
+				res[ i ] = xfm.get(i, i);
+
+			return res;
+		}
+
+		return null;
+	}
+
+	public static double[] offsetFromMetadata( N5Metadata meta )
+	{
+		if( meta == null )
+			return null;
+		else if ( meta instanceof SpatialMetadata )
+		{
+			SpatialMetadata sm = (SpatialMetadata)meta;
+			AffineGet xfm = sm.spatialTransform();
+			int nd = xfm.numDimensions();
+			double[] offset = new double[ nd ];
+			for( int i = 0; i < nd; i++ )
+				offset[ i ] = xfm.get(i, nd);
+
+			return offset;
+		}
+
+		return null;
+	}
+
     /**
      * Permutes the dimensions of a {@link RandomAccessibleInterval}
      * using the given permutation vector, where the ith value in p
@@ -782,8 +909,6 @@ public class IOHelper implements Callable<Void>
 				path = split[ 0 ];
 				dataset = split[ 1 ];
 			}
-
-
 			try
 			{
 				N5Writer n5Writer;
@@ -819,6 +944,7 @@ public class IOHelper implements Callable<Void>
 		}
 	}
 
+	@Deprecated
 	public static interface ResolutionGet
 	{
 		public String getKey();
@@ -827,6 +953,7 @@ public class IOHelper implements Callable<Void>
 		public ResolutionGet create( double[] in );
 	}
 
+	@Deprecated
 	public static class PixelResolution implements ResolutionGet
 	{
 		public static final String key = "pixelResolution";
@@ -838,6 +965,7 @@ public class IOHelper implements Callable<Void>
 		public ResolutionGet create( double[] in ){ return null; }
 	}
 
+	@Deprecated
 	public static class Resolution implements ResolutionGet
 	{
 		public static final String key = "resolution";
@@ -851,6 +979,7 @@ public class IOHelper implements Callable<Void>
 		public ResolutionGet create( double[] in ){ return new Resolution( in ); }
 	}
 
+	@Deprecated
 	public static class ElemSizeUmResolution implements ResolutionGet
 	{
 		public static final String key = "element_size_um";
@@ -864,6 +993,7 @@ public class IOHelper implements Callable<Void>
 		public ResolutionGet create( double[] in ){ return new ElemSizeUmResolution( in ); }
 	}
 
+	@Deprecated
     public static class TransformResolution implements ResolutionGet
     {
         public static final String key = "transform";
