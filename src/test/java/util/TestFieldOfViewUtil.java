@@ -34,6 +34,32 @@ public class TestFieldOfViewUtil
 	}
 
 	@Test
+	public void testBasic()
+	{
+		final double delta = 1e-9;
+
+		final double[] zero = new double[] { 0 };
+		final double[] minA = new double[] { -1.0 };
+		final double[] minB = new double[] { 2.0 };
+
+		final long[] dimsA = new long[] { 5 };
+		final long[] dimsB = new long[] { 10 };
+
+		final double[] spacingA = new double[] { 1.0 };
+		final double[] spacingB = new double[] { 0.5 };
+
+		final FieldOfView fovA = new FieldOfView( minA, spacingA, dimsA );
+		Assert.assertEquals( "fovA physical width", 5.0, fovA.getPhysicalWidth()[0], delta );
+		Assert.assertEquals( "fovA physical min", -1, fovA.getPhysicalMin()[0], delta );
+		Assert.assertEquals( "fovA physical max", 4, fovA.getPhysicalMax()[0], delta );
+
+		final FieldOfView fovB = new FieldOfView( minB, spacingB, dimsB );
+		Assert.assertEquals( "fovB physical width", 5.0, fovB.getPhysicalWidth()[0], delta );
+		Assert.assertEquals( "fovB physical min", 2, fovB.getPhysicalMin()[0], delta );
+		Assert.assertEquals( "fovB physical max", 7, fovB.getPhysicalMax()[0], delta );
+	}
+
+	@Test
 	public void testPixelSpacing()
 	{
 		FieldOfView fov = FieldOfView.fromSpacingSize( new double[]{ 1.0, 1.0 }, new FinalInterval( new long[]{ 10, 10 }));
@@ -52,7 +78,6 @@ public class TestFieldOfViewUtil
 		fov = FieldOfView.fromPhysicalPixel( new double[]{ -3, -3 }, new double[]{ 3.0, 3.0 }, new FinalInterval( new long[]{ 13, 13 }));
 		Assert.assertArrayEquals( "from physical pixel. even less simple", new double[]{ 0.5, 0.5 }, fov.getSpacing(), 1e-6 );
 	}
-
 	
 	@Test
 	public void testSubsetAndPinning()

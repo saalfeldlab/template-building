@@ -10,7 +10,6 @@ import net.imglib2.FinalRealInterval;
 import net.imglib2.Interval;
 import net.imglib2.RealInterval;
 import net.imglib2.RealLocalizable;
-import net.imglib2.RealPoint;
 import net.imglib2.RealPositionable;
 import net.imglib2.realtransform.AffineGet;
 import net.imglib2.realtransform.ScaleAndTranslation;
@@ -20,7 +19,7 @@ import net.imglib2.util.ValuePair;
 
 public class FieldOfView
 {
-	
+
 	// TODO what if the origin is not in the fov?
 	//public static enum PIN_POLICY{ MIN, MAX, ORIGIN, CENTER };
 
@@ -37,10 +36,23 @@ public class FieldOfView
 	private double[] spacing;
 	
 	private AffineGet pixelToPhysical;
-	
+
 	public FieldOfView( int ndims )
 	{ 
 		this.ndims = ndims;
+	}
+
+	public FieldOfView( final double[] min, final double[] spacing, final long[] dimensions )
+	{
+		ndims  = dimensions.length;
+		pixelInterval = new FinalInterval( dimensions );
+		double[] pmin = min;
+		double[] pmax = new double[ ndims ]; 
+		for( int i = 0; i < ndims; i++ )
+			pmax[i] = pmin[i] + spacing[i] * dimensions[i];
+
+		physicalInterval = new FinalRealInterval(pmin, pmax);
+		updatePixelToPhysicalTransform();
 	}
 
 	public FieldOfView( final RealInterval physicalInterval, final Interval pixelInterval, final double[] spacing )
@@ -59,7 +71,7 @@ public class FieldOfView
 	
 	public double[] getPhysicalWidth()
 	{
-		double[] w = new double[ ndims ] ;
+		final double[] w = new double[ ndims ] ;
 		for( int i = 0; i < ndims; i++ )
 		{
 			w[ i ] = physicalInterval.realMax( i ) - physicalInterval.realMin( i );
@@ -67,6 +79,30 @@ public class FieldOfView
 		return w;
 	}
 	
+	public double[] getPhysicalMin()
+	{
+		final double[] min = new double[ ndims ];
+		physicalInterval.realMin(min);
+		return min;
+	}
+
+	public void physicalMin( double[] min )
+	{
+		physicalInterval.realMin(min);
+	}
+
+	public double[] getPhysicalMax()
+	{
+		final double[] max = new double[ ndims ];
+		physicalInterval.realMax(max);
+		return max;
+	}
+
+	public void physicalMax( double[] max )
+	{
+		physicalInterval.realMax(max);
+	}
+
 	public double[] getPhysicalWidthFromPixelSpacing()
 	{
 		double[] w = new double[ ndims ] ;
@@ -113,7 +149,26 @@ public class FieldOfView
 			physicalInterval = new FinalRealInterval( Intervals.minAsDoubleArray( physicalInterval ), max );
 		}
 	}
-	
+
+	public void offset( final double[] offset )
+	{
+		if ( physicalInterval == null )
+		{
+			physicalInterval = new FinalRealInterval( offset, offset );
+		}
+		else
+		{
+			double[] newmin = new double[physicalInterval.numDimensions()];
+			double[] newmax = new double[physicalInterval.numDimensions()];
+			for( int i = 0; i < physicalInterval.numDimensions(); i++ )
+			{
+				newmin[i] += offset[i];
+				newmax[i] += offset[i];
+			}
+			physicalInterval = new FinalRealInterval( newmin, newmax );
+		}
+	}
+
 	public void setPhysical( final double[] min, final double[] max )
 	{
 		physicalInterval = new FinalRealInterval( min, max );
@@ -472,13 +527,26 @@ public class FieldOfView
 		FieldOfView copy = new FieldOfView( physicalInterval, pixelInterval, spacing );
 		return copy;
 	}
-	
+
 	public static FieldOfView fromSpacingSize( final double[] spacing, final Interval size )
 	{
 		FieldOfView fov = new FieldOfView( size.numDimensions() );
 		fov.setSpacing( spacing );
 		fov.setPhysicalMax( physicalSize( spacing, size ));
 		fov.setPixel( size );
+
+		return fov;
+	}
+
+	public static FieldOfView fromSpacingDims( final double[] spacing, final long[] dimensions )
+	{
+		return fromSpacingSize( spacing, new FinalInterval( dimensions ));
+	}
+
+	public static FieldOfView fromOffsetSpacingDims( final double[] offset, final double[] spacing, final long[] dimensions )
+	{
+		FieldOfView fov = new FieldOfView( dimensions.length );
+		fov.setSpacing( spacing );
 
 		return fov;
 	}
@@ -639,7 +707,8 @@ public class FieldOfView
 	
 	public static void main( String[] args )
 	{
-		String referenceImagePath = "/groups/saalfeld/public/jrc2018/demo_tests/JRC2018F_small.nrrd";
+//		String referenceImagePath = "/groups/saalfeld/public/jrc2018/demo_tests/JRC2018F_small.nrrd";
+		String referenceImagePath = "/home/john/projects/jrc2018/small_test_data/JRC2018_FEMALE_small.nrrd";
 
 		Optional empty = Optional.empty();
 		Optional<double[]> emptyD = Optional.empty();
