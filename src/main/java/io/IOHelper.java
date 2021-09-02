@@ -32,10 +32,8 @@ import ij.IJ;
 import ij.ImagePlus;
 import io.nii.NiftiIo;
 import io.nii.Nifti_Writer;
-import loci.formats.CoreMetadata;
 import loci.formats.FormatException;
 import loci.formats.ImageReader;
-import loci.formats.meta.MetadataStore;
 import loci.plugins.BF;
 import net.imglib2.Dimensions;
 import net.imglib2.FinalRealInterval;
@@ -48,7 +46,6 @@ import net.imglib2.interpolation.InterpolatorFactory;
 import net.imglib2.realtransform.AffineGet;
 import net.imglib2.realtransform.AffineTransform;
 import net.imglib2.realtransform.RealViews;
-import net.imglib2.realtransform.Scale;
 import net.imglib2.realtransform.Scale2D;
 import net.imglib2.realtransform.Scale3D;
 import net.imglib2.realtransform.ScaleAndTranslation;
@@ -79,9 +76,14 @@ public class IOHelper implements Callable<Void>
 {
 
 	ImagePlus ip;
+
 	RandomAccessibleInterval< ? > rai;
+
 	double[] resolution;
+
 	double[] offset;
+
+	AffineGet pixelToPhysical;
 
 	@Option(names = {"--input", "-i"}, description = "Input image file" )
 	private String inputFilePath;
@@ -849,7 +851,7 @@ public class IOHelper implements Callable<Void>
 		if( resolution == null )
 			return realimgpixel;
 
-		Scale pixelToPhysical = new Scale( resolution );
+		pixelToPhysical = getPixelToPhysicalTransform();
 		return RealViews.affine( realimgpixel, pixelToPhysical );
 	}
 
@@ -862,7 +864,8 @@ public class IOHelper implements Callable<Void>
 		if( resolution == null )
 			return realimgpixel;
 
-		Scale pixelToPhysical = new Scale( resolution );
+//		Scale pixelToPhysical = new Scale( resolution );
+		pixelToPhysical = getPixelToPhysicalTransform();
 		return RealViews.affine( realimgpixel, pixelToPhysical );
 	}
 

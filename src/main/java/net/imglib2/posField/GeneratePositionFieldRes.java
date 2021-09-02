@@ -20,6 +20,7 @@ import net.imglib2.view.Views;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
+import util.FieldOfView;
 import util.RenderUtil;
 
 @Command( version = "0.1.1-SNAPSHOT",
@@ -40,10 +41,15 @@ public class GeneratePositionFieldRes implements Callable<Void>
 	@Option( names = { "-r", "--resolution" }, required = false, description = "Output resolution" )
 	private double[] resolutionIn;
 
+	@Option( names = { "-m", "--min", "--offset" }, required = false, description = "Offset of output field" )
+	private double[] offsetIn;
+
 	@Option( names = { "-c", "--coordinate" }, required = false, description = "Coordinate that intensity will correspond to" )
 	private int coordinate = -1;
 	
 	private double[] resolution;
+
+	private double[] offset;
 
 	private long[] intervalDims;
 
@@ -57,18 +63,24 @@ public class GeneratePositionFieldRes implements Callable<Void>
 		if( imagePath != null )
 		{
 			IOHelper io = new IOHelper();
-			RandomAccessibleInterval<?> rai = io.readRai( new File( imagePath ) );
-			//ImagePlus ip = io.readIp( imagePath );
+//			RandomAccessibleInterval<?> rai = io.readRai( new File( imagePath ) );
+//			//ImagePlus ip = io.readIp( imagePath );
+//			resolution = io.getResolution();
+//			intervalDims = Intervals.dimensionsAsLongArray( rai );
 
-			resolution = io.getResolution();
-			intervalDims = Intervals.dimensionsAsLongArray( rai );
+			FieldOfView fov = io.readFov(imagePath);
+			resolution = fov.getSpacing();
+			offset = fov.getPhysicalMin();
 		}
-		
+
 		if( intervalDimsIn != null )
 			intervalDims = intervalDimsIn;
 
 		if( resolutionIn != null )
 			resolution = resolutionIn;
+
+		if( offsetIn != null )
+			offset = offsetIn;
 	}
 
 	public Void call()
@@ -78,9 +90,9 @@ public class GeneratePositionFieldRes implements Callable<Void>
 		FinalInterval interval = new FinalInterval( intervalDims );
 
 		AffineTransform3D xfm = new AffineTransform3D();
-		xfm.set( 	resolution[ 0 ], 0.0, 0.0, 0.0,
-					0.0, resolution[ 1 ], 0.0, 0.0,
-					0.0, 0.0, resolution[ 2 ], 0.0 );
+		xfm.set( 	resolution[ 0 ], 0.0, 0.0, offset[ 0 ],
+					0.0, resolution[ 1 ], 0.0, offset[ 1 ],
+					0.0, 0.0, resolution[ 2 ], offset[ 2 ]);
 
 		PositionRandomAccessible< FloatType, AffineTransform3D > pra = 
 				new PositionRandomAccessible< FloatType, AffineTransform3D >(

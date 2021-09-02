@@ -46,6 +46,7 @@ public class FieldOfView
 	{
 		ndims  = dimensions.length;
 		pixelInterval = new FinalInterval( dimensions );
+		this.spacing = spacing;
 		double[] pmin = min;
 		double[] pmax = new double[ ndims ]; 
 		for( int i = 0; i < ndims; i++ )

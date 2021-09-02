@@ -104,6 +104,7 @@ public class NrrdDfieldFileInfo extends FileInfo {
 	
 	public double[] getSpaceOrigin (){
 		if(spaceOrigin==null){
+			spaceOrigin = new double[ spaceDims ];
 			for(int i=0;i<spaceDims;i++) spaceOrigin[i]=0.0;
 		}
 		return spaceOrigin;

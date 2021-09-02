@@ -15,6 +15,7 @@ import org.slf4j.LoggerFactory;
 import ij.ImagePlus;
 import io.IOHelper;
 import net.imglib2.FinalInterval;
+import net.imglib2.Interval;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.RealRandomAccessible;
 import net.imglib2.img.imageplus.ImagePlusImg;
@@ -24,6 +25,7 @@ import net.imglib2.realtransform.RealTransformSequence;
 import net.imglib2.realtransform.Scale;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.RealType;
+import net.imglib2.util.Intervals;
 import net.imglib2.util.Util;
 import net.imglib2.util.ValuePair;
 import net.imglib2.view.IntervalView;
@@ -31,6 +33,7 @@ import net.imglib2.view.Views;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
+import util.FieldOfView;
 import util.RenderUtil;
 
 /**
@@ -71,6 +74,10 @@ public class TransformImage<T extends RealType<T> & NativeType<T>> implements Ca
 			description = "The resolution at which to write the output. Overrides reference image." )
 	private double[] outputResolution;
 
+	@Option( names = { "-m", "--min", "--output-offset" }, required = false, split = ",", 
+			description = "The physical coordinate of the pixel at the origin." )
+	private double[] outputOffset;
+
 	@Option( names = { "-f", "--reference" }, required = false, 
 			description = "A reference image specifying the output size and resolution." )
 	private String referenceImagePath;
@@ -89,7 +96,7 @@ public class TransformImage<T extends RealType<T> & NativeType<T>> implements Ca
 	private boolean help;
 	private RealTransformSequence totalTransform;
 
-	private FinalInterval renderInterval;
+	private Interval renderInterval;
 
 	final Logger logger = LoggerFactory.getLogger( TransformImage.class );
 
@@ -108,16 +115,42 @@ public class TransformImage<T extends RealType<T> & NativeType<T>> implements Ca
 	{
 		if( referenceImagePath != null && !referenceImagePath.isEmpty() && new File( referenceImagePath ).exists() )
 		{
-			IOHelper io = new IOHelper();
-			ValuePair< long[], double[] > sizeAndRes = io.readSizeAndResolution( new File( referenceImagePath ));
-			renderInterval = new FinalInterval( sizeAndRes.getA() );
-			
+			final IOHelper io = new IOHelper();
+//			ValuePair< long[], double[] > sizeAndRes = io.readSizeAndResolution( new File( referenceImagePath ));
+//			renderInterval = new FinalInterval( sizeAndRes.getA() );
+//			
+//			if ( outputResolution == null )
+//				outputResolution = sizeAndRes.getB();
+
+			FieldOfView reffov = io.readFov( referenceImagePath );
+			renderInterval = reffov.getPixel();
+
 			if ( outputResolution == null )
-				outputResolution = sizeAndRes.getB();
+				outputResolution = reffov.getSpacing();
+			else
+				reffov.setSpacing(outputResolution);
+
+			if ( outputOffset == null )
+				outputOffset = reffov.getPhysicalMin();
+			else
+				reffov.offset(outputOffset);
 		}
-		
+
 		if( outputSize != null && !outputSize.isEmpty() )
 			renderInterval = RenderTransformed.parseInterval( outputSize );
+		
+		if( outputResolution == null ) {
+			outputResolution = new double[ renderInterval.numDimensions() ];
+			Arrays.fill(outputResolution, 1);
+		}
+
+		if( outputOffset == null ) {
+			outputOffset = new double[ renderInterval.numDimensions() ];
+			Arrays.fill(outputOffset, 0);
+		}
+
+		final FieldOfView fov = new FieldOfView(outputOffset, outputResolution, 
+				Intervals.dimensionsAsLongArray(renderInterval));
 
 		// contains the physical transformation
 		RealTransformSequence physicalTransform = TransformReader.readTransforms( transformFiles );
@@ -134,6 +167,8 @@ public class TransformImage<T extends RealType<T> & NativeType<T>> implements Ca
 		}
 		else 
 			totalTransform = physicalTransform;
+		
+		System.out.println( "Output field of view: " + fov );
 	}
 
 	public Void call()
@@ -156,7 +191,7 @@ public class TransformImage<T extends RealType<T> & NativeType<T>> implements Ca
 		process( input, output );
 	}
 
-	public < T extends RealType< T > & NativeType< T > > void process( String inputPath, String outputPath )
+	public void process( String inputPath, String outputPath )
 	{
 		File inputFile = Paths.get( inputPath ).toFile();
 		File outputFile = Paths.get( outputPath ).toFile();
