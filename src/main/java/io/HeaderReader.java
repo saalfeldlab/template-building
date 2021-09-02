@@ -8,10 +8,12 @@ import loci.formats.FormatException;
 import loci.formats.ImageReader;
 import loci.plugins.in.ImportProcess;
 import loci.plugins.in.ImporterOptions;
+import net.imglib2.util.Intervals;
 import net.imglib2.util.ValuePair;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
+import util.FieldOfView;
 
 @Command( version = "0.2.0-SNAPSHOT" )
 public class HeaderReader implements Callable<Void>
@@ -27,9 +29,14 @@ public class HeaderReader implements Callable<Void>
 	public Void call()
 	{
 		IOHelper io = new IOHelper();
-		ValuePair<long[], double[]> hdr = io.readSizeAndResolution( inputFilePath );
-		System.out.println( "size : " + Arrays.toString( hdr.getA()));
-		System.out.println( "res  : " + Arrays.toString( hdr.getB()));
+//		ValuePair<long[], double[]> hdr = io.readSizeAndResolution( inputFilePath );
+//		System.out.println( "size : " + Arrays.toString( hdr.getA()));
+//		System.out.println( "res  : " + Arrays.toString( hdr.getB()));
+
+		FieldOfView fov = io.readFov( inputFilePath );
+		System.out.println( "size    : " + Arrays.toString( Intervals.dimensionsAsLongArray(fov.getPixel())));
+		System.out.println( "res     : " + Arrays.toString( fov.getSpacing() ));
+		System.out.println( "offset  : " + Arrays.toString( fov.getPhysicalMin() ));
 
 		return null;
 	}
