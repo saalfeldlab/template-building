@@ -24,6 +24,8 @@ import net.imglib2.FinalInterval;
 import net.imglib2.Interval;
 import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessible;
+import net.imglib2.algorithm.bspline.BSplineLazyCoefficientsInterpolatorFactory;
+import net.imglib2.algorithm.interpolation.randomaccess.BSplineInterpolatorFactory;
 import net.imglib2.exception.ImgLibException;
 import net.imglib2.img.Img;
 import net.imglib2.img.display.imagej.ImageJFunctions;
@@ -74,7 +76,7 @@ import util.RenderUtil;
  */
 public class RenderTransformed
 {
-	public enum INTERP_OPTIONS { LINEAR, NEAREST, LANCZOS };
+	public enum INTERP_OPTIONS { LINEAR, NEAREST, BSPLINE, LANCZOS };
 
 	public static void main( String[] args ) throws FormatException, Exception
 	{
@@ -510,6 +512,11 @@ public class RenderTransformed
 		else if( INTERP_OPTIONS.valueOf(option) == INTERP_OPTIONS.NEAREST )
 		{
 			return new NearestNeighborInterpolatorFactory<T>();
+		}
+		else if( INTERP_OPTIONS.valueOf(option) == INTERP_OPTIONS.BSPLINE )
+		{
+			// cubic bspline
+			return new BSplineInterpolatorFactory<T>(3);
 		}
 		else if( INTERP_OPTIONS.valueOf(option) == INTERP_OPTIONS.LANCZOS )
 		{

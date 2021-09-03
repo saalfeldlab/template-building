@@ -24,10 +24,8 @@ import ij.IJ;
 import ij.ImagePlus;
 import io.nii.NiftiIo;
 import io.nii.Nifti_Writer;
-import loci.formats.CoreMetadata;
 import loci.formats.FormatException;
 import loci.formats.ImageReader;
-import loci.formats.meta.MetadataStore;
 import loci.plugins.BF;
 import net.imglib2.Dimensions;
 import net.imglib2.FinalRealInterval;
@@ -35,8 +33,16 @@ import net.imglib2.RandomAccessible;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.RealInterval;
 import net.imglib2.RealRandomAccessible;
+import net.imglib2.algorithm.bspline.BSplineLazyCoefficientsInterpolatorFactory;
+import net.imglib2.converter.Converter;
+import net.imglib2.converter.Converters;
+import net.imglib2.converters.ClippingConverters;
 import net.imglib2.img.display.imagej.ImageJFunctions;
 import net.imglib2.interpolation.InterpolatorFactory;
+import net.imglib2.outofbounds.OutOfBoundsBorderFactory;
+import net.imglib2.outofbounds.OutOfBoundsConstantValueFactory;
+import net.imglib2.outofbounds.OutOfBoundsFactory;
+import net.imglib2.outofbounds.OutOfBoundsMirrorFactory;
 import net.imglib2.realtransform.AffineGet;
 import net.imglib2.realtransform.AffineTransform;
 import net.imglib2.realtransform.RealViews;
@@ -50,6 +56,7 @@ import net.imglib2.type.numeric.NumericType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.numeric.integer.UnsignedByteType;
 import net.imglib2.type.numeric.integer.UnsignedShortType;
+import net.imglib2.type.numeric.real.DoubleType;
 import net.imglib2.type.numeric.real.FloatType;
 import net.imglib2.util.Util;
 import net.imglib2.util.ValuePair;
@@ -132,6 +139,31 @@ public class IOHelper implements Callable<Void>
 		IOHelper.write( ip, outputFilePath );
 
 		return null;
+	}
+
+	public static <T extends NumericType<T>> OutOfBoundsFactory<T, RandomAccessibleInterval< T > > outOfBounds( final String extendOption, T type )
+	{
+		switch( extendOption )
+		{
+		case "mirror":
+			return new OutOfBoundsMirrorFactory<T, RandomAccessibleInterval< T > >( OutOfBoundsMirrorFactory.Boundary.SINGLE );
+		case "mirror2":
+			return new OutOfBoundsMirrorFactory<T, RandomAccessibleInterval< T > >( OutOfBoundsMirrorFactory.Boundary.DOUBLE );
+		case "border":
+			return new OutOfBoundsBorderFactory<>();
+		}
+
+		T value = type.copy();
+		if (value instanceof IntegerType)
+		{
+			int v = Integer.parseInt(extendOption);
+			((IntegerType) value).setInteger(v);
+		} else if (value instanceof RealType)
+		{
+			double v = Double.parseDouble(extendOption);
+			((RealType) value).setReal(v);
+		}
+		return new OutOfBoundsConstantValueFactory<>( value );
 	}
 
 	public static <T extends NumericType<T>> ExtendedRandomAccessibleInterval< T, RandomAccessibleInterval< T > > extend( RandomAccessibleInterval<T> img, String option )
@@ -600,7 +632,45 @@ public class IOHelper implements Callable<Void>
 		return Views.interpolate( img, 
 				RenderTransformed.getInterpolator( interp, img ));
 	}
-	
+
+	public < T extends RealType< T > & NativeType< T > > RealRandomAccessible< T > interpolateExtend( 
+			final RandomAccessibleInterval<T> img,
+			final String interp,
+			final String extendOption )
+	{
+		if( RenderTransformed.INTERP_OPTIONS.valueOf(interp) == RenderTransformed.INTERP_OPTIONS.BSPLINE )
+		{
+			int nd = img.numDimensions();
+			int[] blockSize = new int[ nd ];
+			if( nd == 1 )
+				Arrays.fill( blockSize, 256);
+			if( nd == 2 )
+				Arrays.fill( blockSize, 128);
+			else if( nd == 3 )
+				Arrays.fill( blockSize, 64);
+			else
+				Arrays.fill( blockSize, 32);
+
+			final OutOfBoundsFactory<T, RandomAccessibleInterval<T>> oobFactory = outOfBounds( extendOption, Util.getTypeFromInterval(img));
+
+			final DoubleType doubleType = new DoubleType();
+			final T outType = Util.getTypeFromInterval( img );
+
+			final BSplineLazyCoefficientsInterpolatorFactory<T, DoubleType> interpFactory = new BSplineLazyCoefficientsInterpolatorFactory<T,DoubleType>(
+					img, img, 3, true, doubleType,
+					blockSize, oobFactory );
+
+			final RealRandomAccessible<DoubleType> imgInterp = Views.interpolate(img, interpFactory );
+			final Converter<DoubleType,T> conv = ClippingConverters.getConverter( doubleType, outType );
+			return Converters.convert(imgInterp, conv, outType);
+		}
+		else
+		{
+			ExtendedRandomAccessibleInterval<T, RandomAccessibleInterval<T>> imgExt = extend( img, extendOption );
+			return Views.interpolate(imgExt, RenderTransformed.getInterpolator(interp, img));
+		}
+	}
+
 	public static AffineGet pixelToPhysicalN5( final N5Reader n5, final String dataset )
 	{
 		try {
@@ -718,7 +788,8 @@ public class IOHelper implements Callable<Void>
 			final String extendOption )
 	{
 		RandomAccessibleInterval< T > rai = readRai( filePathAndDataset );
-		RealRandomAccessible< T > realimgpixel = interpolate( extend( rai, extendOption ), interp );
+//		RealRandomAccessible< T > realimgpixel = interpolate( extend( rai, extendOption ), interp );
+		RealRandomAccessible<T> realimgpixel = interpolateExtend( rai, interp, extendOption );
 		if( resolution == null )
 			return realimgpixel;
 
@@ -782,7 +853,6 @@ public class IOHelper implements Callable<Void>
 				path = split[ 0 ];
 				dataset = split[ 1 ];
 			}
-
 
 			try
 			{

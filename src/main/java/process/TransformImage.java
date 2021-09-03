@@ -15,6 +15,7 @@ import org.slf4j.LoggerFactory;
 import ij.ImagePlus;
 import io.IOHelper;
 import net.imglib2.FinalInterval;
+import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.RealRandomAccessible;
 import net.imglib2.img.imageplus.ImagePlusImg;
@@ -59,7 +60,7 @@ public class TransformImage<T extends RealType<T> & NativeType<T>> implements Ca
 	@Option( names = { "-t", "--transform" }, required = false, description = "Transformation file." )
 	private List< String > transformFiles = new ArrayList<>();
 
-	@Option( names = { "--interpolation" }, required = false, description = "Interpolation {LINEAR, NEAREST, LANCZOS}" )
+	@Option( names = { "--interpolation" }, required = false, description = "Interpolation {LINEAR, NEAREST, BSPLINE, LANCZOS}" )
 	private String interpolation = "LINEAR";
 
 	@Option( names = { "-s", "--outputImageSize" }, required = false,
@@ -156,7 +157,7 @@ public class TransformImage<T extends RealType<T> & NativeType<T>> implements Ca
 		process( input, output );
 	}
 
-	public < T extends RealType< T > & NativeType< T > > void process( String inputPath, String outputPath )
+	public void process( String inputPath, String outputPath )
 	{
 		File inputFile = Paths.get( inputPath ).toFile();
 		File outputFile = Paths.get( outputPath ).toFile();
