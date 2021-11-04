@@ -73,7 +73,7 @@ public class DfieldIoHelper
 		else
 		{
 			DfieldIoHelper io = new DfieldIoHelper();
-			RandomAccessibleInterval< FloatType > dfield = io.read( dfieldIn );
+			RandomAccessibleInterval dfield = io.read( dfieldIn );
 			io.write( dfield, dfieldOut );
 		}
 	}
@@ -159,12 +159,12 @@ public class DfieldIoHelper
 		}
 	}
 
+	@SuppressWarnings("unchecked")
 	public static < T extends RealType< T > & NativeType< T > > void convertN5TransformDataset(
 			final N5Reader n5in,
 			final N5Writer n5out,
 			final String dataset )
 	{
-		System.out.println( "converting dataset: " + dataset );
 		try
 		{
 			DatasetAttributes attrs = n5in.getDatasetAttributes( dataset );
@@ -589,7 +589,8 @@ public class DfieldIoHelper
 		return new DeformationFieldTransform<T>( displacementFields );
 	}
 
-	public < T extends RealType< T > > RandomAccessibleInterval< FloatType > read( final String fieldPath ) throws Exception
+	@SuppressWarnings("unchecked")
+	public < T extends RealType< T > > RandomAccessibleInterval< T > read( final String fieldPath ) throws Exception
 	{
 		ImagePlus dfieldIp = null;
 		if ( fieldPath.endsWith( "nii" ) )
@@ -641,7 +642,7 @@ public class DfieldIoHelper
 				RandomAccessibleInterval<FloatType> dfield = N5DisplacementField.openField( n5, dataset, new FloatType() );
 				affine = N5DisplacementField.openAffine( n5, dataset );
 				spacing = n5.getAttribute( dataset, N5DisplacementField.SPACING_ATTR, double[].class );
-				return dfield;
+				return (RandomAccessibleInterval<T>) dfield;
 			}
 			catch ( Exception e )
 			{
@@ -672,7 +673,7 @@ public class DfieldIoHelper
 		else
 			img = tmpImg;
 			
-		return N5DisplacementField.vectorAxisLast( img );
+		return (RandomAccessibleInterval<T>) N5DisplacementField.vectorAxisLast( img );
 	}
 
 	public static final < T extends RealType< T > > int[] vectorAxisThirdPermutation( RandomAccessibleInterval< T > source ) throws Exception
