@@ -1,5 +1,0 @@
-#!/bin/bash
-
-BASEDIR=$(dirname "$0")
-cp="/groups/saalfeld/home/bogovicj/dev/template/template-building_n5/jars/saalfeldlab-template-building-0.1.2-n5spark-SNAPSHOT-provided.jar"
-java -cp "$cp" -Xmx96g -Dspark.master=local[36] process.TransformN5 "$@"
