@@ -1,17 +1,5 @@
 package transforms;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.OptionalDouble;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.stream.DoubleStream;
-
 import bigwarp.BigWarpExporter;
 import evaluation.TransformComparison;
 import io.DfieldIoHelper;
@@ -28,14 +16,11 @@ import net.imglib2.converter.Converters;
 import net.imglib2.img.array.ArrayCursor;
 import net.imglib2.img.array.ArrayImg;
 import net.imglib2.img.array.ArrayImgFactory;
-import net.imglib2.img.imageplus.FloatImagePlus;
-import net.imglib2.img.imageplus.ImagePlusImgs;
 import net.imglib2.interpolation.randomaccess.NLinearInterpolatorFactory;
 import net.imglib2.iterator.IntervalIterator;
 import net.imglib2.iterator.RealIntervalIterator;
 import net.imglib2.realtransform.AffineGet;
 import net.imglib2.realtransform.AffineRandomAccessible;
-import net.imglib2.realtransform.AffineTransform;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.realtransform.RealViews;
 import net.imglib2.realtransform.Scale;
@@ -57,8 +42,20 @@ import picocli.CommandLine.Option;
 import process.DownsampleGaussian;
 import transforms.DownsampleDfieldErrors.SumMax;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.OptionalDouble;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.stream.DoubleStream;
+
 @Command( version = "0.2.0-SNAPSHOT" )
-public class DownsampleDfield< T extends RealType<T>, O extends RealType<O> & NativeType<O>, Q extends IntegerType<Q> & NativeType<Q>> 
+public class DownsampleDfield< T extends RealType<T>, O extends RealType<O> & NativeType<O>, Q extends IntegerType<Q> & NativeType<Q>>
 	implements Callable<Void>
 {
 	public static enum DownsamplingMethod { SAMPLE, AVERAGE, GAUSSIAN };
@@ -169,7 +166,7 @@ public class DownsampleDfield< T extends RealType<T>, O extends RealType<O> & Na
 //					DownsamplingMethod.valueOf(method.toUpperCase()), sourceSigmas, targetSigmas, maxError, 
 //					q, nThreads);
 		} else {
-			RandomAccessibleInterval<O> dfieldTmp = (RandomAccessibleInterval<O>) downsampleDisplacementField(dfield, factorsArg,
+			RandomAccessibleInterval<O> dfieldTmp = (RandomAccessibleInterval) downsampleDisplacementField(dfield, factorsArg,
 					DownsamplingMethod.valueOf(method.toUpperCase()), sourceSigmas, targetSigmas, 
 					nThreads);
 
@@ -379,7 +376,7 @@ public class DownsampleDfield< T extends RealType<T>, O extends RealType<O> & Na
 
 		final int nd = dfield.numDimensions() - 1;
 		final double quantizationMultiplier = 2 * Math.sqrt(maxError * maxError / nd);
-		return (RandomAccessibleInterval<T>) convertUnquantize(dfield, new DoubleType(), quantizationMultiplier);
+		return (RandomAccessibleInterval) convertUnquantize(dfield, new DoubleType(), quantizationMultiplier);
 	}
 
 	public static <T extends RealType<T> & NativeType<T>, Q extends NativeType<Q> & IntegerType<Q>> 
