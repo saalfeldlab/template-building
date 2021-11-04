@@ -37,6 +37,11 @@
 
 	<dependencies>
 		<dependency>
+			<groupId>org.scala-lang</groupId>
+			<artifactId>scala-library</artifactId>
+			<version>2.12.0</version>
+		</dependency>
+		<dependency>
 			<groupId>sc.fiji</groupId>
 			<artifactId>bigwarp_fiji</artifactId>
 		</dependency>
@@ -184,6 +189,12 @@
 			<groupId>org.janelia.saalfeldlab</groupId>
 			<artifactId>n5-spark</artifactId>
 			<version>3.7.2</version>
+			<exclusions>
+				<exclusion>
+					<groupId>org.scala-lang</groupId>
+					<artifactId>scala-library</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 	</dependencies>
 
@@ -198,6 +209,12 @@
 					<groupId>org.apache.spark</groupId>
 					<artifactId>spark-core_2.11</artifactId>
 					<scope>provided</scope>
+					<exclusions>
+						<exclusion>
+							<groupId>org.scala-lang</groupId>
+							<artifactId>scala-library</artifactId>
+						</exclusion>
+					</exclusions>
 				</dependency>
 			</dependencies>
 		</profile>
@@ -207,7 +224,14 @@
 				<dependency>
 					<groupId>org.apache.spark</groupId>
 					<artifactId>spark-core_2.11</artifactId>
+					<exclusions>
+						<exclusion>
+							<groupId>org.scala-lang</groupId>
+							<artifactId>scala-library</artifactId>
+						</exclusion>
+					</exclusions>
 				</dependency>
+
 			</dependencies>
 		</profile>
 		<profile>
