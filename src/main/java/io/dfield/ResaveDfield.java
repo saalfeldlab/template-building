@@ -2,11 +2,11 @@ package io.dfield;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.Serializable;
+import java.util.concurrent.Callable;
 
-import org.kohsuke.args4j.CmdLineException;
-import org.kohsuke.args4j.CmdLineParser;
-import org.kohsuke.args4j.Option;
+import picocli.CommandLine;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
 
 import ij.ImagePlus;
 import io.nii.NiftiIo;
@@ -14,73 +14,33 @@ import loci.formats.FormatException;
 import net.imglib2.img.Img;
 import net.imglib2.img.display.imagej.ImageJFunctions;
 import net.imglib2.type.numeric.real.FloatType;
-import net.imglib2.util.Util;
 
-public class ResaveDfield
+@Command( version = "0.2.0-SNAPSHOT" )
+public class ResaveDfield implements Callable<Void>
 {
 
-	public static class Options implements Serializable
-	{
+	@Option(names = { "-i", "--input", "--dfield" }, required = true)
+	private String fieldPath;
 
-		private static final long serialVersionUID = -5666039337474416226L;
+	@Option(names = { "-o", "--output" }, required = true)
+	private String output;
 
-		@Option( name = "-i", aliases = {"--input","--dfield"}, required = true, usage = "" )
-		private String fieldPath;
-		
-		@Option( name = "-o", aliases = {"--output"}, required = true, usage = "" )
-		private String output;
-		
-		@Option( name = "-e", aliases = {"--encoding"}, required = false, usage = "" )
-		private String encoding = "raw";
+	@Option(names = { "-e", "--encoding" }, required = false)
+	private String encoding = "raw";
 
-		public Options(final String[] args) {
-
-			final CmdLineParser parser = new CmdLineParser(this);
-			try {
-				parser.parseArgument(args);
-			} catch (final CmdLineException e) {
-				System.err.println(e.getMessage());
-				parser.printUsage(System.err);
-			}
-		}
-
-		/**
-		 * @return output path
-		 */
-		public String getOutput()
-		{
-			return output;
-		}
-		
-		/**
-		 * @return output path
-		 */
-		public String getField()
-		{
-			return fieldPath;
-		}
-		
-		/**
-		 * @return nrrd encoding
-		 */
-		public String getEncoding() {
-			return encoding;
-		}
-	}
 	public static void main(String[] args)
 	{
-		final Options options = new Options(args);
-		
-		String imF = options.getField();
-		String fout = options.getOutput();
-		String nrrdEncoding = options.getEncoding();
+		CommandLine.call( new ResaveDfield(), args );	
+	}
 
+	public Void call()
+	{
 		ImagePlus baseIp = null;
-		if( imF.endsWith( "nii" ))
+		if( fieldPath.endsWith( "nii" ))
 		{
 			try
 			{
-				baseIp =  NiftiIo.readNifti( new File( imF ) );
+				baseIp =  NiftiIo.readNifti( new File( fieldPath ) );
 			} catch ( FormatException e )
 			{
 				e.printStackTrace();
@@ -91,10 +51,9 @@ public class ResaveDfield
 		}
 		
 		Img<FloatType> img = ImageJFunctions.convertFloat( baseIp );
-		System.out.println( Util.printInterval( img ));
 		
-//		long[] p = new long[]{ 76,48,27, 0 };
-		
+
+		return null;
 	}
 
 }

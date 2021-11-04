@@ -94,9 +94,10 @@ public class TransformImage<T extends RealType<T> & NativeType<T>> implements Ca
 
 	final Logger logger = LoggerFactory.getLogger( TransformImage.class );
 
+	@SuppressWarnings("rawtypes")
 	public static void main( String... args )
 	{
-		CommandLine.call( new TransformImage(), args );
+		new CommandLine(new TransformImage()).execute(args);
 		System.exit(0);
 	}
 

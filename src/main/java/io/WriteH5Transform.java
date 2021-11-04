@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.concurrent.Callable;
 
 import org.janelia.saalfeldlab.n5.Compression;
 import org.janelia.saalfeldlab.n5.GzipCompression;
@@ -12,9 +13,6 @@ import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Writer;
 import org.janelia.saalfeldlab.n5.imglib2.N5DisplacementField;
 import org.janelia.utility.parse.ParseUtils;
-import org.kohsuke.args4j.CmdLineException;
-import org.kohsuke.args4j.CmdLineParser;
-import org.kohsuke.args4j.Option;
 
 import ij.IJ;
 import ij.ImagePlus;
@@ -29,155 +27,65 @@ import net.imglib2.type.numeric.integer.ShortType;
 import net.imglib2.type.numeric.real.FloatType;
 import sc.fiji.io.Dfield_Nrrd_Reader;
 
+import picocli.CommandLine;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
 
-public class WriteH5Transform
+import process.TransformImage;
+
+@Command( version = "0.2.0-SNAPSHOT" )
+public class WriteH5Transform implements Callable<Void>
 {
 
 	public static final String SHORTTYPE = "SHORT";
-
 	public static final String BYTETYPE = "BYTE";
-
 	public static final String FLOATTYPE = "FLOAT";
-
 	public static final String DOUBLETYPE = "DOUBLE";
 
-	public static class Options implements Serializable
-	{
 
-		private static final long serialVersionUID = -5666039337474416226L;
+	@Option( names = { "-d",  "--dfield" }, required = true)
+	private String field;
 
-		@Option( name = "-d", aliases = { "--dfield" }, required = true, usage = "" )
-		private String field;
+	@Option( names = { "-a",  "--affine" }, required = false)
+	private String affine;
 
-		@Option( name = "-a", aliases = { "--affine" }, required = false, usage = "" )
-		private String affine;
+	@Option( names = { "-o",  "--output" }, required = true)
+	private String output;
 
-		@Option( name = "-o", aliases = { "--output" }, required = true, usage = "" )
-		private String output;
+	@Option( names = { "-i",  "--invDfield" }, required = false)
+	private String invDfield;
 
-		@Option( name = "-i", aliases = { "--invDfield" }, required = false, usage = "" )
-		private String invDfield;
+	@Option( names = { "-t",  "--type" }, required = false)
+	private String convertType = "";
 
-		@Option( name = "-t", aliases = { "--type" }, required = false, usage = "" )
-		private String convertType = "";
+	@Option( names = { "-b",  "--blockSize" }, split=",", required = false)
+	private int[] blockSize;
 
-		@Option( name = "-b", aliases = { "--blockSize" }, required = false, usage = "" )
-		private String blockSizeArg;
+	@Option( names = { "-m",  "--maxValue" }, required = false)
+	private double maxValue = Double.NaN;
 
-		@Option( name = "-m", aliases = { "--maxValue" }, required = false, usage = "" )
-		private double maxValue = Double.NaN;
+	@Option( names = { "-e",  "--maxErr" }, required = false)
+	private double maxErr = Double.NaN;
 
-		@Option( name = "-e", aliases = { "--maxErr" }, required = false, usage = "" )
-		private double maxErr = Double.NaN;
-
-		private int[] blockSizeDefault = new int[] { 3, 32, 32, 32 };
-
-		public Options(final String[] args)
-		{
-
-			final CmdLineParser parser = new CmdLineParser(this);
-			try {
-				parser.parseArgument(args);
-			} catch (final CmdLineException e) {
-				parser.printUsage(System.err);
-				System.err.println(e.getMessage());
-			}
-
-			if( parser.getArguments().size() == 0 )
-				parser.printUsage( System.out );
-		}
-		
-		/**
-		 * @return is this an inverse transform
-		 */
-		public String convertType()
-		{
-			return convertType;
-		}
-
-		/**
-		 * @return output path
-		 */
-		public String getOutput()
-		{
-			return output;
-		}
-		
-		/**
-		 * @return forward displacement field
-		 */
-		public String getField()
-		{
-			return field;
-		}
-
-		/**
-		 * @return inverse displacement field
-		 */
-		public String getInverseField()
-		{
-			return invDfield;
-		}
-		
-		/**
-		 * @return affine path
-		 */
-		public String getAffine()
-		{
-			return affine;
-		}
-		
-		/**
-		 * @return hdf5 block size
-		 */
-		public int[] getBlockSize()
-		{
-			if( blockSizeArg == null )
-				return blockSizeDefault;
-			else
-				return ParseUtils.parseIntArray( blockSizeArg );
-		}
-
-		/**
-		 * @return maximum value
-		 */
-		public double getMaxValue()
-		{
-			return maxValue;
-		}
-		
-		/**
-		 * @return maximum error
-		 */
-		public double getMaxError()
-		{
-			return maxErr;
-		}
-		
-	}
+	private int[] blockSizeDefault = new int[] { 3, 32, 32, 32 };
 
 	public static void main(String[] args) throws FormatException, IOException
 	{
-		final Options options = new Options(args);
+		new CommandLine( new WriteH5Transform()).execute(args);
+		System.exit(0);	
+	}
 
-		String imF = options.getField();
-		String affineF = options.getAffine();
-		String fout = options.getOutput();
-
-		String invDfield = options.getInverseField();
-
-		int[] blockSize = options.getBlockSize();
-		String convertType = options.convertType();
-		double maxErr = options.getMaxError();
+	public Void call() throws FormatException, IOException
+	{
+		AffineTransform3D affineXfm = loadAffine( affine, false );
 	
-		AffineTransform3D affineXfm = loadAffine( affineF, false );
-	
-		N5Writer n5Writer = new N5HDF5Writer( fout, blockSize );
-		write( imF, n5Writer, "dfield", blockSize, convertType, maxErr, affineXfm );
+		N5Writer n5Writer = new N5HDF5Writer( output, blockSize );
+		write( field, n5Writer, "dfield", blockSize, convertType, maxErr, affineXfm );
 
 		if( invDfield != null )
 			write( invDfield, n5Writer, "invdfield", blockSize, convertType, maxErr, affineXfm.inverse() );
 
+		return null;
 	}
 	
 	public static void write(

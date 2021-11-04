@@ -8,7 +8,6 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
-import java.io.Serializable;
 import java.io.StringWriter;
 import java.io.Writer;
 import java.nio.file.Files;
@@ -16,6 +15,7 @@ import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.concurrent.Callable;
 import java.util.zip.GZIPOutputStream;
 
 import org.janelia.saalfeldlab.n5.DataType;
@@ -23,9 +23,6 @@ import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Reader;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
-import org.kohsuke.args4j.CmdLineException;
-import org.kohsuke.args4j.CmdLineParser;
-import org.kohsuke.args4j.Option;
 
 import ij.IJ;
 import ij.ImagePlus;
@@ -49,7 +46,6 @@ import net.imglib2.realtransform.ants.ANTSLoadAffine;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.numeric.integer.ShortType;
 import net.imglib2.type.numeric.real.FloatType;
-import net.imglib2.util.Util;
 import net.imglib2.view.Views;
 import net.imglib2.view.composite.CompositeIntervalView;
 import net.imglib2.view.composite.GenericComposite;
@@ -57,120 +53,56 @@ import net.imglib2.view.composite.GenericComposite;
 import sc.fiji.io.Dfield_Nrrd_Reader;
 import sc.fiji.io.Dfield_Nrrd_Writer;
 
-public class WriteNrrdDisplacementField {
+import picocli.CommandLine;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
 
-	public static class Options implements Serializable
-	{
+@Command( version = "0.2.0-SNAPSHOT" )
+public class WriteNrrdDisplacementField implements Callable<Void>{
 
-		private static final long serialVersionUID = -5666039337474416226L;
-
-		@Option( name = "-d", aliases = {"--dfield"}, required = true, usage = "" )
-		private String field;
-		
-		@Option( name = "-o", aliases = {"--output"}, required = true, usage = "" )
-		private String output;
-
-		@Option( name = "-i", aliases = {"--inverse"}, required = false, usage = "" )
-		private boolean isInverse = false;
-		
-		@Option( name = "-a", aliases = {"--affine"}, required = false, usage = "" )
-		private String affine = "";
-		
-		@Option( name = "-e", aliases = {"--encoding"}, required = false, usage = "" )
-		private String encoding = "raw";
-		
-		@Option( name = "--affineFirst", required = false, usage = "" )
-		private boolean isAffineFirst = false;
-		
-
-		public Options(final String[] args) {
-
-			final CmdLineParser parser = new CmdLineParser(this);
-			try {
-				parser.parseArgument(args);
-			} catch (final CmdLineException e) {
-				System.err.println(e.getMessage());
-				parser.printUsage(System.err);
-			}
-		}
-
-		/**
-		 * @return is this an inverse transform
-		 */
-		public boolean isInverse()
-		{
-			return isInverse;
-		}
-		
-		/**
-		 * @return is this an inverse transform
-		 */
-		public boolean affineFirst()
-		{
-			return isAffineFirst;
-		}
-
-		/**
-		 * @return output path
-		 */
-		public String getOutput()
-		{
-			return output;
-		}
-		
-		/**
-		 * @return output path
-		 */
-		public String getField()
-		{
-			return field;
-		}
-
-		/**
-		 * @return affine File
-		 */
-		public String getAffine() {
-			return affine;
-		}
-		
-		/**
-		 * @return nrrd encoding
-		 */
-		public String getEncoding() {
-			return encoding;
-		}
-	}
+	@Option( names = { "-d","--dfield"}, required = true)
+	private String field;
 	
+	@Option( names = { "-o","--output"}, required = true)
+	private String output;
+
+	@Option( names = { "-i","--inverse"}, required = false)
+	private boolean isInverse = false;
+	
+	@Option( names = { "-a","--affine"}, required = false)
+	private String affineFile = "";
+	
+	@Option( names = { "-e","--encoding"}, required = false)
+	private String encoding = "raw";
+
+	@Option( names = { "--affineFirst" }, required = false)
+	private boolean isAffineFirst = false;
+
 	public static void main(String[] args) throws FormatException, IOException
 	{
-		final Options options = new Options(args);
+		new CommandLine(new WriteNrrdDisplacementField()).execute(args);
+	}
 
-		String imF = options.getField();
-		String fout = options.getOutput();
-		String affineFile = options.getAffine();
-		String nrrdEncoding = options.getEncoding(); 
-		boolean invert = options.isInverse();
-		boolean affineFirst = options.affineFirst();
-
-		
+	public Void call() throws FormatException, IOException
+	{
 		AffineGet affine = null;
 		if( !affineFile.isEmpty() )
-			affine = loadAffine( affineFile, invert );
+			affine = loadAffine( affineFile, isInverse );
 
-		if( imF.endsWith("h5"))
+		if( field.endsWith("h5"))
 		{
 			System.out.println( "N5" );
-			N5Reader n5 = new N5HDF5Reader( imF, 3, 32, 32, 32 );
-			writeImage( n5, affine, affineFirst, nrrdEncoding, new File( fout ));
-			return;
+			N5Reader n5 = new N5HDF5Reader( field, 3, 32, 32, 32 );
+			writeImage( n5, affine, isAffineFirst, encoding, new File( output ));
+			return null;
 		}
 
 		ImagePlus baseIp = null;
-		if( imF.endsWith( "nii" ))
+		if( field.endsWith( "nii" ))
 		{
 			try
 			{
-				baseIp =  NiftiIo.readNifti( new File( imF ) );
+				baseIp =  NiftiIo.readNifti( new File( field ) );
 			} catch ( FormatException e )
 			{
 				e.printStackTrace();
@@ -179,24 +111,26 @@ public class WriteNrrdDisplacementField {
 				e.printStackTrace();
 			}
 		}
-		else if( imF.endsWith( "nrrd" ))
+		else if( field.endsWith( "nrrd" ))
 		{
 			// This will never work since the Nrrd_Reader can't handle 4d volumes, actually
 			Dfield_Nrrd_Reader nr = new Dfield_Nrrd_Reader();
-			File imFile = new File( imF );
+			File imFile = new File( field );
 			baseIp = nr.load( imFile.getParent(), imFile.getName());
 		}
 		else
 		{
-			baseIp = IJ.openImage( imF );
+			baseIp = IJ.openImage( field );
 		}
 
 //		final long[] subsample_factors = new long[]{ 4, 4, 4, 1 };
 		final long[] subsample_factors = new long[]{ 1, 1, 1, 1 };
 
 		System.out.println("ip: " + baseIp);
-		writeImage( baseIp, affine, affineFirst, nrrdEncoding, 
-				subsample_factors, new File( fout ));
+		writeImage( baseIp, affine, isAffineFirst, encoding, 
+				subsample_factors, new File( output ));
+
+		return null;
 	}
 	
 	@SuppressWarnings("unchecked")

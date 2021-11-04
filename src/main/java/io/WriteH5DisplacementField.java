@@ -2,18 +2,14 @@ package io;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Map;
+import java.util.concurrent.Callable;
 
 import org.janelia.saalfeldlab.n5.GzipCompression;
 import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Writer;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
-import org.janelia.utility.parse.ParseUtils;
-import org.kohsuke.args4j.CmdLineException;
-import org.kohsuke.args4j.CmdLineParser;
-import org.kohsuke.args4j.Option;
 
 import ij.IJ;
 import ij.ImagePlus;
@@ -33,7 +29,6 @@ import net.imglib2.quantization.LinearQuantizer;
 import net.imglib2.realtransform.AffineTransform;
 import net.imglib2.realtransform.RealViews;
 import net.imglib2.type.NativeType;
-import net.imglib2.type.numeric.NumericType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.numeric.integer.ByteType;
 import net.imglib2.type.numeric.integer.ShortType;
@@ -43,155 +38,71 @@ import net.imglib2.view.Views;
 import sc.fiji.io.Nrrd_Reader;
 import util.RenderUtil;
 
+import picocli.CommandLine;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
 
-public class WriteH5DisplacementField {
+@Command( version = "0.2.0-SNAPSHOT" )
+public class WriteH5DisplacementField implements Callable<Void> {
 	
 	public static final String SHORTTYPE = "SHORT";
 	public static final String BYTETYPE = "BYTE";
+
+	@Option(names = { "-d", "--dfield" }, required = true)
+	private String field;
+
+	@Option(names = { "-a", "--affine" }, required = false)
+	private String affine;
+
+	@Option(names = { "-o", "--output" }, required = true)
+	private String output;
+
+	@Option(names = { "-i", "--inverse" }, required = false)
+	private boolean isInverse = false;
+
+	@Option(names = { "-f", "--factors" }, split = ",", required = false)
+	private double[] subsampleFactors;
+
+	@Option(names = { "-t", "--type" }, required = false)
+	private String convertType;
+
+	@Option(names = { "-b", "--blockSize" }, split = ",", required = false)
+	private int[] blockSize;
+
+	@Option(names = { "-m", "--maxValue" }, required = false)
+	private double maxValue = Double.NaN;
+
+	@Option(names = { "-g", "--gamma" }, required = false)
+	private double gamma = Double.NaN;
+
+	private int[] blockSizeDefault = new int[] { 3, 32, 32, 32 };
 	
-	public static class Options implements Serializable
+	public static void main(String[] args) 
 	{
-
-		private static final long serialVersionUID = -5666039337474416226L;
-
-		@Option( name = "-d", aliases = {"--dfield"}, required = true, usage = "" )
-		private String field;
-		
-		@Option( name = "-a", aliases = {"--affine"}, required = false, usage = "" )
-		private String affine;
-		
-		@Option( name = "-o", aliases = {"--output"}, required = true, usage = "" )
-		private String output;
-
-		@Option( name = "-i", aliases = {"--inverse"}, required = false, usage = "" )
-		private boolean isInverse = false;
-		
-		@Option( name = "-f", aliases = {"--factors"}, required = false, usage = "" )
-		private String subsampleFactorsArg;
-		
-		@Option( name = "-t", aliases = {"--type"}, required = false, usage = "" )
-		private String toShort;
-		
-		@Option( name = "-b", aliases = {"--blockSize"}, required = false, usage = "" )
-		private String blockSizeArg;
-		
-		@Option( name = "-m", aliases = {"--maxValue"}, required = false, usage = "" )
-		private double maxValue = Double.NaN;
-		
-		@Option( name = "-g", aliases = {"--gamma"}, required = false, usage = "" )
-		private double gamma = Double.NaN;
-		
-		private int[] blockSizeDefault = new int[]{ 3, 32, 32, 32 };
-
-		public Options(final String[] args)
-		{
-
-			final CmdLineParser parser = new CmdLineParser(this);
-			try {
-				parser.parseArgument(args);
-			} catch (final CmdLineException e) {
-				System.err.println(e.getMessage());
-				parser.printUsage(System.err);
-			}
-		}
-
-		/**
-		 * @return is this an inverse transform
-		 */
-		public boolean isInverse()
-		{
-			return isInverse;
-		}
-		
-		/**
-		 * @return is this an inverse transform
-		 */
-		public String convertType()
-		{
-			return toShort;
-		}
-
-		/**
-		 * @return output path
-		 */
-		public String getOutput()
-		{
-			return output;
-		}
-		
-		/**
-		 * @return output path
-		 */
-		public String getField()
-		{
-			return field;
-		}
-		
-		/**
-		 * @return hdf5 block size
-		 */
-		public int[] getBlockSize()
-		{
-			if( blockSizeArg == null )
-				return blockSizeDefault;
-			else
-				return ParseUtils.parseIntArray( blockSizeArg );
-		}
-		
-		/**
-		 * @return subsample factors
-		 */
-		public double[] getSubsampleFactors()
-		{
-			if( subsampleFactorsArg == null )
-				return null;
-			else
-				return ParseUtils.parseDoubleArray( subsampleFactorsArg );
-		}
-
-		/**
-		 * @return maximum value
-		 */
-		public double getMaxValue()
-		{
-			return maxValue;
-		}
-		
-		public double getGamma()
-		{
-			return gamma;
-		}
+		new CommandLine(new WriteH5DisplacementField()).execute(args);
 	}
 
-	public static void main(String[] args) throws FormatException, IOException
+	public Void call() throws FormatException, IOException
 	{
-		final Options options = new Options(args);
-
-		String imF = options.getField();
-		String fout = options.getOutput();
-
-		int[] blockSize = options.getBlockSize();
-		double[] subsample_factors = options.getSubsampleFactors();
-		String convertType = options.convertType();
-		double maxValue = options.getMaxValue();
-		double gamma = options.getGamma();
+//		String imF = options.getField();
+//		String fout = options.getOutput();
+//
+//		int[] blockSize = options.getBlockSize();
+//		double[] subsample_factors = options.getSubsampleFactors();
+//		String convertType = options.convertType();
+//		double maxValue = options.getMaxValue();
+//		double gamma = options.getGamma();
 				
 		System.out.println( "block size: " + Arrays.toString( blockSize ));
-//		System.out.println( "subsample_factors: " + Arrays.toString( subsample_factors ));
 
-//		System.out.println( "m: " + s  );
-//		convertLinear( f, s, m );
-//		System.out.println( "s: " + s );
-		
-		
 		int[][] permutation = null;
 		ImagePlus baseIp = null;
-		if( imF.endsWith( "nii" ))
+		if( field.endsWith( "nii" ))
 		{
 			permutation = new int[][]{{0,3},{1,3},{2,3}};
 			try
 			{
-				baseIp =  NiftiIo.readNifti( new File( imF ) );
+				baseIp =  NiftiIo.readNifti( new File( field ) );
 			} catch ( FormatException e )
 			{
 				e.printStackTrace();
@@ -200,16 +111,16 @@ public class WriteH5DisplacementField {
 				e.printStackTrace();
 			}
 		}
-		else if( imF.endsWith( "nrrd" ))
+		else if( field.endsWith( "nrrd" ))
 		{
 			// This will never work since the Nrrd_Reader can't handle 4d volumes, actually
 			Nrrd_Reader nr = new Nrrd_Reader();
-			File imFile = new File( imF );
+			File imFile = new File( field );
 			baseIp = nr.load( imFile.getParent(), imFile.getName());
 		}
 		else
 		{
-			baseIp = IJ.openImage( imF );
+			baseIp = IJ.openImage( field );
 		}
 		System.out.println("ip: " + baseIp);
 		
@@ -218,23 +129,23 @@ public class WriteH5DisplacementField {
 		
 		RandomAccessibleInterval<FloatType> imgToPermute;
 		double[] spacing;
-		if( subsample_factors != null )
+		if( subsampleFactors != null )
 		{
 			boolean isDiscrete = true;
-			long[] subsample_discretes = new long[ subsample_factors.length ];
-			for( int i = 0; i < subsample_factors.length; i++ )
+			long[] subsample_discretes = new long[ subsampleFactors.length ];
+			for( int i = 0; i < subsampleFactors.length; i++ )
 			{
-				if( Math.abs( subsample_factors[i] % 1 ) > 0.0001 )
+				if( Math.abs( subsampleFactors[i] % 1 ) > 0.0001 )
 				{
 					isDiscrete = false;
 				}
-				subsample_discretes[ i ] = (long) subsample_factors[ i ];
+				subsample_discretes[ i ] = (long) subsampleFactors[ i ];
 			}
 
 			AffineTransform resamplingXform =  new AffineTransform( 4 );
-			resamplingXform.set( subsample_factors[ 0 ], 0, 0 );
-			resamplingXform.set( subsample_factors[ 1 ], 1, 1 );
-			resamplingXform.set( subsample_factors[ 2 ], 2, 2 );
+			resamplingXform.set( subsampleFactors[ 0 ], 0, 0 );
+			resamplingXform.set( subsampleFactors[ 1 ], 1, 1 );
+			resamplingXform.set( subsampleFactors[ 2 ], 2, 2 );
 
 			if( isDiscrete )
 			{
@@ -254,7 +165,7 @@ public class WriteH5DisplacementField {
 			imgToPermute = img;
 		}
 		
-		if( subsample_factors == null )
+		if( subsampleFactors == null )
 		{
 			spacing = new double[]{
 					baseIp.getCalibration().pixelWidth,
@@ -265,9 +176,9 @@ public class WriteH5DisplacementField {
 		else
 		{
 			spacing = new double[]{
-					subsample_factors[0] * baseIp.getCalibration().pixelWidth,
-					subsample_factors[1] * baseIp.getCalibration().pixelHeight,
-					subsample_factors[2] * baseIp.getCalibration().pixelDepth
+					subsampleFactors[0] * baseIp.getCalibration().pixelWidth,
+					subsampleFactors[1] * baseIp.getCalibration().pixelHeight,
+					subsampleFactors[2] * baseIp.getCalibration().pixelDepth
 			};	
 		}
 
@@ -288,21 +199,23 @@ public class WriteH5DisplacementField {
 				ShortType t = new ShortType();
 				AbstractQuantizer<FloatType, ShortType> quantizer =  getQuantizer( new FloatType(),t, maxValue, gamma );
 				write( Converters.convert( img_perm, quantizer, t ), 
-						fout, blockSize, spacing, quantizer );
+						output, blockSize, spacing, quantizer );
 			}
 			else if ( convertType.toUpperCase().equals( BYTETYPE ) )
 			{
 				ByteType t = new ByteType();
 				AbstractQuantizer<FloatType, ByteType> quantizer =  getQuantizer( new FloatType(), t, maxValue, gamma );
 				write( Converters.convert( img_perm, quantizer, t ), 
-						fout, blockSize, spacing, quantizer );
+						output, blockSize, spacing, quantizer );
 				
 			}
 		}
 		else
 		{
-			write( img_perm, fout, blockSize, spacing, 1, 1 );
+			write( img_perm, output, blockSize, spacing, 1, 1 );
 		}
+		
+		return null;
 	}
 	
 	public static <T extends RealType<T> & NativeType<T>> RandomAccessibleInterval<T> convertGamma( 
