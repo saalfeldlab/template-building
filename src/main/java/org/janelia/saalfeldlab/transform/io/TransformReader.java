@@ -2,6 +2,7 @@ package org.janelia.saalfeldlab.transform.io;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Arrays;
@@ -11,8 +12,12 @@ import org.janelia.saalfeldlab.n5.N5FSReader;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Reader;
 import org.janelia.saalfeldlab.n5.imglib2.N5DisplacementField;
+import org.janelia.saalfeldlab.n5.metadata.transforms.SpatialTransform;
+import org.janelia.saalfeldlab.n5.translation.JqUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.gson.Gson;
 
 import bigwarp.landmarks.LandmarkTableModel;
 import io.AffineImglib2IO;
@@ -164,6 +169,34 @@ public class TransformReader
 		{
 			return new Scale3D( 1, 1, 1 );
 		}
+		else if( transformPath.contains( ".json" ))
+		{
+			try {
+				final byte[] bytes = Files.readAllBytes(Paths.get( transformPath ));
+				final String jsonString = new String( bytes, StandardCharsets.US_ASCII );
+
+				final Gson gson = JqUtils.buildGson(null);
+				SpatialTransform stransform = gson.fromJson(jsonString, SpatialTransform.class);
+
+				RealTransform transform = stransform.getTransform();
+				InvertibleRealTransform out;
+				if( transform instanceof InvertibleRealTransform )
+					out = (InvertibleRealTransform)transform;
+				else {
+					WrappedIterativeInvertibleRealTransform<RealTransform> iTransform = new WrappedIterativeInvertibleRealTransform<>( transform );
+					setIterativeInverseParameters( iTransform.getOptimzer(), transformPathFull );
+					out = iTransform;
+				}
+
+				if (invert)
+					return out.inverse();
+				else
+					return out;
+
+			} catch (IOException e) {
+//				e.printStackTrace();
+			}
+		}
 		else if( transformPath.contains( ".mat" ))
 		{
 			try
@@ -177,7 +210,7 @@ public class TransformReader
 				return xfm;
 			} catch ( IOException e )
 			{
-				e.printStackTrace();
+//				e.printStackTrace();
 			}
 		}	
 		else if( transformPath.contains( ".xform" ))
@@ -195,7 +228,7 @@ public class TransformReader
 			}
 			catch( Exception e )
 			{
-				e.printStackTrace();
+//				e.printStackTrace();
 			}
 		}
 		else if( transformPath.contains( ".txt" ))
@@ -215,7 +248,7 @@ public class TransformReader
 						return xfm;
 					} catch ( IOException e )
 					{
-						e.printStackTrace();
+//						e.printStackTrace();
 					}
 				}
 				else
@@ -230,7 +263,7 @@ public class TransformReader
 			}
 			catch ( IOException e )
 			{
-				e.printStackTrace();
+//				e.printStackTrace();
 			}
 		}
 		else if( transformPath.contains( ".h5" ) || 
@@ -249,7 +282,7 @@ public class TransformReader
 			}
 			catch ( IOException e )
 			{
-				e.printStackTrace();
+//				e.printStackTrace();
 				return null;
 			}
 			ThinplateSplineTransform tps = new ThinplateSplineTransform( ltm.getTransform() );
@@ -283,11 +316,12 @@ public class TransformReader
 			}
 			catch( Exception e )
 			{
-				e.printStackTrace();
+//				e.printStackTrace();
+				System.err.println( "Could not read transform");
 				return null;
 			}
 		}
-		
+		System.err.println( "Could not read transform");
 		return null;
 	}
 
