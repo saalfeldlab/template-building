@@ -1,0 +1,5 @@
+#!/bin/bash
+
+BASEDIR=$(dirname "$0")
+cp=`cat "$BASEDIR/classpath.cp"`
+java -cp "$cp" -Xmx1g transforms.ConcatenateAffines $@
