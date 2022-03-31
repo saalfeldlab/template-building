@@ -12,12 +12,14 @@ import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import bdv.util.ConstantRandomAccessible;
 import io.IOHelper;
 import net.imglib2.Cursor;
 import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.RealType;
+import net.imglib2.type.numeric.integer.IntType;
 import net.imglib2.view.Views;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
@@ -35,7 +37,7 @@ public class LabelwiseStatistics< L extends IntegerType< L >, T extends RealType
 	@Option( names = { "-o", "--output" }, required = false, description = "Output file." )
 	private String output;
 
-	@Option( names = { "-l", "--labelVolume" }, required = true, description = "File containing the discrete labels." )
+	@Option( names = { "-l", "--labelVolume" }, required = false, description = "File containing the discrete labels." )
 	private List< String > labelVolumes;
 
 	@Option( names = { "-a", "--all-label" }, required = false, 
@@ -95,12 +97,18 @@ public class LabelwiseStatistics< L extends IntegerType< L >, T extends RealType
 		IOHelper io = new IOHelper();
 		RandomAccessibleInterval< ? > fixedLabels = null;
 
-		if ( labelVolumes.size() < 1 )
-		{
-			System.err.println( "Must supply at least one label volume." );
-			return;
-		}
-		else if ( labelVolumes.size() == 1 )
+//		if ( labelVolumes.size() < 1 )
+//		{
+//			System.err.println( "Must supply at least one label volume." );
+//			return;
+//		}
+//		else if ( labelVolumes.size() == 1 )
+//		{
+//			logger.info( "reading " + labelVolumes.get( 0 ));
+//			fixedLabels = io.readRai( new File( labelVolumes.get( 0 ) ) );
+//		}
+
+		if ( labelVolumes != null && labelVolumes.size() == 1 )
 		{
 			logger.info( "reading " + labelVolumes.get( 0 ));
 			fixedLabels = io.readRai( new File( labelVolumes.get( 0 ) ) );
@@ -119,8 +127,17 @@ public class LabelwiseStatistics< L extends IntegerType< L >, T extends RealType
 			}
 			else
 			{
-				logger.info( "reading " + labelVolumes.get( i ));
-				labels = ( RandomAccessibleInterval< L > ) io.readRai( new File( labelVolumes.get( i ) ) );
+				if( labelVolumes == null || labelVolumes.isEmpty()  )
+				{
+					labels = Views.interval(
+							new ConstantRandomAccessible( new IntType(1), img.numDimensions()),
+							img);
+				}
+				else
+				{
+					logger.info( "reading " + labelVolumes.get( i ));
+					labels = ( RandomAccessibleInterval< L > ) io.readRai( new File( labelVolumes.get( i ) ) );
+				}
 			}
 
 			process( img, labels );
@@ -130,10 +147,12 @@ public class LabelwiseStatistics< L extends IntegerType< L >, T extends RealType
 		PrintWriter out = null;
 		if ( output == null || output.isEmpty() )
 		{
+			logger.info("output empty");
 			out = System.console().writer();
 		}
 		else
 		{
+			logger.info("output empty");
 			try
 			{
 				out = new PrintWriter( new File( output ) );
@@ -164,6 +183,7 @@ public class LabelwiseStatistics< L extends IntegerType< L >, T extends RealType
 
 	public void process( RandomAccessibleInterval< T > img, RandomAccessibleInterval< L > labels )
 	{
+		logger.info("process");
 
 		if( allLabel != NO_ALL_LABEL && !counts.containsKey( allLabel ))
 		{
