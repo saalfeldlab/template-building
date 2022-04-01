@@ -5,6 +5,8 @@
 
 tp="$1" #input transform parameters
 outfile="$2"
+nThreads=${3:-"4"}
+
 
 dir="${outfile%/*}"
 echo $dir
