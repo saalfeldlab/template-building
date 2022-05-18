@@ -94,7 +94,7 @@ public class TransformObj implements Callable<Void>
 
 	public static void parseVertexLine( String line, double[] v )
 	{
-		String[] split = line.split( " " );
+		String[] split = line.split( "\\s+" );
 		if ( !split[ 0 ].equals( "v" ) )
 		{
 			Arrays.fill( v, Double.NaN );
