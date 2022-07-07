@@ -25,6 +25,18 @@ public class AffineImglib2IO
 				delimeter );
 	}
 	
+	public static AffineTransform readXfm( File f ) throws IOException
+	{
+		return readXfm( f, "," );
+	}
+
+	public static AffineTransform readXfm( File f, String delimeter ) throws IOException
+	{
+		return readXfm(
+				new String( Files.readAllBytes( Paths.get( f.getAbsolutePath() ))),
+				delimeter );
+	}
+
 	public static void writeXfm( File f, AffineGet affine ) throws IOException
 	{
 		String s = "";
@@ -62,11 +74,37 @@ public class AffineImglib2IO
 		return xfm;
 	}
 	
+	public static AffineTransform readXfm( String s, String delimeter )
+	{
+		String[] array = s.split( delimeter );
+		int ndims = 0;
+		for( int nd = 1; nd < 6; nd++ )
+		{
+			if( array.length == nd * (nd+1))
+			{
+				ndims = nd;
+				break;
+			}
+		}
+
+		if( ndims == 0 )
+			return null;
+
+		final double[] data = new double[ ndims * ( ndims + 1 ) ];
+		int i = 0;
+		for( String elem : array )
+			data[ i++ ] = Double.parseDouble( elem );
+
+		AffineTransform xfm = new AffineTransform( ndims );
+		xfm.set( data );
+
+		return xfm;
+	}
+
 	public static void main( String[] args ) throws IOException
 	{
-		AffineTransform xfm = readXfm( 3, new File( args[0]) );
+		AffineTransform xfm = readXfm( new File( args[0]) );
 		System.out.println( xfm );
-		writeXfm( new File(""), xfm );
 	}
 
 }

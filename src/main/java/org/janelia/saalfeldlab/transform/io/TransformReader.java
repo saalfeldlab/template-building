@@ -253,7 +253,7 @@ public class TransformReader
 				}
 				else
 				{
-					AffineTransform xfm = AffineImglib2IO.readXfm( 3, new File( transformPath ) );
+					AffineTransform xfm = AffineImglib2IO.readXfm( new File( transformPath ) );
 					if( invert )
 					{
 						return xfm.inverse().copy();
