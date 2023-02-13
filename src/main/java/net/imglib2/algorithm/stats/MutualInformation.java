@@ -3,8 +3,6 @@ package net.imglib2.algorithm.stats;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.adobe.xmp.impl.Utils;
-
 import net.imglib2.Cursor;
 import net.imglib2.RandomAccessible;
 import net.imglib2.RandomAccessibleInterval;
@@ -14,7 +12,6 @@ import net.imglib2.histogram.HistogramNd;
 import net.imglib2.histogram.Real1dBinMapper;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.numeric.integer.LongType;
-import net.imglib2.util.Util;
 import net.imglib2.view.IntervalView;
 import net.imglib2.view.Views;
 

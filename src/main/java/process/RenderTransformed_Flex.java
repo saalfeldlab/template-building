@@ -208,7 +208,7 @@ public class RenderTransformed_Flex
 			// THIS DOES NOT WORK with multiple threads
 			RealTransform xfm = N5DisplacementField.open( n5, dataset, invert,
 					new FloatType(),
-					new NLinearInterpolatorFactory<FloatType>());
+					new NLinearInterpolatorFactory<>());
 
 			return xfm;
 		}

@@ -88,6 +88,7 @@ public class TransformImage<T extends RealType<T> & NativeType<T>> implements Ca
 
 	@Option(names = {"-h", "--help"}, usageHelp = true, description = "Print this help message" )
 	private boolean help;
+
 	private RealTransformSequence totalTransform;
 
 	private FinalInterval renderInterval;

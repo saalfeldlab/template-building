@@ -39,6 +39,7 @@ import net.imglib2.img.display.imagej.ImageJFunctions;
 import net.imglib2.interpolation.randomaccess.NLinearInterpolatorFactory;
 import net.imglib2.realtransform.AffineGet;
 import net.imglib2.realtransform.DeformationFieldTransform;
+import net.imglib2.realtransform.DisplacementFieldTransform;
 import net.imglib2.realtransform.RealViews;
 import net.imglib2.realtransform.Scale;
 import net.imglib2.realtransform.Scale2D;
@@ -305,26 +306,28 @@ public class DfieldIoHelper
 	}
 
 	@SuppressWarnings( { "unchecked", "rawtypes" } )
-	public <T extends RealType<T>> DeformationFieldTransform< FloatType > readAsRealTransform( final String fieldPath )
+	public <T extends RealType<T>> DisplacementFieldTransform readAsRealTransform( final String fieldPath )
 	{
 		try
 		{
 			RandomAccessibleInterval< FloatType > dfieldImgRaw = read( fieldPath );
-			RandomAccessibleInterval< FloatType > dfieldImg = N5DisplacementField.vectorAxisLast( dfieldImgRaw );
-			int nd = 3; // TODO generalize
-
-			RealRandomAccessible[] dfieldComponents = new RealRandomAccessible[ nd ];
-			Scale pixelToPhysical = new Scale( spacing );
-			for( int i = 0; i < nd; i++ )
-			{
-				dfieldComponents[ i ] = 
-						RealViews.affine(
-							Views.interpolate( 
-								Views.extendBorder( Views.hyperSlice( dfieldImg, nd, i )),
-								new NLinearInterpolatorFactory<>()),
-							pixelToPhysical.copy() );
-			}
-			return new DeformationFieldTransform<FloatType>( dfieldComponents );
+			return new DisplacementFieldTransform( dfieldImgRaw, spacing );
+	
+//			RandomAccessibleInterval< FloatType > dfieldImg = N5DisplacementField.vectorAxisLast( dfieldImgRaw );
+//			int nd = 3; // TODO generalize
+//
+//			RealRandomAccessible[] dfieldComponents = new RealRandomAccessible[ nd ];
+//			Scale pixelToPhysical = new Scale( spacing );
+//			for( int i = 0; i < nd; i++ )
+//			{
+//				dfieldComponents[ i ] = 
+//						RealViews.affine(
+//							Views.interpolate( 
+//								Views.extendBorder( Views.hyperSlice( dfieldImg, nd, i )),
+//								new NLinearInterpolatorFactory<>()),
+//							pixelToPhysical.copy() );
+//			}
+//			return new DeformationFieldTransform<FloatType>( dfieldComponents );
 		}
 		catch ( Exception e )
 		{
@@ -333,18 +336,20 @@ public class DfieldIoHelper
 		}
 	}
 
-	public static <T extends RealType<T>> DeformationFieldTransform<T> toDeformationField(
+	public static <T extends RealType<T>> DisplacementFieldTransform toDeformationField(
 			final RandomAccessibleInterval<T> dfieldImg, final AffineGet pixelToPhysical) {
 
-		int nd = dfieldImg.numDimensions() - 1;
-		@SuppressWarnings("unchecked")
-		RealRandomAccessible<T>[] dfieldComponents = new RealRandomAccessible[ nd ];
-		for (int i = 0; i < nd; i++) {
-			dfieldComponents[i] = RealViews
-					.affine(Views.interpolate(Views.extendBorder(Views.hyperSlice(dfieldImg, nd, i)),
-							new NLinearInterpolatorFactory<>()), pixelToPhysical.copy());
-		}
-		return new DeformationFieldTransform<T>(dfieldComponents);
+//		int nd = dfieldImg.numDimensions() - 1;
+//		@SuppressWarnings("unchecked")
+//		RealRandomAccessible<T>[] dfieldComponents = new RealRandomAccessible[ nd ];
+//		for (int i = 0; i < nd; i++) {
+//			dfieldComponents[i] = RealViews
+//					.affine(Views.interpolate(Views.extendBorder(Views.hyperSlice(dfieldImg, nd, i)),
+//							new NLinearInterpolatorFactory<>()), pixelToPhysical.copy());
+//		}
+//		return new DeformationFieldTransform<T>(dfieldComponents);
+		
+		return new DisplacementFieldTransform( dfieldImg, pixelToPhysical );
 	}
 
 	@Deprecated
@@ -440,7 +445,7 @@ public class DfieldIoHelper
 	}
 
 	@SuppressWarnings("unchecked")
-	public < S extends RealType<S>, T extends RealType< T > & NativeType< T > > DeformationFieldTransform<S> readAsDeformationField( final String fieldPath, final T defaultType ) throws Exception
+	public < S extends RealType<S>, T extends RealType< T > & NativeType< T > > DisplacementFieldTransform readAsDeformationField( final String fieldPath, final T defaultType ) throws Exception
 	{
 		RandomAccessibleInterval<S> dfieldRAI = null;
 		ImagePlus dfieldIp = null;
@@ -556,37 +561,39 @@ public class DfieldIoHelper
 	}
 	
 	@SuppressWarnings("unchecked")
-	public static <T extends RealType<T>> DeformationFieldTransform<T> makeDfield( RandomAccessibleInterval<T> rai, double[] spacing )
+	public static <T extends RealType<T>> DisplacementFieldTransform makeDfield( RandomAccessibleInterval<T> rai, double[] spacing )
 	{
-		// TODO make give extension and interpolation ptions
-		NLinearInterpolatorFactory<T> interpolator = new NLinearInterpolatorFactory<T>();
-		int nd = rai.numDimensions() - 1;
-
-		final AffineGet pix2Phys;
-		if( nd == 1 )
-			pix2Phys = new Scale( spacing[ 0 ] );
-		else if( nd == 2 )
-			pix2Phys = new Scale2D( spacing );
-		else if( nd == 3 )
-			pix2Phys = new Scale3D( spacing );
-		else
-			return null;
-
-		@SuppressWarnings("rawtypes")
-		RealRandomAccessible[] displacementFields = new RealRandomAccessible[ nd ];
-
-		for( int i = 0; i < nd; i++ )
-		{
-			IntervalView<T> coordDisplacement = Views.hyperSlice( rai, nd, i );
-			RealRandomAccessible< T > dfieldReal = Views.interpolate( Views.extendBorder( coordDisplacement ), interpolator );
-
-			if ( pix2Phys != null )
-				displacementFields[i] = RealViews.affine( dfieldReal, pix2Phys );
-			else
-				displacementFields[i] = dfieldReal;
-		}
-
-		return new DeformationFieldTransform<T>( displacementFields );
+//		// TODO make give extension and interpolation ptions
+//		NLinearInterpolatorFactory<T> interpolator = new NLinearInterpolatorFactory<T>();
+//		int nd = rai.numDimensions() - 1;
+//
+//		final AffineGet pix2Phys;
+//		if( nd == 1 )
+//			pix2Phys = new Scale( spacing[ 0 ] );
+//		else if( nd == 2 )
+//			pix2Phys = new Scale2D( spacing );
+//		else if( nd == 3 )
+//			pix2Phys = new Scale3D( spacing );
+//		else
+//			return null;
+//
+//		@SuppressWarnings("rawtypes")
+//		RealRandomAccessible[] displacementFields = new RealRandomAccessible[ nd ];
+//
+//		for( int i = 0; i < nd; i++ )
+//		{
+//			IntervalView<T> coordDisplacement = Views.hyperSlice( rai, nd, i );
+//			RealRandomAccessible< T > dfieldReal = Views.interpolate( Views.extendBorder( coordDisplacement ), interpolator );
+//
+//			if ( pix2Phys != null )
+//				displacementFields[i] = RealViews.affine( dfieldReal, pix2Phys );
+//			else
+//				displacementFields[i] = dfieldReal;
+//		}
+//
+//		return new DeformationFieldTransform<T>( displacementFields );
+		
+		return new DisplacementFieldTransform( rai, spacing );
 	}
 
 	@SuppressWarnings("unchecked")

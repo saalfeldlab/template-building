@@ -31,8 +31,10 @@ import net.imglib2.interpolation.randomaccess.NLinearInterpolatorFactory;
 import net.imglib2.realtransform.AffineTransform;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.realtransform.DeformationFieldTransform;
+import net.imglib2.realtransform.DisplacementFieldTransform;
 import net.imglib2.realtransform.ExplicitInvertibleRealTransform;
 import net.imglib2.realtransform.InvertibleDeformationFieldTransform;
+import net.imglib2.realtransform.InvertibleDisplacementFieldTransform;
 import net.imglib2.realtransform.InvertibleRealTransform;
 import net.imglib2.realtransform.RealTransform;
 import net.imglib2.realtransform.RealTransformSequence;
@@ -302,8 +304,8 @@ public class TransformReader
 				DfieldIoHelper dfieldIo = new DfieldIoHelper();
 				// keep meta data
 				//DeformationFieldTransform< FloatType > dfield = dfieldIo.readAsRealTransform( transformPath );
-				DeformationFieldTransform< FloatType > dfield = dfieldIo.readAsDeformationField( transformPath, new FloatType() );
-				InvertibleDeformationFieldTransform< FloatType > invdef = new InvertibleDeformationFieldTransform< FloatType >( dfield );
+				DisplacementFieldTransform dfield = dfieldIo.readAsDeformationField( transformPath, new FloatType() );
+				InvertibleDisplacementFieldTransform invdef = new InvertibleDisplacementFieldTransform( dfield );
 				setIterativeInverseParameters( invdef.getOptimzer(), transformPathFull );
 
 			if( invert )
@@ -344,7 +346,7 @@ public class TransformReader
 		DfieldIoHelper dfieldIo = new DfieldIoHelper();
 		try
 		{
-			DeformationFieldTransform<FloatType> dfieldResult = dfieldIo.readAsDeformationField(
+			DisplacementFieldTransform dfieldResult = dfieldIo.readAsDeformationField(
 					transformPath, new FloatType());
 //			DeformationFieldTransform<FloatType> dfieldResult = dfieldIo.readAsRealTransform( transformPath );
 			return dfieldResult;
@@ -429,7 +431,7 @@ public class TransformReader
 				ExplicitInvertibleRealTransform xfm = N5DisplacementField.openInvertible(
 					n5, params.fwddataset, params.invdataset,
 					new FloatType(),
-					new NLinearInterpolatorFactory<FloatType>());
+					new NLinearInterpolatorFactory<>());
 	
 				if( params.inverse )
 					return xfm.inverse();
@@ -485,7 +487,7 @@ public class TransformReader
 			String dataset = params.inverse ? params.invdataset : params.fwddataset;
 			try
 			{
-				return new DeformationFieldTransform<>( 
+				return new DisplacementFieldTransform( 
 						N5DisplacementField.openCalibratedField( 
 								n5, dataset, new NLinearInterpolatorFactory<>(), new FloatType() ));
 			}
@@ -503,7 +505,7 @@ public class TransformReader
 					n5,
 					params.fwddataset, params.invdataset,
 					new FloatType(),
-					new NLinearInterpolatorFactory<FloatType>());
+					new NLinearInterpolatorFactory<>());
 	
 				if( params.inverse )
 					return xfm.inverse();

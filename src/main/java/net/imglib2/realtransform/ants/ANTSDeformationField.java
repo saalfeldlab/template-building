@@ -44,6 +44,8 @@ import net.imglib2.util.ConstantUtils;
 import net.imglib2.util.Intervals;
 import net.imglib2.view.IntervalView;
 import net.imglib2.view.Views;
+import net.imglib2.view.composite.CompositeView;
+import net.imglib2.view.composite.GenericComposite;
 import loci.formats.FormatException;
 import ij.IJ;
 import ij.ImageJ;
@@ -64,6 +66,7 @@ public class ANTSDeformationField implements InvertibleRealTransform
 	private int lastDim;
 	private int numDimOut;
 	private Interval defInterval;
+	private CompositeView< FloatType, ? extends GenericComposite< FloatType > > vectors;
 	
 	public ANTSDeformationField( ImagePlus ip )
 	{
@@ -164,12 +167,22 @@ public class ANTSDeformationField implements InvertibleRealTransform
 			defField= RealViews.transform(
 					Views.interpolate( Views.extendBorder( def ), new NLinearInterpolatorFactory< FloatType >()),
 					new AffineTransform4DRepeated3D( scaleXfm ));
+
+			vectors = 
+					Views.interpolate( 
+					Views.collapse( Views.extendBorder( def )),
+					new NLinearInterpolatorFactory<>()
 		}
 	}
 	
 	public RealRandomAccessible< FloatType > getDefField()
 	{
 		return defField;
+	}
+	
+	public CompositeView< FloatType, ? extends GenericComposite< FloatType > > getVectors()
+	{
+		return vectors;
 	}
 	
 	public Interval getDefInterval()
