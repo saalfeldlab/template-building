@@ -167,11 +167,6 @@ public class ANTSDeformationField implements InvertibleRealTransform
 			defField= RealViews.transform(
 					Views.interpolate( Views.extendBorder( def ), new NLinearInterpolatorFactory< FloatType >()),
 					new AffineTransform4DRepeated3D( scaleXfm ));
-
-			vectors = 
-					Views.interpolate( 
-					Views.collapse( Views.extendBorder( def )),
-					new NLinearInterpolatorFactory<>()
 		}
 	}
 	
