@@ -28,8 +28,8 @@ import net.imglib2.RealRandomAccessible;
 import net.imglib2.img.Img;
 import net.imglib2.img.display.imagej.ImageJFunctions;
 import net.imglib2.iterator.IntervalIterator;
-import net.imglib2.realtransform.ants.ANTSDeformationField;
 import net.imglib2.type.numeric.RealType;
+import net.imglib2.type.numeric.real.DoubleType;
 import net.imglib2.type.numeric.real.FloatType;
 import net.imglib2.util.Intervals;
 import net.imglib2.util.Util;
@@ -39,7 +39,6 @@ import picocli.CommandLine.Option;
 public class DfieldComparisons implements Callable< Void >
 {
 	// TODO combine functionality with evaluation.TransformComparison
-
 
 	@Option( names = { "-a" }, description = "Input displacement Field A" )
 	private String dfieldA;
@@ -65,8 +64,10 @@ public class DfieldComparisons implements Callable< Void >
 	@Option( names = { "-h", "--help" }, required = false, description = "Prints a help message." )
 	private boolean help;
 
-	private ANTSDeformationField obj1;
-	private ANTSDeformationField obj2;
+	private RealRandomAccessible<RealLocalizable> df1;
+	private RealRandomAccessible<RealLocalizable> df2;
+
+	private Img< FloatType > diffImg;
 
 	private FinalRealInterval rItvl;
 	private Interval itvl;
@@ -78,15 +79,17 @@ public class DfieldComparisons implements Callable< Void >
 
 	public void setup() throws Exception
 	{
-		final DfieldIoHelper dfieldIo = new DfieldIoHelper();
-		obj1 = dfieldIo.readAsAntsField( dfieldA );
-		obj2 = dfieldIo.readAsAntsField( dfieldB );
+		final DfieldIoHelper io1 = new DfieldIoHelper();
+		final DfieldIoHelper io2 = new DfieldIoHelper();
+
+		df1 = ( RealRandomAccessible< RealLocalizable > ) io1.readAsVectorField( dfieldA, new DoubleType() );
+		df2 = ( RealRandomAccessible< RealLocalizable > ) io2.readAsVectorField( dfieldB, new DoubleType() );
 		
 		if( max == null )
 		{
-			spacing = obj1.getResolution();
+			spacing = io1.spacing;
 			
-			final long[] dimsTmp = obj1.getDefInterval().dimensionsAsLongArray();
+			final long[] dimsTmp = io1.dfieldRAI.dimensionsAsLongArray();
 			max = new double[ spacing.length ];
 			for( int i = 0; i < max.length; i++ )
 			{
@@ -105,8 +108,16 @@ public class DfieldComparisons implements Callable< Void >
 		// the interval (in physical space) on which to measure
 		rItvl = new FinalRealInterval( min, max );
 		itvl = containingDiscreteInterval( rItvl, spacing );
+
+		if( differenceOutput != null && !differenceOutput.isEmpty())
+		{
+			diffImg = Util.getSuitableImgFactory( itvl , new FloatType() ).create( itvl );
+			System.out.println( "diffImg: " + Intervals.toString(diffImg));
+		}
+		else
+			diffImg = null;
 	}
-	
+
 	public Interval containingDiscreteInterval( RealInterval rItvl, double[] spacing )
 	{
 		final long[] dims = new long[ rItvl.numDimensions() ];
@@ -122,19 +133,7 @@ public class DfieldComparisons implements Callable< Void >
 	{
 		setup();
 
-		final RealRandomAccessible< FloatType > df1 = obj1.getDefField();
-		final RealRandomAccessible< FloatType > df2 = obj2.getDefField();
-		
-		final Img< FloatType > diffImg;
-		if( differenceOutput != null && !differenceOutput.isEmpty())
-		{
-//			final Interval diffItvl = Intervals.smallestContainingInterval( itvl );
-			final Interval diffItvl = containingDiscreteInterval( itvl, spacing );
-			diffImg = Util.getSuitableImgFactory( diffItvl , new FloatType() ).create( diffItvl );
-			System.out.println( "diffImg: " + Intervals.toString(diffImg));
-		}
-		else
-			diffImg = null;
+
 
 		final ExecutorService exec = Executors.newFixedThreadPool( nThreads );
 		ArrayList<Future<Stats>> futures = new ArrayList<>();
@@ -181,14 +180,14 @@ public class DfieldComparisons implements Callable< Void >
 	
 	public static <T extends RealType<T>> Stats compute( final Interval processingInterval, final double[] spacing,
 			final int processIdx, final int numProcesses,
-			final RealRandomAccessible<T> df1, final RealRandomAccessible<T> df2,
+			final RealRandomAccessible<RealLocalizable> df1, final RealRandomAccessible<RealLocalizable> df2,
 			final RandomAccessibleInterval<T> diff )
 	{
 //		final RealIntervalIterator it = new RealIntervalIterator( processingInterval, spacing );
 		final IntervalIterator it = new IntervalIterator( processingInterval );
 		
-		final RealRandomAccess< T > ra1 = df1.realRandomAccess();
-		final RealRandomAccess< T > ra2 = df2.realRandomAccess();
+		final RealRandomAccess< RealLocalizable > ra1 = df1.realRandomAccess();
+		final RealRandomAccess< RealLocalizable > ra2 = df2.realRandomAccess();
 		
 		boolean doDiff = diff != null;
 		RandomAccess< T > diffRa = null;
@@ -211,12 +210,9 @@ public class DfieldComparisons implements Callable< Void >
 			}
 
 			setPosition( it, spacing, ra1 );
-			ra1.setPosition( 0, 3 );
-
 			setPosition( it, spacing, ra2 );
-			ra2.setPosition( 0, 3 );
-			
-			err( errV, ra1, ra2 );
+
+			errLoc( errV, ra1, ra2 );
 			double errMag = Math.sqrt( errV[0]*errV[0] + errV[1]*errV[1] + errV[2]*errV[2] );
 			if( doDiff )
 			{
@@ -300,6 +296,14 @@ public class DfieldComparisons implements Callable< Void >
 			truth.setPosition( d, 3 );
 			approx.setPosition( d, 3 );
 			err[ d ] = truth.get().getRealDouble() - approx.get().getRealDouble();
+		}
+	}
+	
+	public static void errLoc( double[] err, RealRandomAccess<? extends RealLocalizable> truth, RealRandomAccess<? extends RealLocalizable> approx )
+	{
+		for( int d = 0; d < 3; d++ )
+		{
+			err[ d ] = truth.get().getDoublePosition( d ) - approx.get().getDoublePosition( d );
 		}
 	}
 }

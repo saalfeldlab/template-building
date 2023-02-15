@@ -70,7 +70,7 @@ public class PositionRandomAccessible<T extends RealType< T >, X extends RealTra
 		}
 
 		@Override
-		public Sampler< T > copy()
+		public RandomAccess< T > copy()
 		{
 			return new PositionRandomAccess<S>( this.numDimensions(), xfm, dim );
 		}

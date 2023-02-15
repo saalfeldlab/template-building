@@ -2,7 +2,6 @@ package net.imglib2.realtransform;
 
 import java.io.File;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.Callable;
@@ -16,7 +15,6 @@ import org.janelia.saalfeldlab.transform.io.TransformReader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import bdv.util.BdvOptions;
 import io.DfieldIoHelper;
 import io.IOHelper;
 import net.imglib2.FinalInterval;
@@ -219,11 +217,7 @@ public class TransformToDeformationField implements Callable<Void>
 	public <T extends RealType<T> & NativeType<T>> void compare( 
 			final RealTransform transform, final RandomAccessibleInterval<T> dfield )
 	{
-		DeformationFieldTransform<T> dfieldTransform = new DeformationFieldTransform<>( dfield );
-		RealTransformSequence dfieldWithPix2Phys = new RealTransformSequence();
-		dfieldWithPix2Phys.add( new Scale( outputResolution ));
-		dfieldWithPix2Phys.add( dfieldTransform );
-
+		final DisplacementFieldTransform dfieldTransform = new DisplacementFieldTransform( dfield, outputResolution );
 		RealPoint p = new RealPoint( transform.numSourceDimensions() );
 		RealPoint qOrig = new RealPoint( transform.numTargetDimensions() );
 		RealPoint qNew  = new RealPoint( transform.numTargetDimensions() );
@@ -235,8 +229,7 @@ public class TransformToDeformationField implements Callable<Void>
 			p.setPosition( it );
 				
 			transform.apply( p, qOrig );
-			dfieldWithPix2Phys.apply( p, qNew );
-
+			dfieldTransform.apply( p, qNew );
 		}
 	}
 

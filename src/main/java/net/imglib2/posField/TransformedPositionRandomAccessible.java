@@ -48,7 +48,7 @@ public class TransformedPositionRandomAccessible<T extends RealType< T >, X exte
 		}
 
 		@Override
-		public Sampler< T > copy()
+		public RandomAccess copy()
 		{
 			return new TransformedPositionRandomAccess( this.numDimensions(), xfm.copy() );
 		}

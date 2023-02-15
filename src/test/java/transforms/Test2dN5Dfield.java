@@ -27,6 +27,8 @@ import net.imglib2.interpolation.randomaccess.NLinearInterpolatorFactory;
 import net.imglib2.position.FunctionRandomAccessible;
 import net.imglib2.realtransform.AffineTransform2D;
 import net.imglib2.realtransform.DeformationFieldTransform;
+import net.imglib2.realtransform.DisplacementFieldTransform;
+import net.imglib2.realtransform.InvertibleDisplacementFieldTransform;
 import net.imglib2.realtransform.RealTransform;
 import net.imglib2.realtransform.RealTransformRandomAccessible;
 import net.imglib2.realtransform.RealTransformSequence;
@@ -87,9 +89,8 @@ public class Test2dN5Dfield
 
 		RandomAccessibleInterval< DoubleType > dfieldRai = buildDeformationField( boatsImage, bigTranslation, center, width );
 
-		DeformationFieldTransform< DoubleType > trueDfield = new DeformationFieldTransform<>( dfieldRai );
-		WrappedIterativeInvertibleRealTransform< DeformationFieldTransform< DoubleType > > invXfm = 
-				new WrappedIterativeInvertibleRealTransform< DeformationFieldTransform<DoubleType> >( trueDfield );
+		DisplacementFieldTransform trueDfield = new DisplacementFieldTransform( dfieldRai );
+		InvertibleDisplacementFieldTransform invXfm = new InvertibleDisplacementFieldTransform( trueDfield );
 
 		Scale2D pixelToPhysical = new Scale2D( 1.0, 1.0 );
 		FloatImagePlus< FloatType > invdfield = ImagePlusImgs.floats( Intervals.dimensionsAsLongArray( dfieldRai ) );

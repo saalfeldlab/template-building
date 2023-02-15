@@ -9,17 +9,16 @@ import org.janelia.saalfeldlab.transform.io.TransformReader;
 import org.janelia.saalfeldlab.transform.io.TransformReader.H5TransformParameters;
 import org.junit.Test;
 
-import net.imglib2.FinalInterval;
-import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.RealRandomAccessible;
 import net.imglib2.realtransform.AffineTransform;
 import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.realtransform.DeformationFieldTransform;
-import net.imglib2.realtransform.InvertibleDeformationFieldTransform;
+import net.imglib2.realtransform.DisplacementFieldTransform;
+import net.imglib2.realtransform.InvertibleDisplacementFieldTransform;
 import net.imglib2.realtransform.RealTransform;
 import net.imglib2.realtransform.inverse.InverseRealTransformGradientDescent;
 import net.imglib2.type.numeric.real.FloatType;
 import net.imglib2.util.ConstantUtils;
+import net.imglib2.view.composite.RealComposite;
 
 public class TransformFileParseTest
 {
@@ -94,10 +93,11 @@ public class TransformFileParseTest
 	public void testIterativeInverseParse() throws NoSuchFieldException, SecurityException, IllegalArgumentException, IllegalAccessException
 	{
 		// get an optimizer
-		RealRandomAccessible<FloatType> realRa = ConstantUtils.constantRealRandomAccessible( new FloatType( 1f ), 2 );
-
-		InverseRealTransformGradientDescent optimizer = new InvertibleDeformationFieldTransform<>( 
-				new DeformationFieldTransform<>( realRa, realRa ) ).getOptimzer();
+		final RealComposite< FloatType > v = FloatType.createVector( 2 );
+		v.setPosition( new double[] { 1, 1 } );
+		RealRandomAccessible<RealComposite<FloatType>> realRa = ConstantUtils.constantRealRandomAccessible( v, 2 );
+		final InvertibleDisplacementFieldTransform invXfm = new InvertibleDisplacementFieldTransform( new DisplacementFieldTransform( realRa ));
+		final InverseRealTransformGradientDescent optimizer = invXfm.getOptimzer();
 
 		int maxIterVal = 200;
 		double tolVal = 0.012;

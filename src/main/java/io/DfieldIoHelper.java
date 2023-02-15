@@ -31,6 +31,7 @@ import loci.formats.FormatException;
 import net.imglib2.FinalInterval;
 import net.imglib2.Interval;
 import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.RealLocalizable;
 import net.imglib2.RealRandomAccessible;
 import net.imglib2.converter.Converter;
 import net.imglib2.converter.Converters;
@@ -38,7 +39,6 @@ import net.imglib2.img.Img;
 import net.imglib2.img.display.imagej.ImageJFunctions;
 import net.imglib2.interpolation.randomaccess.NLinearInterpolatorFactory;
 import net.imglib2.realtransform.AffineGet;
-import net.imglib2.realtransform.DeformationFieldTransform;
 import net.imglib2.realtransform.DisplacementFieldTransform;
 import net.imglib2.realtransform.RealViews;
 import net.imglib2.realtransform.Scale;
@@ -49,14 +49,17 @@ import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.numeric.real.FloatType;
 import net.imglib2.util.Util;
-import net.imglib2.view.IntervalView;
 import net.imglib2.view.Views;
+import net.imglib2.view.composite.CompositeIntervalView;
+import net.imglib2.view.composite.RealComposite;
 import sc.fiji.io.Dfield_Nrrd_Reader;
 
 public class DfieldIoHelper
 {
 
 	public static final String MULT_KEY = "multiplier";
+
+	public RandomAccessibleInterval dfieldRAI;
 
 	public double[] spacing;
 
@@ -371,7 +374,6 @@ public class DfieldIoHelper
 			try
 			{
 				dfieldIp = NiftiIo.readNifti( new File( fieldPath ) );
-
 				spacing = new double[] { dfieldIp.getCalibration().pixelWidth, dfieldIp.getCalibration().pixelHeight, dfieldIp.getCalibration().pixelDepth };
 				unit = dfieldIp.getCalibration().getUnit();
 
@@ -444,12 +446,20 @@ public class DfieldIoHelper
 		return new ANTSDeformationField( dfieldRAI, spacing, unit );
 	}
 
-	@SuppressWarnings("unchecked")
-	public < S extends RealType<S>, T extends RealType< T > & NativeType< T > > DisplacementFieldTransform readAsDeformationField( final String fieldPath, final T defaultType ) throws Exception
+	public < T extends RealType< T > & NativeType< T > > DisplacementFieldTransform readAsDeformationField( final String fieldPath, final T defaultType ) throws Exception
 	{
-		RandomAccessibleInterval<S> dfieldRAI = null;
+		return makeDfield( readAsRai( fieldPath, defaultType ), spacing );
+	}
+
+	public < T extends RealType< T > & NativeType< T > > RealRandomAccessible<? extends RealLocalizable> readAsVectorField( final String fieldPath, final T defaultType ) throws Exception
+	{
+		return convertToCompositeLast( readAsRai( fieldPath, defaultType ), spacing );
+	}
+
+	public < T extends RealType< T > & NativeType< T > > RandomAccessibleInterval<T> readAsRai( final String fieldPath, final T defaultType ) throws Exception
+	{
 		ImagePlus dfieldIp = null;
-		double[] spacing = null;
+		spacing = null;
 		String unit = null;
 		if ( fieldPath.endsWith( "nii" ) )
 		{
@@ -515,7 +525,7 @@ public class DfieldIoHelper
 					n5 = null; // let the the null pointer be caught
 				}
 
-				dfieldRAI = (RandomAccessibleInterval<S>) N5DisplacementField.openField( n5, dataset, defaultType );
+				dfieldRAI = (RandomAccessibleInterval<T>) N5DisplacementField.openField( n5, dataset, defaultType );
 				spacing = n5.getAttribute( dataset, N5DisplacementField.SPACING_ATTR, double[].class );
 
 				if( spacing == null )
@@ -543,11 +553,10 @@ public class DfieldIoHelper
 		
 		if( dfieldIp != null )
 		{
-			dfieldRAI = (RandomAccessibleInterval<S>) ImageJFunctions.wrapFloat( dfieldIp );
-
+			dfieldRAI = ImageJFunctions.wrapFloat( dfieldIp );
 		}
 
-		final RandomAccessibleInterval< S > fieldPermuted;
+		final RandomAccessibleInterval< T > fieldPermuted;
 		if( dfieldRAI.numDimensions() == 4 )
 			fieldPermuted = DfieldIoHelper.vectorAxisPermute( dfieldRAI, 3, 3 );
 		else if ( dfieldRAI.numDimensions() == 3 )
@@ -555,9 +564,7 @@ public class DfieldIoHelper
 		else
 			fieldPermuted = null;
 
-//		return new ANTSDeformationField( fieldPermuted, spacing, unit );
-		
-		return makeDfield( fieldPermuted, spacing );
+		return fieldPermuted;
 	}
 	
 	@SuppressWarnings("unchecked")
@@ -861,5 +868,20 @@ public class DfieldIoHelper
 		}
 		else 
 			return null;
+	}
+
+	public static < T extends RealType< T > > RealRandomAccessible< ? extends RealLocalizable > convertToCompositeFirst( final RandomAccessibleInterval< T > position )
+	{
+		return convertToCompositeLast( Views.moveAxis( position, 0, position.numDimensions() - 1 ) );
+	}
+
+	public static < T extends RealType< T > > RealRandomAccessible< ? extends RealLocalizable > convertToCompositeLast( final RandomAccessibleInterval< T > position )
+	{
+		return Views.interpolate( Views.extendBorder( Views.collapseReal( position ) ), new NLinearInterpolatorFactory<>() );
+	}
+
+	public static < T extends RealType< T > > RealRandomAccessible< ? extends RealLocalizable > convertToCompositeLast( final RandomAccessibleInterval< T > position, final double[] spacing )
+	{
+		return RealViews.affine( convertToCompositeLast( position ), spacing.length == 2 ? new Scale2D( spacing ) : spacing.length == 3 ? new Scale3D( spacing ) : new Scale( spacing ) );
 	}
 }
