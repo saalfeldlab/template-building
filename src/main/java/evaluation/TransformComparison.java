@@ -60,7 +60,7 @@ public class TransformComparison implements Callable< Void >
 
 	@Option( names = { "-v", "--verbose" }, required = false, description = "Verbose output" )
 	private boolean verbose = false;
-	
+
 
     private int ndims; // number of dimensions
     private RealPoint tmpA;
@@ -75,7 +75,7 @@ public class TransformComparison implements Callable< Void >
 
 	public static void main( String[] args ) throws Exception
 	{
-		CommandLine.call( new TransformComparison(), args );
+		new CommandLine( new TransformComparison() ).execute( args );
 		System.exit(0);
     }
 
@@ -88,17 +88,17 @@ public class TransformComparison implements Callable< Void >
         tmpA = new RealPoint( ndims );
         tmpB = new RealPoint( ndims );
         
-        if( spacing == null )
-        {
-        	spacing = new double[ ndims ];
-        	Arrays.fill( spacing, 1.0 );
-        }
-        
-        if( min == null )
-        {
-        	min = new double[ ndims ];
-        	Arrays.fill( min, 0.0 );
-        }
+		if ( spacing == null )
+		{
+			setSpacing( new double[ ndims ] );
+			Arrays.fill( spacing, 1.0 );
+		}
+
+		if ( min == null )
+		{
+			setMin( new double[ ndims ] );
+			Arrays.fill( min, 0.0 );
+		}
     }
 
 	public Void call()
@@ -212,6 +212,41 @@ public class TransformComparison implements Callable< Void >
 
 		Iterable<RealLocalizable> it = () -> new IteratorToStream<>(ptIterator);
 		return errorStream(StreamSupport.stream(it.spliterator(), false), transformA, transformB);
+	}
+
+	public void setVerbose( boolean verbose )
+	{
+		this.verbose = verbose;
+	}
+
+	public void setThreshold( double threshold )
+	{
+		this.threshold = threshold;
+	}
+
+	public void setSpacing( double[] spacing )
+	{
+		this.spacing = spacing;
+	}
+
+	public void setMax( double[] max )
+	{
+		this.max = max;
+	}
+
+	public void setMin( double[] min )
+	{
+		this.min = min;
+	}
+
+	public void setInputFilesB( List< String > inputFilesB )
+	{
+		this.inputFilesB = inputFilesB;
+	}
+
+	public void setInputFilesA( List< String > inputFilesA )
+	{
+		this.inputFilesA = inputFilesA;
 	}
 
 }

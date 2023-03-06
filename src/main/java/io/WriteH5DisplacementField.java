@@ -10,6 +10,7 @@ import org.janelia.saalfeldlab.n5.GzipCompression;
 import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Writer;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
+import org.janelia.saalfeldlab.transform.io.TransformReader;
 
 import ij.IJ;
 import ij.ImagePlus;
@@ -26,7 +27,9 @@ import net.imglib2.interpolation.randomaccess.NLinearInterpolatorFactory;
 import net.imglib2.quantization.AbstractQuantizer;
 import net.imglib2.quantization.GammaQuantizer;
 import net.imglib2.quantization.LinearQuantizer;
+import net.imglib2.realtransform.AffineGet;
 import net.imglib2.realtransform.AffineTransform;
+import net.imglib2.realtransform.RealTransform;
 import net.imglib2.realtransform.RealViews;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.RealType;
@@ -76,7 +79,7 @@ public class WriteH5DisplacementField implements Callable<Void> {
 	private double gamma = Double.NaN;
 
 	private int[] blockSizeDefault = new int[] { 3, 32, 32, 32 };
-	
+
 	public static void main(String[] args) 
 	{
 		new CommandLine(new WriteH5DisplacementField()).execute(args);
@@ -92,17 +95,27 @@ public class WriteH5DisplacementField implements Callable<Void> {
 //		String convertType = options.convertType();
 //		double maxValue = options.getMaxValue();
 //		double gamma = options.getGamma();
-				
+
+		final double[] affineArr = loadAffine( affine );
+
+		blockSize = blockSize == null ? blockSizeDefault : blockSize;
 		System.out.println( "block size: " + Arrays.toString( blockSize ));
 
 		int[][] permutation = null;
 		ImagePlus baseIp = null;
+		RandomAccessibleInterval< ? extends RealType > img = null;
+
+		double[] initialRes = new double[] { 1, 1, 1 };
 		if( field.endsWith( "nii" ))
 		{
 			permutation = new int[][]{{0,3},{1,3},{2,3}};
 			try
 			{
 				baseIp =  NiftiIo.readNifti( new File( field ) );
+				initialRes = new double[] {
+						baseIp.getCalibration().pixelWidth,
+						baseIp.getCalibration().pixelHeight,
+						baseIp.getCalibration().pixelDepth };
 			} catch ( FormatException e )
 			{
 				e.printStackTrace();
@@ -113,21 +126,35 @@ public class WriteH5DisplacementField implements Callable<Void> {
 		}
 		else if( field.endsWith( "nrrd" ))
 		{
-			// This will never work since the Nrrd_Reader can't handle 4d volumes, actually
-			Nrrd_Reader nr = new Nrrd_Reader();
-			File imFile = new File( field );
-			baseIp = nr.load( imFile.getParent(), imFile.getName());
+			DfieldIoHelper io = new DfieldIoHelper();
+			try
+			{
+				img = io.read( field );
+				initialRes = io.spacing;
+			}
+			catch ( Exception e )
+			{
+				System.err.println( "Could not read : " + field );
+				e.printStackTrace();
+				return null;
+			}
 		}
 		else
 		{
 			baseIp = IJ.openImage( field );
+			initialRes = new double[] {
+					baseIp.getCalibration().pixelWidth,
+					baseIp.getCalibration().pixelHeight,
+					baseIp.getCalibration().pixelDepth };
 		}
+
 		System.out.println("ip: " + baseIp);
 		
-		Img<FloatType> img = ImageJFunctions.convertFloat( baseIp );
+		if( img == null )
+			img = ImageJFunctions.convertFloat( baseIp );
+
 		System.out.println("img: " + Util.printInterval(img));
-		
-		RandomAccessibleInterval<FloatType> imgToPermute;
+		RandomAccessibleInterval imgToPermute;
 		double[] spacing;
 		if( subsampleFactors != null )
 		{
@@ -167,18 +194,14 @@ public class WriteH5DisplacementField implements Callable<Void> {
 		
 		if( subsampleFactors == null )
 		{
-			spacing = new double[]{
-					baseIp.getCalibration().pixelWidth,
-					baseIp.getCalibration().pixelHeight,
-					baseIp.getCalibration().pixelDepth
-			};
+			spacing = initialRes;
 		}
 		else
 		{
 			spacing = new double[]{
-					subsampleFactors[0] * baseIp.getCalibration().pixelWidth,
-					subsampleFactors[1] * baseIp.getCalibration().pixelHeight,
-					subsampleFactors[2] * baseIp.getCalibration().pixelDepth
+					subsampleFactors[0] * initialRes[0],
+					subsampleFactors[1] * initialRes[1],
+					subsampleFactors[2] * initialRes[2]
 			};	
 		}
 
@@ -198,23 +221,39 @@ public class WriteH5DisplacementField implements Callable<Void> {
 			{
 				ShortType t = new ShortType();
 				AbstractQuantizer<FloatType, ShortType> quantizer =  getQuantizer( new FloatType(),t, maxValue, gamma );
-				write( Converters.convert( img_perm, quantizer, t ), 
+				write( Converters.convert( img_perm, quantizer, t ), affineArr,
 						output, blockSize, spacing, quantizer );
 			}
 			else if ( convertType.toUpperCase().equals( BYTETYPE ) )
 			{
 				ByteType t = new ByteType();
 				AbstractQuantizer<FloatType, ByteType> quantizer =  getQuantizer( new FloatType(), t, maxValue, gamma );
-				write( Converters.convert( img_perm, quantizer, t ), 
+				write( Converters.convert( img_perm, quantizer, t ), affineArr,
 						output, blockSize, spacing, quantizer );
 				
 			}
 		}
 		else
 		{
-			write( img_perm, output, blockSize, spacing, 1, 1 );
+			write( img_perm, affineArr, output, blockSize, spacing, 1, 1 );
 		}
-		
+
+		return null;
+	}
+
+	public static double[] loadAffine( String affinePath )
+	{
+		if( affinePath == null )
+			return null;
+
+		final TransformReader reader = new TransformReader();
+		final RealTransform tform = reader.read( affinePath );
+		if( tform instanceof AffineGet )
+		{
+			AffineGet a = (AffineGet)tform;
+			return a.getRowPackedCopy();
+		}
+		System.err.println( "could not read " + affinePath + " as affine." );
 		return null;
 	}
 	
@@ -251,6 +290,7 @@ public class WriteH5DisplacementField implements Callable<Void> {
 	
 	public static <T extends NativeType<T>> void write( 
 			RandomAccessibleInterval<T> write_me,
+			double[] affine,
 			String fout,
 			int[] blockSize,
 			double[] spacing,
@@ -260,6 +300,9 @@ public class WriteH5DisplacementField implements Callable<Void> {
 		
 		N5Writer n5writer = new N5HDF5Writer( fout, blockSize );
 		N5Utils.save( write_me, n5writer, "dfield", blockSize, new GzipCompression(5));
+
+		if( affine != null )
+			n5writer.setAttribute("dfield", "affine", affine );
 
 		n5writer.setAttribute("dfield", "spacing", spacing );
 		
@@ -271,10 +314,13 @@ public class WriteH5DisplacementField implements Callable<Void> {
 //		n5writer.setAttribute("dfield", "maxOut", quantizer.maxOut );
 //		n5writer.setAttribute("dfield", "multiplier", quantizer.m );
 //		n5writer.setAttribute("dfield", "gamma", quantizer.gamma );
+
+		n5writer.close();
 	}
 	
 	public static <T extends NativeType<T>> void write( 
 			RandomAccessibleInterval<T> write_me,
+			double[] affine,
 			String fout,
 			int[] blockSize,
 			double[] spacing,
@@ -286,10 +332,14 @@ public class WriteH5DisplacementField implements Callable<Void> {
 		N5Writer n5writer = new N5HDF5Writer( fout, blockSize );
 		N5Utils.save( write_me, n5writer, "dfield", blockSize, new GzipCompression(5));
 
+		if( affine != null )
+			n5writer.setAttribute("dfield", "affine", affine );
+
 		n5writer.setAttribute("dfield", "spacing", spacing );
 		n5writer.setAttribute("dfield", "multiplier", 1/m );
 		n5writer.setAttribute("dfield", "gamma", gamma );
 
+		n5writer.close();
 	}
 
 	public static double getMultiplier( final RealType<?> t, final double valueAtMax )

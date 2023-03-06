@@ -474,14 +474,14 @@ public class TransformReader
 		}
 
 		// Check that relevant datasets exist in the specified base dataset
-	
 		if( params.fwddataset.isEmpty() )
 		{
 			System.err.println( "could not find dataset" );
 			if( n5 != null )
 				n5.close();
 
-			return null;
+			params.fwddataset = N5DisplacementField.FORWARD_ATTR;
+			System.out.println( "no dataset provided assuming: " + params.fwddataset );
 		}
 		
 		if ( params.affineOnly )
@@ -607,19 +607,41 @@ public class TransformReader
 		if ( vectorIndex < 0 )
 			return null;
 
-		long[] szSpatial = new long[ ndNew ];
-		double[] resSpatial = new double[ ndNew ];
+		final long[] szSpatial = sz.length == ndNew ? sz : omit( sz, vectorIndex );
+		final double[] resSpatial = res.length == ndNew ? res : omit( res, vectorIndex );
+		return new ValuePair< long[], double[] >( szSpatial, resSpatial );
+	}
+
+	public static double[] omit( double[] in, int index )
+	{
+		int nd = in.length;
+		double[] out = new double[ nd - 1 ];
 		int j = 0;
 		for ( int i = 0; i < nd; i++ )
 		{
-			if ( i != vectorIndex )
+			if ( i != index )
 			{
-				szSpatial[ j ] = sz[ i ];
-				resSpatial[ j ] = res[ i ];
+				out[ j ] = in[ i ];
 				j++;
 			}
 		}
-		return new ValuePair< long[], double[] >( szSpatial, resSpatial );
+		return out;
+	}
+
+	public static long[] omit( long[] in, int index )
+	{
+		int nd = in.length;
+		long[] out = new long[ nd - 1 ];
+		int j = 0;
+		for ( int i = 0; i < nd; i++ )
+		{
+			if ( i != index )
+			{
+				out[ j ] = in[ i ];
+				j++;
+			}
+		}
+		return out;
 	}
 
 	public static ValuePair< long[], double[] > transformSizeAndRes( String transformArg ) throws FormatException, IOException
@@ -657,6 +679,7 @@ public class TransformReader
 			if ( spacing == null )
 				spacing = new double[]{ 1, 1, 1 };
 
+			n5.close();
 			return new ValuePair<>( dims, spacing );
 		}
 		else
@@ -702,13 +725,13 @@ public class TransformReader
 
 	public static class H5TransformParameters
 	{
-		public final String path;
-		public final String fwddataset;
-		public final String invdataset;
-		public final boolean inverse;
-		public final boolean affineOnly;
-		public final boolean deformationOnly;
-		public final N5Reader n5;
+		public String path;
+		public String fwddataset;
+		public String invdataset;
+		public boolean inverse;
+		public boolean affineOnly;
+		public boolean deformationOnly;
+		public N5Reader n5;
 		
 		public H5TransformParameters(
 			String path,
