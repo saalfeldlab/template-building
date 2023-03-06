@@ -510,7 +510,7 @@ public class DfieldIoHelper
 
 			try
 			{
-				N5Reader n5;
+				N5Reader n5 = null;
 				if ( filepath.contains( "h5" ) || filepath.contains( "hdf5" ))
 				{
 					n5 = new N5HDF5Writer( filepath, 3, 32, 32, 32 );
@@ -522,6 +522,9 @@ public class DfieldIoHelper
 				else
 				{
 					System.err.println("Could not create an n5 writer from path: " + filepath );
+					if( n5 != null )
+						n5.close();
+
 					n5 = null; // let the the null pointer be caught
 				}
 

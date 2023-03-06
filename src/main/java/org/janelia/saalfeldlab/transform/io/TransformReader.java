@@ -432,6 +432,12 @@ public class TransformReader
 					n5, params.fwddataset, params.invdataset,
 					new FloatType(),
 					new NLinearInterpolatorFactory<>());
+
+				if( xfm == null )
+				{
+					n5.close();
+					return null;
+				}
 	
 				if( params.inverse )
 					return xfm.inverse();
@@ -440,6 +446,9 @@ public class TransformReader
 			}
 			catch ( Exception e )
 			{
+				if( n5 != null )
+					n5.close();
+
 				e.printStackTrace();
 				return null;
 			}	
@@ -449,7 +458,7 @@ public class TransformReader
 	public static RealTransform readH5( String transformArg ) {
 
 		H5TransformParameters params;
-		N5Reader n5;
+		N5Reader n5 = null;
 		try
 		{
 			params = H5TransformParameters.parse( transformArg );
@@ -457,6 +466,9 @@ public class TransformReader
 		}
 		catch ( IOException e )
 		{
+			if( n5 != null )
+				n5.close();
+
 			e.printStackTrace();
 			return null;
 		}
@@ -466,6 +478,9 @@ public class TransformReader
 		if( params.fwddataset.isEmpty() )
 		{
 			System.err.println( "could not find dataset" );
+			if( n5 != null )
+				n5.close();
+
 			return null;
 		}
 		
@@ -478,6 +493,9 @@ public class TransformReader
 			}
 			catch ( Exception e )
 			{
+				if( n5 != null )
+					n5.close();
+
 				e.printStackTrace();
 				return null;
 			}
@@ -493,6 +511,9 @@ public class TransformReader
 			}
 			catch ( Exception e )
 			{
+				if( n5 != null )
+					n5.close();
+
 				e.printStackTrace();
 				return null;
 			}	
@@ -514,6 +535,9 @@ public class TransformReader
 			}
 			catch ( Exception e )
 			{
+				if( n5 != null )
+					n5.close();
+
 				e.printStackTrace();
 				return null;
 			}	
@@ -526,6 +550,9 @@ public class TransformReader
 			}
 			catch ( Exception e )
 			{
+				if( n5 != null )
+					n5.close();
+
 				e.printStackTrace();
 				return null;
 			}
