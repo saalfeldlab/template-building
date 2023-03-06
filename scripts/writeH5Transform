@@ -1,0 +1,17 @@
+#!/bin/bash
+# Run 
+#   transform2Dfield -h
+# for help
+
+
+javaOpts="-Xmx116g"
+if [[ $1 == '--java' ]];
+then
+    shift
+    javaOpts="$1"
+    shift
+fi
+
+BASEDIR=$(dirname "$0")
+cp=`cat "$BASEDIR/classpath.cp"`
+java -cp "$cp" $javaOpts io.WriteH5DisplacementField "$@"
