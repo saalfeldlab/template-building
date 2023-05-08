@@ -28,14 +28,17 @@ public class NrrdDfieldFileInfo extends FileInfo {
 		if(spacings==null) spacings=new double[spaceDims];
 		for(int i=0;i<spaceDims;i++){
 
-			double spacing2=0.0;
-			for(int j=0;j<spaceDims;j++){
-				spacing2+=spaceDirs[i][j]*spaceDirs[i][j];
+			double spacing2 = 0.0;
+			for ( int j = 0; j < spaceDims; j++ ) {
+				spacing2 += spaceDirs[ i ][ j ] * spaceDirs[ i ][ j ];
 			}
-			spacings[i]=spacing2;
-			if(i==0) pixelWidth=Math.sqrt(spacing2);
-			if(i==1) pixelHeight=Math.sqrt(spacing2);
-			if(i==2) pixelDepth=Math.sqrt(spacing2);
+			spacings[i]=Math.sqrt( spacing2 );
+			if ( i == 0 )
+				pixelWidth = spacings[ i ];
+			else if ( i == 1 )
+				pixelHeight = spacings[ i ];
+			else if ( i == 2 )
+				pixelDepth = spacings[ i ];
 		}
 	}
 	
