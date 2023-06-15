@@ -594,22 +594,23 @@ public class TransformReader
 	public static ValuePair< long[], double[] > transformSpatialSizeAndRes( String transformArg ) throws FormatException, IOException
 	{
 		ValuePair< long[], double[] > sar = transformSizeAndRes( transformArg );
-		long[] sz = sar.getA();
-		double[] res = sar.getB();
-		int nd = sz.length;
-		int ndNew = nd - 1;
-
-		int vectorIndex = -1;
-		for ( int i = 0; i < nd; i++ )
-			if ( sz[ i ] == ndNew )
-				vectorIndex = i;
-
-		if ( vectorIndex < 0 )
-			return null;
-
-		final long[] szSpatial = sz.length == ndNew ? sz : omit( sz, vectorIndex );
-		final double[] resSpatial = res.length == ndNew ? res : omit( res, vectorIndex );
-		return new ValuePair< long[], double[] >( szSpatial, resSpatial );
+//		long[] sz = sar.getA();
+//		double[] res = sar.getB();
+//		int nd = sz.length;
+//		int ndNew = nd - 1;
+//
+//		int vectorIndex = -1;
+//		for ( int i = 0; i < nd; i++ )
+//			if ( sz[ i ] == ndNew )
+//				vectorIndex = i;
+//
+//		if ( vectorIndex < 0 )
+//			return null;
+//
+//		final long[] szSpatial = sz.length == ndNew ? sz : omit( sz, vectorIndex );
+//		final double[] resSpatial = res.length == ndNew ? res : omit( res, vectorIndex );
+//		return new ValuePair< long[], double[] >( szSpatial, resSpatial );
+		return sar;
 	}
 
 	public static double[] omit( double[] in, int index )
