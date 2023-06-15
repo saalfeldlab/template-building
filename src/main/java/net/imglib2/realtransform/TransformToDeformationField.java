@@ -2,6 +2,7 @@ package net.imglib2.realtransform;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.Callable;
@@ -10,6 +11,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 
 import org.janelia.saalfeldlab.transform.io.TransformReader;
 import org.slf4j.Logger;
@@ -25,12 +27,17 @@ import net.imglib2.RealPoint;
 import net.imglib2.img.imageplus.ImagePlusImg;
 import net.imglib2.img.imageplus.ImagePlusImgFactory;
 import net.imglib2.iterator.IntervalIterator;
+import net.imglib2.loops.LoopBuilder;
+import net.imglib2.parallel.TaskExecutor;
+import net.imglib2.parallel.TaskExecutors;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.RealType;
+import net.imglib2.type.numeric.real.DoubleType;
 import net.imglib2.type.numeric.real.FloatType;
 import net.imglib2.util.Util;
 import net.imglib2.util.ValuePair;
 import net.imglib2.view.Views;
+import net.imglib2.view.composite.RealComposite;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
@@ -83,9 +90,9 @@ public class TransformToDeformationField implements Callable<Void>
 
 	public static void main( String[] args )
 	{
-		CommandLine.call( new TransformToDeformationField(), args );
+		new CommandLine( new TransformToDeformationField() ).execute( args );
 	}
-	
+
 	public void setup()
 	{
 		// use size / resolution if the only input transform is a dfield
@@ -104,13 +111,9 @@ public class TransformToDeformationField implements Callable<Void>
 			{
 				try
 				{
-					sizeAndRes = Optional.of( TransformReader.transformSpatialSizeAndRes( transformFile ));
+					sizeAndRes = Optional.of( TransformReader.transformSpatialSizeAndRes( transformFile ) );
 				}
-				catch ( Exception e )
-				{
-					e.printStackTrace();
-				}
-
+				catch ( Exception e ) { }
 			}
 		}
 
@@ -132,7 +135,7 @@ public class TransformToDeformationField implements Callable<Void>
 		// we need to tack on the conversion from pixel to physical space first
 		pixelToPhysical = fov.getPixelToPhysicalTransform();
 		renderInterval = fov.getPixel();
-		outputResolution = fov.getSpacing();
+		setOutputResolution( fov.getSpacing() );
 
 //		if ( outputResolution != null )
 //			pixelToPhysical = new Scale( outputResolution );
@@ -164,6 +167,7 @@ public class TransformToDeformationField implements Callable<Void>
 		// make sure the output interval has an extra dimension
 		// and if its a nrrd, the vector dimension has to be first,
 		// otherwise it goes last
+		Interval imgInterval = null;
 		if ( renderInterval.numDimensions() == transform.numTargetDimensions() )
 		{
 
@@ -185,19 +189,15 @@ public class TransformToDeformationField implements Callable<Void>
 				}
 				dims[ transform.numTargetDimensions() ] = transform.numTargetDimensions();
 			}
-
-			FinalInterval renderIntervalNew = new FinalInterval( dims );
-			renderInterval = renderIntervalNew;
+			imgInterval = new FinalInterval( dims );
 		}
 
 		logger.info( "allocating" );
-		ImagePlusImgFactory< T > factory = new ImagePlusImgFactory<>( t );
-		ImagePlusImg< T, ? > dfieldraw = factory.create( renderInterval );
-
-		RandomAccessibleInterval< T > dfield = DfieldIoHelper.vectorAxisPermute( dfieldraw, 3, 3 );
+		final ImagePlusImgFactory< T > factory = new ImagePlusImgFactory<>( t );
+		final ImagePlusImg< T, ? > dfield = factory.create( imgInterval );
 
 		logger.info( "processing with " + nThreads + " threads." );
-		transformToDeformationField( transform, dfield, pixelToPhysical, nThreads );
+		transformToDeformationField( transform, renderInterval, dfield, pixelToPhysical, nThreads );
 
 		logger.info( "writing" );
 		DfieldIoHelper dfieldIo = new DfieldIoHelper();
@@ -234,11 +234,21 @@ public class TransformToDeformationField implements Callable<Void>
 	}
 
 	public static <T extends RealType<T> & NativeType<T>> void transformToDeformationField( 
+			final RealTransform transform, final Interval interval, final RandomAccessibleInterval<T> dfield, AffineGet pixelToPhysical, int nThreads )
+	{
+		final int nd = transform.numSourceDimensions();
+		Supplier<RealComposite<DoubleType>> vecSupplier = () -> DoubleType.createVector( nd );
+		final RandomAccessibleInterval< DoubleType > df = DisplacementFieldTransform.createDisplacementField( transform, interval, pixelToPhysical, vecSupplier );
+//		LoopBuilder.setImages( df, dfield ).multiThreaded( true ).forEachPixel( (x,y) -> { y.set( x ); });
+		LoopBuilder.setImages( df, dfield ).multiThreaded( TaskExecutors.numThreads( nThreads ) ).forEachPixel( (x,y) -> { y.setReal( x.get()); });
+	}
+
+	public static <T extends RealType<T> & NativeType<T>> void transformToDeformationFieldLegacy( 
 			final RealTransform transform, final RandomAccessibleInterval<T> dfield, AffineGet pixelToPhysical, int nThreads )
 	{
 		if( nThreads == 1 )
 		{
-			transformToDeformationField( transform, dfield, pixelToPhysical );
+			transformToDeformationFieldLegacy( transform, dfield, pixelToPhysical );
 			return;
 		}
 
@@ -328,7 +338,7 @@ public class TransformToDeformationField implements Callable<Void>
 		}
 	}
 	
-	public static <T extends RealType<T> & NativeType<T>> void transformToDeformationField( 
+	public static <T extends RealType<T> & NativeType<T>> void transformToDeformationFieldLegacy( 
 			final RealTransform transform, final RandomAccessibleInterval<T> dfield, final AffineGet pixelToPhysical )
 	{
 		assert ( dfield.numDimensions() == transform.numSourceDimensions() + 1 );
@@ -360,6 +370,46 @@ public class TransformToDeformationField implements Callable<Void>
 				dfieldRa.get().setReal( q.getDoublePosition( d ) - p.getDoublePosition( d ) );
 			}
 		}
+	}
+
+	public void setNumThreads( int nThreads )
+	{
+		this.nThreads = nThreads;
+	}
+
+	public void setOutputFile( String outputFile )
+	{
+		this.outputFile = outputFile;
+	}
+
+	public void setReferenceImagePath( String referenceImagePath )
+	{
+		this.referenceImagePath = referenceImagePath;
+	}
+
+	public void setOutputResolution( double[] outputResolution )
+	{
+		this.outputResolution = outputResolution;
+	}
+
+	public void setIntervalMax( double[] intervalMax )
+	{
+		this.intervalMax = intervalMax;
+	}
+
+	public void setIntervalMin( double[] intervalMin )
+	{
+		this.intervalMin = intervalMin;
+	}
+
+	public void setOutputSize( String outputSize )
+	{
+		this.outputSize = outputSize;
+	}
+
+	public void setTransformFiles( List< String > transformFiles )
+	{
+		this.transformFiles = transformFiles;
 	}
 
 }
