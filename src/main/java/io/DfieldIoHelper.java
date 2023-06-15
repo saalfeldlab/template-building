@@ -271,6 +271,9 @@ public class DfieldIoHelper
 
 			RandomAccessibleInterval<T> dfieldForIp = vectorAxisPermute( dfieldIn, 3, 2 );
 			ImagePlus ip = ImageJFunctions.wrapFloat( dfieldForIp, "wrapped" );
+			if (spacing == null)
+				spacing = new double[] { 1, 1, 1 };
+
 			ip.getCalibration().pixelWidth = spacing[ 0 ];
 			ip.getCalibration().pixelHeight = spacing[ 1 ];
 			ip.getCalibration().pixelDepth = spacing[ 2 ];
@@ -561,16 +564,15 @@ public class DfieldIoHelper
 
 		final RandomAccessibleInterval< T > fieldPermuted;
 		if( dfieldRAI.numDimensions() == 4 )
-			fieldPermuted = DfieldIoHelper.vectorAxisPermute( dfieldRAI, 3, 3 );
+			fieldPermuted = DfieldIoHelper.vectorAxisPermute( dfieldRAI, 3, 0 );
 		else if ( dfieldRAI.numDimensions() == 3 )
-			fieldPermuted = DfieldIoHelper.vectorAxisPermute( dfieldRAI, 2, 2 );
+			fieldPermuted = DfieldIoHelper.vectorAxisPermute( dfieldRAI, 2, 0 );
 		else
 			fieldPermuted = null;
 
 		return fieldPermuted;
 	}
-	
-	@SuppressWarnings("unchecked")
+
 	public static <T extends RealType<T>> DisplacementFieldTransform makeDfield( RandomAccessibleInterval<T> rai, double[] spacing )
 	{
 //		// TODO make give extension and interpolation ptions
@@ -602,7 +604,7 @@ public class DfieldIoHelper
 //		}
 //
 //		return new DeformationFieldTransform<T>( displacementFields );
-		
+
 		return new DisplacementFieldTransform( rai, spacing );
 	}
 

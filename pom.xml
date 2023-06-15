@@ -27,7 +27,7 @@
 		<enforcer.skip>true</enforcer.skip>
 
 		<imglib2.version>6.0.0</imglib2.version>
-		<imglib2-realtransform.version>4.0.1</imglib2-realtransform.version>
+		<imglib2-realtransform.version>4.0.2-SNAPSHOT</imglib2-realtransform.version>
 
 		<bigwarp.version>7.0.1</bigwarp.version>
 
