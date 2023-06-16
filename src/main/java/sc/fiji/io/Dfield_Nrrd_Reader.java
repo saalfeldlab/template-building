@@ -301,6 +301,9 @@ public class Dfield_Nrrd_Reader extends ImagePlus implements PlugIn
 			
 			if (noteType.equals("space origin")){
 				fi.setSpaceOrigin(getVector(thisLine,0));
+				spatialCal.xOrigin = fi.spaceOrigin[ 0 ];
+				spatialCal.yOrigin = fi.spaceOrigin[ 1 ];
+				spatialCal.zOrigin = fi.spaceOrigin[ 2 ];
 			}
 			
 			if (noteType.equals("centers") || noteType.equals("centerings")) {

@@ -477,13 +477,10 @@ public class TransformReader
 		if( params.fwddataset.isEmpty() )
 		{
 			System.err.println( "could not find dataset" );
-			if( n5 != null )
-				n5.close();
-
 			params.fwddataset = N5DisplacementField.FORWARD_ATTR;
 			System.out.println( "no dataset provided assuming: " + params.fwddataset );
 		}
-		
+
 		if ( params.affineOnly )
 		{
 			String dataset = params.inverse ? params.invdataset : params.fwddataset;
@@ -648,6 +645,9 @@ public class TransformReader
 	public static ValuePair< long[], double[] > transformSizeAndRes( String transformArg ) throws FormatException, IOException
 	{
 		String transformPath = pathFromInversePath( transformArg );
+
+		System.out.println( "transformArg: " + transformArg );
+		System.out.println( "transformPath: " + transformPath );
 
 		long[] dims = null;
 		double[] spacing = null;

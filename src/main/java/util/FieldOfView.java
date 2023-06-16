@@ -461,7 +461,22 @@ public class FieldOfView
 		double[] min = minOpt.orElse( new double[ ndims ]);
 		
 		FieldOfView fov = null;
-		if( sizeAndRes.isPresent() )
+		if( spacingOpt.isPresent() && pixelIntervalOpt.isPresent() )
+		{
+			fov = FieldOfView.fromSpacingSize( spacingOpt.get(), pixelIntervalOpt.get() );
+
+			if( minOpt.isPresent() && maxOpt.isPresent() )
+			{
+				fov.setPhysical( minOpt.get(), maxOpt.get() );
+				fov.updatePixel();
+			}
+			else if( maxOpt.isPresent() )
+			{
+				fov.setPhysicalMax( maxOpt.get() );
+				fov.updatePixel();
+			}
+		}
+		else if( sizeAndRes.isPresent() )
 		{
 			fov = FieldOfView.fromSpacingSize( sizeAndRes.get().b, new FinalInterval( sizeAndRes.get().a ));
 
@@ -485,21 +500,6 @@ public class FieldOfView
 			if( spacingOpt.isPresent() )
 			{
 				fov.setSpacing( spacingOpt.get() );
-				fov.updatePixel();
-			}
-		}
-		else if( spacingOpt.isPresent() && pixelIntervalOpt.isPresent() )
-		{
-			fov = FieldOfView.fromSpacingSize( spacingOpt.get(), pixelIntervalOpt.get() );
-
-			if( minOpt.isPresent() && maxOpt.isPresent() )
-			{
-				fov.setPhysical( minOpt.get(), maxOpt.get() );
-				fov.updatePixel();
-			}
-			else if( maxOpt.isPresent() )
-			{
-				fov.setPhysicalMax( maxOpt.get() );
 				fov.updatePixel();
 			}
 		}

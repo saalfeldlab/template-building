@@ -96,6 +96,10 @@ public class NrrdDfieldFileInfo extends FileInfo {
 		// TOFIX - this order of allocations is not a given!
 		// NB xOrigin are in pixels, whereas axismins are of course
 		// in units; these are converted later
+
+//		spatialCal.xOrigin = spaceOrigin[0];
+//		spatialCal.xOrigin = spaceOrigin[0];
+//		spatialCal.xOrigin = spaceOrigin[0];
 		
 		// TODO - not sure whether it is worth implementing this for
 		// non-orthogonal axes

@@ -11,14 +11,14 @@ version=$(mvn -q -Dexec.executable="echo" -Dexec.args='${project.version}' --non
 echo $version
 
 
-filesToEdit=$(grep -l '@Command' `find -name '*java' -type f`)
-
-for f in $filesToEdit
-do
-    echo $f
-    bakfile=$(dtbk $f)
-    sed "s/@Command( version = \".*\" )/@Command( version = \"$version\" )/g" $bakfile > $f
-done
+#filesToEdit=$(grep -l '@Command' `find -name '*java' -type f`)
+#
+#for f in $filesToEdit
+#do
+#    echo $f
+#    bakfile=$(dtbk $f)
+#    sed "s/@Command( version = \".*\" )/@Command( version = \"$version\" )/g" $bakfile > $f
+#done
 
 
 cd jgo

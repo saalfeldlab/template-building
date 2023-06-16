@@ -97,7 +97,6 @@ public class TransformToDeformationField implements Callable<Void>
 	{
 		// use size / resolution if the only input transform is a dfield
 		// ( and size / resolution is not given )
-
 		Optional<ValuePair< long[], double[] >> sizeAndRes = Optional.empty();
 		if ( referenceImagePath != null && !referenceImagePath.isEmpty() && new File( referenceImagePath ).exists() )
 		{
@@ -193,8 +192,15 @@ public class TransformToDeformationField implements Callable<Void>
 		}
 
 		logger.info( "allocating" );
+//<<<<<<< Updated upstream
 		final ImagePlusImgFactory< T > factory = new ImagePlusImgFactory<>( t );
 		final ImagePlusImg< T, ? > dfield = factory.create( imgInterval );
+//=======
+//		ImagePlusImgFactory< T > factory = new ImagePlusImgFactory<>( t );
+//		ImagePlusImg< T, ? > dfieldraw = factory.create( renderInterval );
+//
+//		RandomAccessibleInterval< T > dfield = DfieldIoHelper.vectorAxisPermute( dfieldraw, 3, 0 );
+//>>>>>>> Stashed changes
 
 		logger.info( "processing with " + nThreads + " threads." );
 		transformToDeformationField( transform, renderInterval, dfield, pixelToPhysical, nThreads );
@@ -202,7 +208,11 @@ public class TransformToDeformationField implements Callable<Void>
 		logger.info( "writing" );
 		DfieldIoHelper dfieldIo = new DfieldIoHelper();
 
-		dfieldIo.spacing = outputResolution; // naughty
+		dfieldIo.spacing = outputResolution; // naughty?
+		dfieldIo.origin = intervalMin; // naughty?
+		if( dfieldIo.origin == null )
+			dfieldIo.origin = new double[]{0, 0, 0};
+
 		try
 		{
 			dfieldIo.write( dfield, outputFile );
@@ -223,7 +233,7 @@ public class TransformToDeformationField implements Callable<Void>
 		RealPoint qNew  = new RealPoint( transform.numTargetDimensions() );
 
 		final int vecdim = dfield.numDimensions() - 1;
-		IntervalIterator it = new IntervalIterator( Views.hyperSlice( dfield, vecdim, 0 ));
+		IntervalIterator it = new IntervalIterator( Views.hyperSlice( dfield, vecdim, 3 ));
 		while( it.hasNext() )
 		{
 			p.setPosition( it );
@@ -254,7 +264,8 @@ public class TransformToDeformationField implements Callable<Void>
 
 		assert ( dfield.numDimensions() == transform.numSourceDimensions() + 1 );
 
-		final int vecdim = dfield.numDimensions() - 1;
+//		final int vecdim = dfield.numDimensions() - 1;
+		final int vecdim = 0;
 		final int step = nThreads;
 
 		ExecutorService exec = Executors.newFixedThreadPool( nThreads );

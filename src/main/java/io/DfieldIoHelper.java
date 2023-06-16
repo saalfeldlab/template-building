@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
 import java.util.Arrays;
+import java.util.function.Supplier;
 import java.util.zip.GZIPOutputStream;
 
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
@@ -30,6 +31,7 @@ import io.nii.Nifti_Writer;
 import loci.formats.FormatException;
 import net.imglib2.FinalInterval;
 import net.imglib2.Interval;
+import net.imglib2.RandomAccessible;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.RealLocalizable;
 import net.imglib2.RealRandomAccessible;
@@ -38,8 +40,10 @@ import net.imglib2.converter.Converters;
 import net.imglib2.img.Img;
 import net.imglib2.img.display.imagej.ImageJFunctions;
 import net.imglib2.interpolation.randomaccess.NLinearInterpolatorFactory;
+import net.imglib2.position.FunctionRandomAccessible;
 import net.imglib2.realtransform.AffineGet;
 import net.imglib2.realtransform.DisplacementFieldTransform;
+import net.imglib2.realtransform.RealTransform;
 import net.imglib2.realtransform.RealViews;
 import net.imglib2.realtransform.Scale;
 import net.imglib2.realtransform.Scale2D;
@@ -48,6 +52,7 @@ import net.imglib2.realtransform.ants.ANTSDeformationField;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.numeric.real.FloatType;
+import net.imglib2.util.Intervals;
 import net.imglib2.util.Util;
 import net.imglib2.view.Views;
 import net.imglib2.view.composite.CompositeIntervalView;
@@ -62,6 +67,7 @@ public class DfieldIoHelper
 	public RandomAccessibleInterval dfieldRAI;
 
 	public double[] spacing;
+	public double[] origin;
 
 	private AffineGet affine; // store the affine
 	
@@ -278,6 +284,10 @@ public class DfieldIoHelper
 			ip.getCalibration().pixelHeight = spacing[ 1 ];
 			ip.getCalibration().pixelDepth = spacing[ 2 ];
 
+			ip.getCalibration().xOrigin = origin[ 0 ];
+			ip.getCalibration().yOrigin = origin[ 1 ];
+			ip.getCalibration().zOrigin = origin[ 2 ];
+
 			String nrrdHeader = WriteNrrdDisplacementField.makeDisplacementFieldHeader( ip, subFactors, "gzip" );
 			if ( nrrdHeader == null )
 			{
@@ -307,6 +317,10 @@ public class DfieldIoHelper
 			dfieldip.getCalibration().pixelHeight = spacing[ 1 ];
 			dfieldip.getCalibration().pixelDepth = spacing[ 2 ];
 
+			dfieldip.getCalibration().xOrigin = origin[ 0 ];
+			dfieldip.getCalibration().yOrigin = origin[ 1 ];
+			dfieldip.getCalibration().zOrigin = origin[ 2 ];
+
 			IJ.save( dfieldip , outputPath );
 		}
 	}
@@ -316,8 +330,11 @@ public class DfieldIoHelper
 	{
 		try
 		{
+			origin = origin == null ? new double[]{0, 0, 0} : origin;
+			spacing = spacing == null ? new double[]{1, 1, 1} : spacing;
+
 			RandomAccessibleInterval< FloatType > dfieldImgRaw = read( fieldPath );
-			return new DisplacementFieldTransform( dfieldImgRaw, spacing );
+			return new DisplacementFieldTransform( dfieldImgRaw, spacing, origin );
 	
 //			RandomAccessibleInterval< FloatType > dfieldImg = N5DisplacementField.vectorAxisLast( dfieldImgRaw );
 //			int nd = 3; // TODO generalize
@@ -370,7 +387,8 @@ public class DfieldIoHelper
 	{
 		RandomAccessibleInterval<FloatType> dfieldRAI = null;
 		ImagePlus dfieldIp = null;
-		double[] spacing = null;
+		double[] spacing = new double[]{ 1, 1, 1 };
+		double[] origin = new double[]{ 0, 0, 0 };
 		String unit = null;
 		if ( fieldPath.endsWith( "nii" ) )
 		{
@@ -401,6 +419,11 @@ public class DfieldIoHelper
 					dfieldIp.getCalibration().pixelWidth,
 					dfieldIp.getCalibration().pixelHeight,
 					dfieldIp.getCalibration().pixelDepth };
+			
+			origin = new double[]{ 
+					dfieldIp.getCalibration().xOrigin,
+					dfieldIp.getCalibration().yOrigin,
+					dfieldIp.getCalibration().zOrigin };
 
 			unit = dfieldIp.getCalibration().getUnit();
 
@@ -451,7 +474,7 @@ public class DfieldIoHelper
 
 	public < T extends RealType< T > & NativeType< T > > DisplacementFieldTransform readAsDeformationField( final String fieldPath, final T defaultType ) throws Exception
 	{
-		return makeDfield( readAsRai( fieldPath, defaultType ), spacing );
+		return makeDfield( readAsRai( fieldPath, defaultType ), spacing, origin );
 	}
 
 	public < T extends RealType< T > & NativeType< T > > RealRandomAccessible<? extends RealLocalizable> readAsVectorField( final String fieldPath, final T defaultType ) throws Exception
@@ -462,7 +485,8 @@ public class DfieldIoHelper
 	public < T extends RealType< T > & NativeType< T > > RandomAccessibleInterval<T> readAsRai( final String fieldPath, final T defaultType ) throws Exception
 	{
 		ImagePlus dfieldIp = null;
-		spacing = null;
+		spacing = new double[]{1, 1, 1};
+		origin = new double[]{0, 0, 0};
 		String unit = null;
 		if ( fieldPath.endsWith( "nii" ) )
 		{
@@ -494,6 +518,14 @@ public class DfieldIoHelper
 					dfieldIp.getCalibration().pixelWidth,
 					dfieldIp.getCalibration().pixelHeight,
 					dfieldIp.getCalibration().pixelDepth };
+
+			origin = new double[]{ 
+					dfieldIp.getCalibration().xOrigin,
+					dfieldIp.getCalibration().yOrigin,
+					dfieldIp.getCalibration().zOrigin };
+
+			System.out.println("spacing: " + Arrays.toString( spacing ));
+			System.out.println("origin: " + Arrays.toString( origin ));
 
 			unit = dfieldIp.getCalibration().getUnit();
 
@@ -554,6 +586,11 @@ public class DfieldIoHelper
 					dfieldIp.getCalibration().pixelHeight,
 					dfieldIp.getCalibration().pixelDepth };
 
+			origin = new double[]{ 
+					dfieldIp.getCalibration().xOrigin,
+					dfieldIp.getCalibration().yOrigin,
+					dfieldIp.getCalibration().zOrigin };
+
 			unit = dfieldIp.getCalibration().getUnit();
 		}
 		
@@ -567,13 +604,15 @@ public class DfieldIoHelper
 			fieldPermuted = DfieldIoHelper.vectorAxisPermute( dfieldRAI, 3, 0 );
 		else if ( dfieldRAI.numDimensions() == 3 )
 			fieldPermuted = DfieldIoHelper.vectorAxisPermute( dfieldRAI, 2, 0 );
-		else
-			fieldPermuted = null;
 
-		return fieldPermuted;
+		else
+			dfieldRAI = null;
+
+		return dfieldRAI;
 	}
 
-	public static <T extends RealType<T>> DisplacementFieldTransform makeDfield( RandomAccessibleInterval<T> rai, double[] spacing )
+	@SuppressWarnings("unchecked")
+	public static <T extends RealType<T>> DisplacementFieldTransform makeDfield( RandomAccessibleInterval<T> rai, double[] spacing, double[] origin )
 	{
 //		// TODO make give extension and interpolation ptions
 //		NLinearInterpolatorFactory<T> interpolator = new NLinearInterpolatorFactory<T>();
@@ -605,7 +644,7 @@ public class DfieldIoHelper
 //
 //		return new DeformationFieldTransform<T>( displacementFields );
 
-		return new DisplacementFieldTransform( rai, spacing );
+		return new DisplacementFieldTransform( rai, spacing, origin );
 	}
 
 	@SuppressWarnings("unchecked")
@@ -618,6 +657,7 @@ public class DfieldIoHelper
 			{
 				dfieldIp = NiftiIo.readNifti( new File( fieldPath ) );
 				spacing = new double[] { dfieldIp.getCalibration().pixelWidth, dfieldIp.getCalibration().pixelHeight, dfieldIp.getCalibration().pixelDepth };
+				origin = new double[]{ dfieldIp.getCalibration().xOrigin, dfieldIp.getCalibration().yOrigin, dfieldIp.getCalibration().zOrigin };
 
 			}
 			catch ( FormatException e )
@@ -635,11 +675,8 @@ public class DfieldIoHelper
 			Dfield_Nrrd_Reader reader = new Dfield_Nrrd_Reader();
 			File tmp = new File( fieldPath );
 			dfieldIp = reader.load( tmp.getParent(), tmp.getName() );
-
-			spacing = new double[]{ 
-					dfieldIp.getCalibration().pixelWidth,
-					dfieldIp.getCalibration().pixelHeight,
-					dfieldIp.getCalibration().pixelDepth };
+			spacing = new double[]{ dfieldIp.getCalibration().pixelWidth, dfieldIp.getCalibration().pixelHeight, dfieldIp.getCalibration().pixelDepth };
+			origin = new double[]{ dfieldIp.getCalibration().xOrigin, dfieldIp.getCalibration().yOrigin, dfieldIp.getCalibration().zOrigin };
 
 		}
 		else if ( 	fieldPath.contains( "h5" ) || 
@@ -676,14 +713,9 @@ public class DfieldIoHelper
                 System.err.println( "could not read transform from: " + fieldPath );
                 return null;
             }
-			spacing = new double[]
-					{
-						dfieldIp.getCalibration().pixelWidth,
-						dfieldIp.getCalibration().pixelHeight,
-						dfieldIp.getCalibration().pixelDepth
-					};
+			spacing = new double[] { dfieldIp.getCalibration().pixelWidth, dfieldIp.getCalibration().pixelHeight, dfieldIp.getCalibration().pixelDepth };
+			origin = new double[]{ dfieldIp.getCalibration().xOrigin, dfieldIp.getCalibration().yOrigin, dfieldIp.getCalibration().zOrigin };
 		}
-		
 
 		Img< FloatType > tmpImg = ImageJFunctions.wrapFloat( dfieldIp );
 		RandomAccessibleInterval<FloatType> img;
@@ -889,4 +921,80 @@ public class DfieldIoHelper
 	{
 		return RealViews.affine( convertToCompositeLast( position ), spacing.length == 2 ? new Scale2D( spacing ) : spacing.length == 3 ? new Scale3D( spacing ) : new Scale( spacing ) );
 	}
+	
+//	/**
+//	 * Creates a {@link RandomAccessibleInterval} containing the displacements
+//	 * of a {@link DisplacementFieldTransform} for a given
+//	 * {@link RealTransform}. This can be useful for saving a transformation as
+//	 * a displacement field, but generally should be not used to create a
+//	 * {@link DisplacementFieldTransform}.
+//	 * <p>
+//	 * Components of the displacements are in the 0th dimension, the extents of
+//	 * the field are given by the given {@link Interval}. The output interval
+//	 * will therefore be of size: <br>
+//	 * [ transform.numTargetDimensions(), interval.dimension(0), ...,
+//	 * interval.dimension( N-1 )]
+//	 * <p>
+//	 * The {@link RealTransform} specifies how the discrete coordinates of the
+//	 * output displacement field map to the input source coordinates of the
+//	 * transform, i.e. it enables setting the spacing and offset of the
+//	 * displacement field grid.
+//	 * <p>
+//	 * The given supplier determines the output type and must provide
+//	 * {@link RealComposite}s of size greater than or equal to the transforms
+//	 * target dimension. For example,
+//	 *
+//	 * <pre>
+//	 * {@code () -> DoubleType.createVector(transform.numTargetDimensions())}
+//	 * </pre>
+//	 *
+//	 * @param <T>
+//	 *            the type of the output
+//	 * @param transform
+//	 *            the transform to be converted
+//	 * @param interval
+//	 *            interval
+//	 * @param gridTransform
+//	 *            transformation from the discrete grid to the transform's
+//	 *            source coordinates
+//	 * @param supplier
+//	 *            supplier for intermediate {@link RealComposite} type
+//	 * @return the displacement field
+//	 */
+//	public static < T extends RealType< T > > RandomAccessible< T > createDisplacementField(
+//			final RealTransform transform,
+//			final Interval interval,
+//			final RealTransform gridTransform,
+//			final Supplier< RealComposite< T > > supplier )
+//	{
+//		final int nd = transform.numTargetDimensions();
+//		final RandomAccessible< RealComposite< T > > transformedGrid = new FunctionRandomAccessible<>(
+//				nd,
+//				() -> {
+//					final RealTransform copy = gridTransform.copy();
+//					return ( x, y ) -> {
+//						copy.apply( x, y );
+//					};
+//				},
+//				supplier );
+//
+//		final RandomAccessible< RealComposite< T > > displacements = Converters.convert2(
+//				transformedGrid,
+//				() -> {
+//					final RealTransform copy = transform.copy();
+//					return ( x, y ) -> {
+//						copy.apply( x, y );
+//						for ( int d = 0; d < nd; d++ )
+//							y.move( -x.getDoublePosition( d ), d );
+//					};
+//				},
+//				supplier );
+//
+//		final long[] dfieldDims = new long[ interval.numDimensions() + 1 ];
+//		dfieldDims[ 0 ] = interval.numDimensions();
+//		for ( int i = 0; i < interval.numDimensions(); ++i )
+//			dfieldDims[ i + 1 ] = interval.dimension( i );
+//
+//		return Views.extendBorder( Views.interval( Views.interleave( displacements ), new FinalInterval( dfieldDims ) ));
+//	}	
 }
