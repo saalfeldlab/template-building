@@ -8,12 +8,13 @@ import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.List;
 
+import org.janelia.saalfeldlab.n5.N5Exception;
 import org.janelia.saalfeldlab.n5.N5FSReader;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Reader;
 import org.janelia.saalfeldlab.n5.imglib2.N5DisplacementField;
 import org.janelia.saalfeldlab.n5.metadata.transforms.SpatialTransform;
-import org.janelia.saalfeldlab.n5.translation.JqUtils;
+import org.janelia.saalfeldlab.n5.universe.translation.JqUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -701,7 +702,7 @@ public class TransformReader
 			{
 				n5 = new N5FSReader( path );
 			}
-			catch ( IOException e )
+			catch ( final N5Exception e )
 			{
 				e.printStackTrace();
 				return null;
@@ -715,7 +716,7 @@ public class TransformReader
 			{
 				n5 = new N5HDF5Reader( path, 32, 32, 32, 3 );
 			}
-			catch ( IOException e )
+			catch ( final N5Exception e )
 			{
 				e.printStackTrace();
 				return null;

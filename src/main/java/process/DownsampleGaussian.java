@@ -6,6 +6,7 @@ import java.util.Arrays;
 import java.util.concurrent.Callable;
 
 import org.janelia.saalfeldlab.n5.GzipCompression;
+import org.janelia.saalfeldlab.n5.N5Exception;
 import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Reader;
 import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Writer;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
@@ -228,7 +229,7 @@ public class DownsampleGaussian implements Callable<Void>
 				System.out.println( "res: " + Arrays.toString( resIn ));
 
 			}
-			catch ( IOException e )
+			catch ( final N5Exception e )
 			{
 				e.printStackTrace();
 			}
@@ -422,7 +423,7 @@ public class DownsampleGaussian implements Callable<Void>
 
 				n5.setAttribute( n5dataset, "element_size_um", resFloat );
 			}
-			catch ( IOException e )
+			catch ( final N5Exception e )
 			{
 				e.printStackTrace();
 			}

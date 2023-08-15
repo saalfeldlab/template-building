@@ -8,6 +8,7 @@ import java.util.Set;
 import java.util.concurrent.Callable;
 
 import org.janelia.saalfeldlab.n5.GzipCompression;
+import org.janelia.saalfeldlab.n5.N5Exception;
 import org.janelia.saalfeldlab.n5.N5FSReader;
 import org.janelia.saalfeldlab.n5.N5FSWriter;
 import org.janelia.saalfeldlab.n5.N5Reader;
@@ -308,7 +309,7 @@ public class IOHelper implements Callable<Void>
 				else
 					return null;
 
-			} catch (IOException e)
+			} catch (N5Exception e)
 			{
 				e.printStackTrace();
 				return null;
@@ -554,7 +555,7 @@ public class IOHelper implements Callable<Void>
 //				else
 //					resolution = new double[]{ 1, 1, 1 };
 			}
-			catch ( IOException e )
+			catch ( N5Exception e )
 			{
 				e.printStackTrace();
 			}
@@ -743,7 +744,7 @@ public class IOHelper implements Callable<Void>
 
 			}
 		}
-		catch( IOException e )
+		catch( N5Exception e )
 		{
 			e.printStackTrace();
 		}

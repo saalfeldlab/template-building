@@ -1,9 +1,8 @@
 package io;
 
-import java.io.IOException;
-
 import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.GzipCompression;
+import org.janelia.saalfeldlab.n5.N5Exception;
 import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Writer;
 
 
@@ -28,7 +27,7 @@ public class BuildH5Test
 
 			writer.close();
 		}
-		catch ( IOException e )
+		catch ( final N5Exception e )
 		{
 			e.printStackTrace();
 		}

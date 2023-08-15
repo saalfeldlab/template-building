@@ -26,17 +26,18 @@
 	<properties>
 		<enforcer.skip>true</enforcer.skip>
 
-		<imglib2.version>6.0.0</imglib2.version>
-		<imglib2-realtransform.version>4.0.2-SNAPSHOT</imglib2-realtransform.version>
+		<imglib2.version>6.2.0</imglib2.version>
+		<imglib2-realtransform.version>4.0.1</imglib2-realtransform.version>
 
-		<bigwarp.version>7.0.1</bigwarp.version>
+		<bigwarp.version>8.0.0</bigwarp.version>
 
-		<n5.version>2.5.2-SNAPSHOT</n5.version>
-		<n5-imglib2.version>5.0.0-SNAPSHOT</n5-imglib2.version>
-		<n5-hdf5.version>1.3.0</n5-hdf5.version>
-		<n5-google-cloud.version>3.3.2</n5-google-cloud.version>
-		<n5-aws-s3.version>3.2.0</n5-aws-s3.version>
-		<n5-zarr.version>0.0.6</n5-zarr.version>
+		<n5.version>3.0.0</n5.version>
+		<n5-imglib2.version>7.0.0</n5-imglib2.version>
+		<n5-hdf5.version>2.0.0</n5-hdf5.version>
+		<n5-google-cloud.version>4.0.0</n5-google-cloud.version>
+		<n5-aws-s3.version>4.0.1</n5-aws-s3.version>
+		<n5-zarr.version>1.0.0</n5-zarr.version>
+		<n5-universe.version>1.1.0</n5-universe.version>
 
 	</properties>
 
@@ -139,6 +140,11 @@
 			<groupId>org.janelia.saalfeldlab</groupId>
 			<artifactId>n5</artifactId>
 			<version>${n5.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.janelia.saalfeldlab</groupId>
+			<artifactId>n5-universe</artifactId>
+			<version>${n5-universe.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>net.imglib2</groupId>

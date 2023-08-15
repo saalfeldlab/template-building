@@ -13,6 +13,7 @@ import java.util.zip.GZIPOutputStream;
 
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.GzipCompression;
+import org.janelia.saalfeldlab.n5.N5Exception;
 import org.janelia.saalfeldlab.n5.N5FSReader;
 import org.janelia.saalfeldlab.n5.N5FSWriter;
 import org.janelia.saalfeldlab.n5.N5Reader;
@@ -197,7 +198,7 @@ public class DfieldIoHelper
 				n5out.setAttribute( dataset, N5DisplacementField.MULTIPLIER_ATTR, quanitizationParam );
 
 		}
-		catch ( IOException e )
+		catch ( final N5Exception e )
 		{
 			e.printStackTrace();
 		}

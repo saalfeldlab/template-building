@@ -94,7 +94,7 @@ public class Test2dN5Dfield
 
 		Scale2D pixelToPhysical = new Scale2D( 1.0, 1.0 );
 		FloatImagePlus< FloatType > invdfield = ImagePlusImgs.floats( Intervals.dimensionsAsLongArray( dfieldRai ) );
-		TransformToDeformationField.transformToDeformationField( invXfm, invdfield, pixelToPhysical );
+		TransformToDeformationField.transformToDeformationField( invXfm, boatsImage, invdfield, pixelToPhysical, 8 );
 
 		if ( !obj.dfieldH5File.exists() )
 		{
