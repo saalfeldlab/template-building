@@ -13,7 +13,7 @@ import org.janelia.saalfeldlab.n5.N5FSReader;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Reader;
 import org.janelia.saalfeldlab.n5.imglib2.N5DisplacementField;
-import org.janelia.saalfeldlab.n5.metadata.transforms.SpatialTransform;
+import org.janelia.saalfeldlab.n5.universe.metadata.transforms.SpatialTransform;
 import org.janelia.saalfeldlab.n5.universe.translation.JqUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
