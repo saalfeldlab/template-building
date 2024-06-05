@@ -8,7 +8,6 @@ import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
 import java.util.Arrays;
-import java.util.function.Supplier;
 import java.util.zip.GZIPOutputStream;
 
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
@@ -22,6 +21,7 @@ import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Reader;
 import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Writer;
 import org.janelia.saalfeldlab.n5.imglib2.N5DisplacementField;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
+import org.janelia.saalfeldlab.n5.zarr.N5ZarrReader;
 import org.janelia.saalfeldlab.transform.io.TransformReader;
 import org.janelia.saalfeldlab.transform.io.TransformReader.H5TransformParameters;
 
@@ -32,7 +32,6 @@ import io.nii.Nifti_Writer;
 import loci.formats.FormatException;
 import net.imglib2.FinalInterval;
 import net.imglib2.Interval;
-import net.imglib2.RandomAccessible;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.RealLocalizable;
 import net.imglib2.RealRandomAccessible;
@@ -41,10 +40,8 @@ import net.imglib2.converter.Converters;
 import net.imglib2.img.Img;
 import net.imglib2.img.display.imagej.ImageJFunctions;
 import net.imglib2.interpolation.randomaccess.NLinearInterpolatorFactory;
-import net.imglib2.position.FunctionRandomAccessible;
 import net.imglib2.realtransform.AffineGet;
 import net.imglib2.realtransform.DisplacementFieldTransform;
-import net.imglib2.realtransform.RealTransform;
 import net.imglib2.realtransform.RealViews;
 import net.imglib2.realtransform.Scale;
 import net.imglib2.realtransform.Scale2D;
@@ -53,11 +50,8 @@ import net.imglib2.realtransform.ants.ANTSDeformationField;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.numeric.real.FloatType;
-import net.imglib2.util.Intervals;
 import net.imglib2.util.Util;
 import net.imglib2.view.Views;
-import net.imglib2.view.composite.CompositeIntervalView;
-import net.imglib2.view.composite.RealComposite;
 import sc.fiji.io.Dfield_Nrrd_Reader;
 
 public class DfieldIoHelper
@@ -71,11 +65,11 @@ public class DfieldIoHelper
 	public double[] origin;
 
 	private AffineGet affine; // store the affine
-	
+
 	public static void main( String[] args ) throws Exception
 	{
-		String dfieldIn = args[ 0 ];
-		String dfieldOut = args[ 1 ];
+		final String dfieldIn = args[ 0 ];
+		final String dfieldOut = args[ 1 ];
 
 		if( isN5TransformBase( dfieldIn ) && isN5TransformBase( dfieldOut ))
 		{
@@ -83,8 +77,8 @@ public class DfieldIoHelper
 		}
 		else
 		{
-			DfieldIoHelper io = new DfieldIoHelper();
-			RandomAccessibleInterval dfield = io.read( dfieldIn );
+			final DfieldIoHelper io = new DfieldIoHelper();
+			final RandomAccessibleInterval dfield = io.read( dfieldIn );
 			io.write( dfield, dfieldOut );
 		}
 	}
@@ -131,8 +125,8 @@ public class DfieldIoHelper
 	{
 		try
 		{
-			N5Reader n5in = getN5Reader( pathIn );
-			N5Writer n5out = getN5Writer( pathOut );
+			final N5Reader n5in = getN5Reader( pathIn );
+			final N5Writer n5out = getN5Writer( pathOut );
 
 			if( n5in.datasetExists( "/dfield" ))
 				convertN5TransformDataset( n5in, n5out, "/dfield" );
@@ -145,8 +139,8 @@ public class DfieldIoHelper
 			while( tryNext )
 			{
 				// continue to next scale level if either of these converstions take place
-				String fwdDataset = String.format( "/%d/dfield", i );
-				String invDataset = String.format( "/%d/dfield", i );
+				final String fwdDataset = String.format( "/%d/dfield", i );
+				final String invDataset = String.format( "/%d/dfield", i );
 
 				tryNext = false;
 				if( n5in.datasetExists( fwdDataset ))
@@ -164,7 +158,7 @@ public class DfieldIoHelper
 				i++;
 			}
 		}
-		catch ( IOException e )
+		catch ( final IOException e )
 		{
 			e.printStackTrace();
 		}
@@ -178,22 +172,22 @@ public class DfieldIoHelper
 	{
 		try
 		{
-			DatasetAttributes attrs = n5in.getDatasetAttributes( dataset );
-			RandomAccessibleInterval< T > dfield = ( RandomAccessibleInterval< T > )N5Utils.open( n5in, dataset );
+			final DatasetAttributes attrs = n5in.getDatasetAttributes( dataset );
+			final RandomAccessibleInterval< T > dfield = ( RandomAccessibleInterval< T > )N5Utils.open( n5in, dataset );
 
 			// save dfield
 			N5Utils.save( dfield, n5out, dataset, attrs.getBlockSize(), attrs.getCompression() );
 
 			// save other attributes
-			double[] affineParams  =  n5in.getAttribute( dataset, N5DisplacementField.AFFINE_ATTR, double[].class );
+			final double[] affineParams  =  n5in.getAttribute( dataset, N5DisplacementField.AFFINE_ATTR, double[].class );
 			if( affineParams != null )
 				n5out.setAttribute( dataset, N5DisplacementField.AFFINE_ATTR, affineParams );
 
-			double[] spacingParams  =  n5in.getAttribute( dataset, N5DisplacementField.SPACING_ATTR, double[].class );
+			final double[] spacingParams  =  n5in.getAttribute( dataset, N5DisplacementField.SPACING_ATTR, double[].class );
 			if( spacingParams != null )
 				n5out.setAttribute( dataset, N5DisplacementField.SPACING_ATTR, spacingParams );
 
-			Double quanitizationParam = n5in.getAttribute( dataset, N5DisplacementField.MULTIPLIER_ATTR, Double.class );
+			final Double quanitizationParam = n5in.getAttribute( dataset, N5DisplacementField.MULTIPLIER_ATTR, Double.class );
 			if( quanitizationParam != null )
 				n5out.setAttribute( dataset, N5DisplacementField.MULTIPLIER_ATTR, quanitizationParam );
 
@@ -204,23 +198,23 @@ public class DfieldIoHelper
 		}
 	}
 
-	public < T extends RealType< T > & NativeType< T > > void write( 
-			final RandomAccessibleInterval< T > dfieldIn, 
+	public < T extends RealType< T > & NativeType< T > > void write(
+			final RandomAccessibleInterval< T > dfieldIn,
 			final String outputPath ) throws Exception
 	{
 
-		if ( outputPath.contains( "h5" ) || 
+		if ( outputPath.contains( "h5" ) ||
 			 outputPath.contains( "hdf5" ) ||
 			 outputPath.contains( "hdf" ) ||
 			 outputPath.contains("n5" ))
 		{
-			RandomAccessibleInterval<T> dfield = vectorAxisPermute( dfieldIn, 3, 3 );
+			final RandomAccessibleInterval<T> dfield = vectorAxisPermute( dfieldIn, 3, 3 );
 
 			String dataset =  N5DisplacementField.FORWARD_ATTR;
 			String path = outputPath;
 			if( outputPath.contains( ":" ))
 			{
-				String[] split = outputPath.split( ":" );
+				final String[] split = outputPath.split( ":" );
 				path = split[ 0 ];
 				dataset = split[ 1 ];
 			}
@@ -243,31 +237,31 @@ public class DfieldIoHelper
 					n5Writer = null; // let the the null pointer be caught
 				}
 
-				N5DisplacementField.save(n5Writer, dataset, affine, 
+				N5DisplacementField.save(n5Writer, dataset, affine,
 						dfield, spacing, new int[]{ 3, 32, 32, 32 },
 						new GzipCompression() );
 			}
-			catch ( Exception e )
+			catch ( final Exception e )
 			{
 				e.printStackTrace();
 			}
 		}
 		else if ( outputPath.endsWith( "nii" ) )
 		{
-			File outFile = new File( outputPath );
-			Nifti_Writer writer = new Nifti_Writer( true );
+			final File outFile = new File( outputPath );
+			final Nifti_Writer writer = new Nifti_Writer( true );
 			writer.save( dfieldIn, outFile.getParent(), outFile.getName(), spacing );
 		}
 		else if ( outputPath.endsWith( "nrrd" ) )
 		{
 
-			File outFile = new File( outputPath );
-			long[] subFactors = new long[] { 1, 1, 1, 1 };
+			final File outFile = new File( outputPath );
+			final long[] subFactors = new long[] { 1, 1, 1, 1 };
 
 			//RandomAccessibleInterval<T> dfield = vectorAxisThird( dfieldIn );
-			RandomAccessibleInterval<T> dfield = vectorAxisPermute( dfieldIn, 3, 0 );
+			final RandomAccessibleInterval<T> dfield = vectorAxisPermute( dfieldIn, 3, 0 );
 			System.out.println( "dfield out sz: " + Util.printInterval( dfield ) );
-			RandomAccessibleInterval< FloatType > raiF = Converters.convert( dfield, new Converter< T, FloatType >()
+			final RandomAccessibleInterval< FloatType > raiF = Converters.convert( dfield, new Converter< T, FloatType >()
 			{
 				@Override
 				public void convert( T input, FloatType output )
@@ -276,8 +270,8 @@ public class DfieldIoHelper
 				}
 			}, new FloatType() );
 
-			RandomAccessibleInterval<T> dfieldForIp = vectorAxisPermute( dfieldIn, 3, 2 );
-			ImagePlus ip = ImageJFunctions.wrapFloat( dfieldForIp, "wrapped" );
+			final RandomAccessibleInterval<T> dfieldForIp = vectorAxisPermute( dfieldIn, 3, 2 );
+			final ImagePlus ip = ImageJFunctions.wrapFloat( dfieldForIp, "wrapped" );
 			if (spacing == null)
 				spacing = new double[] { 1, 1, 1 };
 
@@ -289,31 +283,31 @@ public class DfieldIoHelper
 			ip.getCalibration().yOrigin = origin[ 1 ];
 			ip.getCalibration().zOrigin = origin[ 2 ];
 
-			String nrrdHeader = WriteNrrdDisplacementField.makeDisplacementFieldHeader( ip, subFactors, "gzip" );
+			final String nrrdHeader = WriteNrrdDisplacementField.makeDisplacementFieldHeader( ip, subFactors, "gzip" );
 			if ( nrrdHeader == null )
 			{
 				System.err.println( "Failed" );
 				return;
 			}
 
-			FileOutputStream out = new FileOutputStream( outFile );
+			final FileOutputStream out = new FileOutputStream( outFile );
 			// First write out the full header
-			Writer bw = new BufferedWriter( new OutputStreamWriter( out ) );
+			final Writer bw = new BufferedWriter( new OutputStreamWriter( out ) );
 
 			// Blank line terminates header
 			bw.write( nrrdHeader + "\n" );
 			// Flush rather than close
 			bw.flush();
 
-			GZIPOutputStream dataStream = new GZIPOutputStream( new BufferedOutputStream( out ) );
+			final GZIPOutputStream dataStream = new GZIPOutputStream( new BufferedOutputStream( out ) );
 			WriteNrrdDisplacementField.dumpFloatImg( raiF, null, false, dataStream );
 		}
 		else
 		{
 			//RandomAccessibleInterval< T > dfield = vectorAxisThird( dfieldIn );
-			RandomAccessibleInterval<T> dfield = vectorAxisPermute( dfieldIn, 3, 2 );
+			final RandomAccessibleInterval<T> dfield = vectorAxisPermute( dfieldIn, 3, 2 );
 
-			ImagePlus dfieldip = ImageJFunctions.wrapFloat( dfield, "dfield" );
+			final ImagePlus dfieldip = ImageJFunctions.wrapFloat( dfield, "dfield" );
 			dfieldip.getCalibration().pixelWidth = spacing[ 0 ];
 			dfieldip.getCalibration().pixelHeight = spacing[ 1 ];
 			dfieldip.getCalibration().pixelDepth = spacing[ 2 ];
@@ -334,9 +328,9 @@ public class DfieldIoHelper
 			origin = origin == null ? new double[]{0, 0, 0} : origin;
 			spacing = spacing == null ? new double[]{1, 1, 1} : spacing;
 
-			RandomAccessibleInterval< FloatType > dfieldImgRaw = read( fieldPath );
+			final RandomAccessibleInterval< FloatType > dfieldImgRaw = read( fieldPath );
 			return new DisplacementFieldTransform( dfieldImgRaw, spacing, origin );
-	
+
 //			RandomAccessibleInterval< FloatType > dfieldImg = N5DisplacementField.vectorAxisLast( dfieldImgRaw );
 //			int nd = 3; // TODO generalize
 //
@@ -344,16 +338,16 @@ public class DfieldIoHelper
 //			Scale pixelToPhysical = new Scale( spacing );
 //			for( int i = 0; i < nd; i++ )
 //			{
-//				dfieldComponents[ i ] = 
+//				dfieldComponents[ i ] =
 //						RealViews.affine(
-//							Views.interpolate( 
+//							Views.interpolate(
 //								Views.extendBorder( Views.hyperSlice( dfieldImg, nd, i )),
 //								new NLinearInterpolatorFactory<>()),
 //							pixelToPhysical.copy() );
 //			}
 //			return new DeformationFieldTransform<FloatType>( dfieldComponents );
 		}
-		catch ( Exception e )
+		catch ( final Exception e )
 		{
 			e.printStackTrace();
 			return null;
@@ -372,7 +366,7 @@ public class DfieldIoHelper
 //							new NLinearInterpolatorFactory<>()), pixelToPhysical.copy());
 //		}
 //		return new DeformationFieldTransform<T>(dfieldComponents);
-		
+
 		return new DisplacementFieldTransform( dfieldImg, pixelToPhysical );
 	}
 
@@ -400,11 +394,11 @@ public class DfieldIoHelper
 				unit = dfieldIp.getCalibration().getUnit();
 
 			}
-			catch ( FormatException e )
+			catch ( final FormatException e )
 			{
 				e.printStackTrace();
 			}
-			catch ( IOException e )
+			catch ( final IOException e )
 			{
 				e.printStackTrace();
 			}
@@ -412,16 +406,16 @@ public class DfieldIoHelper
 		}
 		else if ( fieldPath.endsWith( "nrrd" ) )
 		{
-			Dfield_Nrrd_Reader reader = new Dfield_Nrrd_Reader();
-			File tmp = new File( fieldPath );
+			final Dfield_Nrrd_Reader reader = new Dfield_Nrrd_Reader();
+			final File tmp = new File( fieldPath );
 			dfieldIp = reader.load( tmp.getParent(), tmp.getName() );
 
-			spacing = new double[]{ 
+			spacing = new double[]{
 					dfieldIp.getCalibration().pixelWidth,
 					dfieldIp.getCalibration().pixelHeight,
 					dfieldIp.getCalibration().pixelDepth };
-			
-			origin = new double[]{ 
+
+			origin = new double[]{
 					dfieldIp.getCalibration().xOrigin,
 					dfieldIp.getCalibration().yOrigin,
 					dfieldIp.getCalibration().zOrigin };
@@ -429,42 +423,29 @@ public class DfieldIoHelper
 			unit = dfieldIp.getCalibration().getUnit();
 
 		}
-		else if ( fieldPath.contains( "h5" ) )
+		else if (fieldPath.contains("h5") || fieldPath.contains("hdf5") || fieldPath.contains("n5")
+				|| fieldPath.contains("zarr"))
 		{
-			String dataset = "dfield";
-			String filepath = fieldPath;
-
-			if( fieldPath.contains( ":" ))
-			{
-				String[] split = fieldPath.split( ":" );
-				filepath = split[ 0 ];
-				dataset = split[ 1 ];
-			}
-
-			try
-			{
-				N5HDF5Reader n5 = new N5HDF5Reader( filepath, 32, 32, 32, 3 );
-
-				dfieldRAI = N5DisplacementField.openField( n5, dataset, new FloatType() );
-				spacing = n5.getAttribute( dataset, N5DisplacementField.SPACING_ATTR, double[].class );
-			}
-			catch ( Exception e )
-			{
+			try {
+				// sets spacing variable
+				dfieldRAI = readAsRai(fieldPath, new FloatType());
+			} catch (final Exception e) {
 				e.printStackTrace();
 			}
+
 		}
 		else
 		{
 			dfieldIp = IJ.openImage( fieldPath );
 
-			spacing = new double[]{ 
+			spacing = new double[]{
 					dfieldIp.getCalibration().pixelWidth,
 					dfieldIp.getCalibration().pixelHeight,
 					dfieldIp.getCalibration().pixelDepth };
 
 			unit = dfieldIp.getCalibration().getUnit();
 		}
-		
+
 		if( dfieldIp != null )
 		{
 			dfieldRAI = ImageJFunctions.wrapFloat( dfieldIp );
@@ -499,11 +480,11 @@ public class DfieldIoHelper
 				unit = dfieldIp.getCalibration().getUnit();
 
 			}
-			catch ( FormatException e )
+			catch ( final FormatException e )
 			{
 				e.printStackTrace();
 			}
-			catch ( IOException e )
+			catch ( final IOException e )
 			{
 				e.printStackTrace();
 			}
@@ -511,16 +492,16 @@ public class DfieldIoHelper
 		}
 		else if ( fieldPath.endsWith( "nrrd" ) )
 		{
-			Dfield_Nrrd_Reader reader = new Dfield_Nrrd_Reader();
-			File tmp = new File( fieldPath );
+			final Dfield_Nrrd_Reader reader = new Dfield_Nrrd_Reader();
+			final File tmp = new File( fieldPath );
 			dfieldIp = reader.load( tmp.getParent(), tmp.getName() );
 
-			spacing = new double[]{ 
+			spacing = new double[]{
 					dfieldIp.getCalibration().pixelWidth,
 					dfieldIp.getCalibration().pixelHeight,
 					dfieldIp.getCalibration().pixelDepth };
 
-			origin = new double[]{ 
+			origin = new double[]{
 					dfieldIp.getCalibration().xOrigin,
 					dfieldIp.getCalibration().yOrigin,
 					dfieldIp.getCalibration().zOrigin };
@@ -531,15 +512,15 @@ public class DfieldIoHelper
 			unit = dfieldIp.getCalibration().getUnit();
 
 		}
-		else if ( fieldPath.contains( "h5" ) || fieldPath.contains( "hdf5" ) || 
-				  fieldPath.contains( "n5" ))
+		else if ( fieldPath.contains( "h5" ) || fieldPath.contains( "hdf5" ) ||
+				fieldPath.contains("n5") || fieldPath.contains("zarr"))
 		{
 			String dataset = "dfield";
 			String filepath = fieldPath;
 
 			if( fieldPath.contains( ":" ))
 			{
-				String[] split = fieldPath.split( ":" );
+				final String[] split = fieldPath.split( ":" );
 				filepath = split[ 0 ];
 				dataset = split[ 1 ];
 			}
@@ -555,13 +536,13 @@ public class DfieldIoHelper
 				{
 					n5 = new N5FSWriter( filepath );
 				}
+				else if (filepath.contains("zarr"))
+				{
+					n5 = new N5ZarrReader(filepath);
+				}
 				else
 				{
 					System.err.println("Could not create an n5 writer from path: " + filepath );
-					if( n5 != null )
-						n5.close();
-
-					n5 = null; // let the the null pointer be caught
 				}
 
 				dfieldRAI = (RandomAccessibleInterval<T>) N5DisplacementField.openField( n5, dataset, defaultType );
@@ -573,7 +554,7 @@ public class DfieldIoHelper
 					Arrays.fill( spacing, 1.0 );
 				}
 			}
-			catch ( Exception e )
+			catch ( final Exception e )
 			{
 				e.printStackTrace();
 			}
@@ -582,19 +563,19 @@ public class DfieldIoHelper
 		{
 			dfieldIp = IJ.openImage( fieldPath );
 
-			spacing = new double[]{ 
+			spacing = new double[]{
 					dfieldIp.getCalibration().pixelWidth,
 					dfieldIp.getCalibration().pixelHeight,
 					dfieldIp.getCalibration().pixelDepth };
 
-			origin = new double[]{ 
+			origin = new double[]{
 					dfieldIp.getCalibration().xOrigin,
 					dfieldIp.getCalibration().yOrigin,
 					dfieldIp.getCalibration().zOrigin };
 
 			unit = dfieldIp.getCalibration().getUnit();
 		}
-		
+
 		if( dfieldIp != null )
 		{
 			dfieldRAI = ImageJFunctions.wrapFloat( dfieldIp );
@@ -661,11 +642,11 @@ public class DfieldIoHelper
 				origin = new double[]{ dfieldIp.getCalibration().xOrigin, dfieldIp.getCalibration().yOrigin, dfieldIp.getCalibration().zOrigin };
 
 			}
-			catch ( FormatException e )
+			catch ( final FormatException e )
 			{
 				e.printStackTrace();
 			}
-			catch ( IOException e )
+			catch ( final IOException e )
 			{
 				e.printStackTrace();
 			}
@@ -673,20 +654,20 @@ public class DfieldIoHelper
 		}
 		else if ( fieldPath.endsWith( "nrrd" ) )
 		{
-			Dfield_Nrrd_Reader reader = new Dfield_Nrrd_Reader();
-			File tmp = new File( fieldPath );
+			final Dfield_Nrrd_Reader reader = new Dfield_Nrrd_Reader();
+			final File tmp = new File( fieldPath );
 			dfieldIp = reader.load( tmp.getParent(), tmp.getName() );
 			spacing = new double[]{ dfieldIp.getCalibration().pixelWidth, dfieldIp.getCalibration().pixelHeight, dfieldIp.getCalibration().pixelDepth };
 			origin = new double[]{ dfieldIp.getCalibration().xOrigin, dfieldIp.getCalibration().yOrigin, dfieldIp.getCalibration().zOrigin };
 
 		}
-		else if ( 	fieldPath.contains( "h5" ) || 
+		else if ( 	fieldPath.contains( "h5" ) ||
 					fieldPath.contains( "hdf5" ) ||
-					fieldPath.contains( "hdf" ) || 
+					fieldPath.contains( "hdf" ) ||
 					fieldPath.contains( "n5" ) )
 		{
-			H5TransformParameters params = TransformReader.H5TransformParameters.parse(fieldPath);
-			String dataset = params.inverse ? params.invdataset : params.fwddataset;
+			final H5TransformParameters params = TransformReader.H5TransformParameters.parse(fieldPath);
+			final String dataset = params.inverse ? params.invdataset : params.fwddataset;
 			try
 			{
 				System.out.println("reading: " + params.path + " : " + dataset );
@@ -696,12 +677,12 @@ public class DfieldIoHelper
 				else
 					n5 = new N5HDF5Reader( params.path, 32, 32, 32, 3 );
 
-				RandomAccessibleInterval<FloatType> dfield = N5DisplacementField.openField( n5, dataset, new FloatType() );
+				final RandomAccessibleInterval<FloatType> dfield = N5DisplacementField.openField( n5, dataset, new FloatType() );
 				affine = N5DisplacementField.openAffine( n5, dataset );
 				spacing = n5.getAttribute( dataset, N5DisplacementField.SPACING_ATTR, double[].class );
 				return (RandomAccessibleInterval<T>) dfield;
 			}
-			catch ( Exception e )
+			catch ( final Exception e )
 			{
 				e.printStackTrace();
 			}
@@ -718,13 +699,13 @@ public class DfieldIoHelper
 			origin = new double[]{ dfieldIp.getCalibration().xOrigin, dfieldIp.getCalibration().yOrigin, dfieldIp.getCalibration().zOrigin };
 		}
 
-		Img< FloatType > tmpImg = ImageJFunctions.wrapFloat( dfieldIp );
+		final Img< FloatType > tmpImg = ImageJFunctions.wrapFloat( dfieldIp );
 		RandomAccessibleInterval<FloatType> img;
 		if( tmpImg.numDimensions() == 4 && tmpImg.dimension( 2 ) == 3 )
 			img = Views.permute( tmpImg, 2, 3 );
 		else
 			img = tmpImg;
-			
+
 		return (RandomAccessibleInterval<T>) N5DisplacementField.vectorAxisLast( img );
 	}
 
@@ -732,22 +713,22 @@ public class DfieldIoHelper
 	{
 		final int n = source.numDimensions();
 		int[] component = null;
-		
+
 		if( n != 4 )
 		{
 			throw new Exception( "Displacement field must be 4d" );
 		}
 
 		if ( source.dimension( 2 ) == 3 )
-		{	
+		{
 			return null;
 		}
 		else if ( source.dimension( 3 ) == 3 )
 		{
 			component = new int[ n ];
-			component[ 0 ] = 0; 
-			component[ 1 ] = 1; 
-			component[ 2 ] = 3; 
+			component[ 0 ] = 0;
+			component[ 1 ] = 1;
+			component[ 2 ] = 3;
 			component[ 3 ] = 2;
 
 			return component;
@@ -763,14 +744,14 @@ public class DfieldIoHelper
 			return component;
 		}
 
-		throw new Exception( 
-				String.format( "Displacement fields must store vector components in the first or last dimension. " + 
+		throw new Exception(
+				String.format( "Displacement fields must store vector components in the first or last dimension. " +
 						"Found a %d-d volume; expect size [%d,...] or [...,%d]", n, ( n - 1 ), ( n - 1 ) ) );
 	}
 
 	public static final < T extends RealType< T > > RandomAccessibleInterval< T > vectorAxisThird( RandomAccessibleInterval< T > source ) throws Exception
 	{
-		int[] component = vectorAxisThirdPermutation( source );
+		final int[] component = vectorAxisThirdPermutation( source );
 		if( component != null )
 			return N5DisplacementField.permute( source, component );
 
@@ -778,10 +759,10 @@ public class DfieldIoHelper
 	}
 
 	/**
-	 * Permutes the dimensions of the input {@link RandomAccessibleInterval} so that 
+	 * Permutes the dimensions of the input {@link RandomAccessibleInterval} so that
 	 * the first dimension of length dimLength is in dimension destinationDim in the output image.
 	 * Other dimensions are "shifted" so that the order of the remaining dimensions is preserved.
-	 * 
+	 *
 	 * @param source
 	 * @param dimLength
 	 * @param destinationDim
@@ -794,7 +775,7 @@ public class DfieldIoHelper
 			final int destinationDim ) throws Exception
 	{
 		// the dimension of the vector field
-		final int n = source.numDimensions(); 
+		final int n = source.numDimensions();
 
 		int currentVectorDim = -1;
 		for( int i = 0; i < n; i++ )
@@ -807,12 +788,12 @@ public class DfieldIoHelper
 			return null;
 
 		if( currentVectorDim < 0 )
-			throw new Exception( 
+			throw new Exception(
 					String.format( "Displacement fields must contain a dimension with a length of %d", dimLength ));
 
 		int j = 0;
 
-		int[] component = new int[ n ];
+		final int[] component = new int[ n ];
 		component[ currentVectorDim ] = destinationDim;
 
 		if( j == currentVectorDim )
@@ -834,23 +815,23 @@ public class DfieldIoHelper
 	}
 
 	/**
-	 * Permutes the dimensions of the input {@link RandomAccessibleInterval} so that 
+	 * Permutes the dimensions of the input {@link RandomAccessibleInterval} so that
 	 * the first dimension of length dimLength is in dimension destinationDim in the output image.
 	 * Other dimensions are "shifted" so that the order of the remaining dimensions is preserved.
-	 * 
+	 *
 	 * @param source
 	 * @param dimLength
 	 * @param destinationDim
 	 * @return the permuted image
 	 * @throws Exception
 	 */
-	public static final < T extends RealType< T > > RandomAccessibleInterval< T > vectorAxisPermute( 
+	public static final < T extends RealType< T > > RandomAccessibleInterval< T > vectorAxisPermute(
 			final RandomAccessibleInterval< T > source,
 			final int dimLength,
 			final int destinationDim ) throws Exception
 	{
 		// the dimension of the vector field
-		final int n = source.numDimensions(); 
+		final int n = source.numDimensions();
 
 		int currentVectorDim = -1;
 		for( int i = 0; i < n; i++ )
@@ -858,17 +839,17 @@ public class DfieldIoHelper
 			if( source.dimension( i ) == dimLength )
 				currentVectorDim = i;
 		}
-	
+
 		if( currentVectorDim == destinationDim )
 			return source;
 
 		if( currentVectorDim < 0 )
-			throw new Exception( 
+			throw new Exception(
 					String.format( "Displacement fields must contain a dimension with a length of %d", dimLength ));
 
 		int j = 0;
 
-		int[] component = new int[ n ];
+		final int[] component = new int[ n ];
 		component[ currentVectorDim ] = destinationDim;
 
 		if( j == currentVectorDim )
@@ -888,7 +869,7 @@ public class DfieldIoHelper
 
 		return N5DisplacementField.permute( source, component );
 	}
-	
+
 	public static Interval dfieldIntervalVectorFirst3d( Interval dfieldInterval )
 	{
 		if( dfieldInterval.dimension( 0 ) == 3 )
@@ -897,14 +878,14 @@ public class DfieldIoHelper
 		}
 		else if( dfieldInterval.dimension( 3 ) == 3 )
 		{
-			FinalInterval interval = new FinalInterval(
+			final FinalInterval interval = new FinalInterval(
 					dfieldInterval.dimension( 3 ),
 					dfieldInterval.dimension( 0 ),
 					dfieldInterval.dimension( 1 ),
 					dfieldInterval.dimension( 2 ));
 			return interval;
 		}
-		else 
+		else
 			return null;
 	}
 
@@ -922,7 +903,7 @@ public class DfieldIoHelper
 	{
 		return RealViews.affine( convertToCompositeLast( position ), spacing.length == 2 ? new Scale2D( spacing ) : spacing.length == 3 ? new Scale3D( spacing ) : new Scale( spacing ) );
 	}
-	
+
 //	/**
 //	 * Creates a {@link RandomAccessibleInterval} containing the displacements
 //	 * of a {@link DisplacementFieldTransform} for a given
@@ -997,5 +978,5 @@ public class DfieldIoHelper
 //			dfieldDims[ i + 1 ] = interval.dimension( i );
 //
 //		return Views.extendBorder( Views.interval( Views.interleave( displacements ), new FinalInterval( dfieldDims ) ));
-//	}	
+//	}
 }
