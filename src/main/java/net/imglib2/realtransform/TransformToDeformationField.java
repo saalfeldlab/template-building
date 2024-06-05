@@ -2,7 +2,6 @@ package net.imglib2.realtransform;
 
 import java.io.File;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.Callable;
@@ -28,7 +27,6 @@ import net.imglib2.img.imageplus.ImagePlusImg;
 import net.imglib2.img.imageplus.ImagePlusImgFactory;
 import net.imglib2.iterator.IntervalIterator;
 import net.imglib2.loops.LoopBuilder;
-import net.imglib2.parallel.TaskExecutor;
 import net.imglib2.parallel.TaskExecutors;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.RealType;
@@ -63,11 +61,11 @@ public class TransformToDeformationField implements Callable<Void>
 			description = "Maximum coordinate of output interval.  Overrides reference, and outputImageSize parameters." )
 	private double[] intervalMax;
 
-	@Option( names = { "-r", "--output-resolution" }, required = false, split = ",", 
+	@Option( names = { "-r", "--output-resolution" }, required = false, split = ",",
 			description = "The resolution at which to write the output. Overrides reference image." )
 	private double[] outputResolution;
 
-	@Option( names = { "-f", "--reference" }, required = false, 
+	@Option( names = { "-f", "--reference" }, required = false,
 			description = "A reference image specifying the output size and resolution." )
 	private String referenceImagePath;
 
@@ -100,36 +98,37 @@ public class TransformToDeformationField implements Callable<Void>
 		Optional<ValuePair< long[], double[] >> sizeAndRes = Optional.empty();
 		if ( referenceImagePath != null && !referenceImagePath.isEmpty() && new File( referenceImagePath ).exists() )
 		{
-			IOHelper io = new IOHelper();
+			final IOHelper io = new IOHelper();
 			sizeAndRes = Optional.of( io.readSizeAndResolution( new File( referenceImagePath ) ));
 		}
 		else if( transformFiles.size() == 1 )
 		{
-			String transformFile = transformFiles.get( 0 );
-			if( transformFile.contains( ".nrrd" ) || transformFile.contains( ".nii" ) || transformFile.contains( ".h5" ))
+			final String transformFile = transformFiles.get( 0 );
+			if (transformFile.contains(".nrrd") || transformFile.contains(".nii") || transformFile.contains(".h5")
+					|| transformFile.contains(".hdf5") || transformFile.contains(".n5") || transformFile.contains(".zarr"))
 			{
 				try
 				{
 					sizeAndRes = Optional.of( TransformReader.transformSpatialSizeAndRes( transformFile ) );
 				}
-				catch ( Exception e ) { }
+				catch ( final Exception e ) { }
 			}
 		}
 
-		int ndims = 3; // TODO generalize
+		final int ndims = 3; // TODO generalize
 		if ( outputSize != null && !outputSize.isEmpty() )
 			renderInterval = RenderTransformed.parseInterval( outputSize );
 
 
-		FieldOfView fov = FieldOfView.parse( ndims, sizeAndRes, 
-				Optional.ofNullable( intervalMin ), 
-				Optional.ofNullable( intervalMax ), 
+		final FieldOfView fov = FieldOfView.parse( ndims, sizeAndRes,
+				Optional.ofNullable( intervalMin ),
+				Optional.ofNullable( intervalMax ),
 				Optional.ofNullable( renderInterval ),
 				Optional.ofNullable( outputResolution ));
 		fov.updatePixelToPhysicalTransform();
 
 		// contains the physical transformation
-		RealTransformSequence physicalTransform = TransformReader.readTransforms( transformFiles );
+		final RealTransformSequence physicalTransform = TransformReader.readTransforms( transformFiles );
 
 		// we need to tack on the conversion from pixel to physical space first
 		pixelToPhysical = fov.getPixelToPhysicalTransform();
@@ -150,7 +149,8 @@ public class TransformToDeformationField implements Callable<Void>
 
 		totalTransform = physicalTransform;
 	}
-	
+
+	@Override
 	public Void call() throws Exception
 	{
 		setup();
@@ -167,10 +167,11 @@ public class TransformToDeformationField implements Callable<Void>
 		// and if its a nrrd, the vector dimension has to be first,
 		// otherwise it goes last
 		Interval imgInterval = null;
+		boolean needsPermutation = false;
 		if ( renderInterval.numDimensions() == transform.numTargetDimensions() )
 		{
 
-			long[] dims = new long[ transform.numTargetDimensions() + 1 ];
+			final long[] dims = new long[ transform.numTargetDimensions() + 1 ];
 
 			if ( outputFile.endsWith( "nrrd" ) )
 			{
@@ -179,6 +180,7 @@ public class TransformToDeformationField implements Callable<Void>
 				{
 					dims[ d + 1 ] = renderInterval.dimension( d );
 				}
+				needsPermutation = true;
 			}
 			else
 			{
@@ -192,21 +194,15 @@ public class TransformToDeformationField implements Callable<Void>
 		}
 
 		logger.info( "allocating" );
-//<<<<<<< Updated upstream
-		final ImagePlusImgFactory< T > factory = new ImagePlusImgFactory<>( t );
-		final ImagePlusImg< T, ? > dfield = factory.create( imgInterval );
-//=======
-//		ImagePlusImgFactory< T > factory = new ImagePlusImgFactory<>( t );
-//		ImagePlusImg< T, ? > dfieldraw = factory.create( renderInterval );
-//
-//		RandomAccessibleInterval< T > dfield = DfieldIoHelper.vectorAxisPermute( dfieldraw, 3, 0 );
-//>>>>>>> Stashed changes
+		final ImagePlusImgFactory<T> factory = new ImagePlusImgFactory<>(t);
+		final ImagePlusImg<T, ?> dfield = factory.create(imgInterval);
+		final RandomAccessibleInterval<T> dfieldForCopy = DfieldIoHelper.vectorAxisPermute(dfield, 3, 0);
 
 		logger.info( "processing with " + nThreads + " threads." );
-		transformToDeformationField( transform, renderInterval, dfield, pixelToPhysical, nThreads );
+		transformToDeformationField(transform, renderInterval, dfieldForCopy, pixelToPhysical, nThreads);
 
 		logger.info( "writing" );
-		DfieldIoHelper dfieldIo = new DfieldIoHelper();
+		final DfieldIoHelper dfieldIo = new DfieldIoHelper();
 
 		dfieldIo.spacing = outputResolution; // naughty?
 		dfieldIo.origin = intervalMin; // naughty?
@@ -217,43 +213,43 @@ public class TransformToDeformationField implements Callable<Void>
 		{
 			dfieldIo.write( dfield, outputFile );
 		}
-		catch ( Exception e )
+		catch ( final Exception e )
 		{
 			e.printStackTrace();
 		}
 		logger.info( "done" );
 	}
 
-	public <T extends RealType<T> & NativeType<T>> void compare( 
+	public <T extends RealType<T> & NativeType<T>> void compare(
 			final RealTransform transform, final RandomAccessibleInterval<T> dfield )
 	{
 		final DisplacementFieldTransform dfieldTransform = new DisplacementFieldTransform( dfield, outputResolution );
-		RealPoint p = new RealPoint( transform.numSourceDimensions() );
-		RealPoint qOrig = new RealPoint( transform.numTargetDimensions() );
-		RealPoint qNew  = new RealPoint( transform.numTargetDimensions() );
+		final RealPoint p = new RealPoint( transform.numSourceDimensions() );
+		final RealPoint qOrig = new RealPoint( transform.numTargetDimensions() );
+		final RealPoint qNew  = new RealPoint( transform.numTargetDimensions() );
 
 		final int vecdim = dfield.numDimensions() - 1;
-		IntervalIterator it = new IntervalIterator( Views.hyperSlice( dfield, vecdim, 3 ));
+		final IntervalIterator it = new IntervalIterator( Views.hyperSlice( dfield, vecdim, 3 ));
 		while( it.hasNext() )
 		{
 			p.setPosition( it );
-				
+
 			transform.apply( p, qOrig );
 			dfieldTransform.apply( p, qNew );
 		}
 	}
 
-	public static <T extends RealType<T> & NativeType<T>> void transformToDeformationField( 
+	public static <T extends RealType<T> & NativeType<T>> void transformToDeformationField(
 			final RealTransform transform, final Interval interval, final RandomAccessibleInterval<T> dfield, AffineGet pixelToPhysical, int nThreads )
 	{
 		final int nd = transform.numSourceDimensions();
-		Supplier<RealComposite<DoubleType>> vecSupplier = () -> DoubleType.createVector( nd );
+		final Supplier<RealComposite<DoubleType>> vecSupplier = () -> DoubleType.createVector( nd );
 		final RandomAccessibleInterval< DoubleType > df = DisplacementFieldTransform.createDisplacementField( transform, interval, pixelToPhysical, vecSupplier );
 //		LoopBuilder.setImages( df, dfield ).multiThreaded( true ).forEachPixel( (x,y) -> { y.set( x ); });
 		LoopBuilder.setImages( df, dfield ).multiThreaded( TaskExecutors.numThreads( nThreads ) ).forEachPixel( (x,y) -> { y.setReal( x.get()); });
 	}
 
-	public static <T extends RealType<T> & NativeType<T>> void transformToDeformationFieldLegacy( 
+	public static <T extends RealType<T> & NativeType<T>> void transformToDeformationFieldLegacy(
 			final RealTransform transform, final RandomAccessibleInterval<T> dfield, AffineGet pixelToPhysical, int nThreads )
 	{
 		if( nThreads == 1 )
@@ -268,8 +264,8 @@ public class TransformToDeformationField implements Callable<Void>
 		final int vecdim = 0;
 		final int step = nThreads;
 
-		ExecutorService exec = Executors.newFixedThreadPool( nThreads );
-		ArrayList<Callable<Void>> jobs = new ArrayList<Callable<Void>>();
+		final ExecutorService exec = Executors.newFixedThreadPool( nThreads );
+		final ArrayList<Callable<Void>> jobs = new ArrayList<Callable<Void>>();
 		for( int i = 0; i < nThreads; i++ )
 		{
             final int start = i;
@@ -315,14 +311,14 @@ public class TransformToDeformationField implements Callable<Void>
 
 		try
 		{
-			List< Future< Void > > futures = exec.invokeAll( jobs );
-			for ( Future< Void > f : futures )
+			final List< Future< Void > > futures = exec.invokeAll( jobs );
+			for ( final Future< Void > f : futures )
 			{
 				try
 				{
 					f.get();
 				}
-				catch ( ExecutionException e )
+				catch ( final ExecutionException e )
 				{
 					e.printStackTrace();
 				}
@@ -339,7 +335,7 @@ public class TransformToDeformationField implements Callable<Void>
 					System.err.println( "Pool did not terminate" );
 			}
 		}
-		catch ( InterruptedException e )
+		catch ( final InterruptedException e )
 		{
 			e.printStackTrace();
 			// (Re-)Cancel if current thread also interrupted
@@ -348,16 +344,16 @@ public class TransformToDeformationField implements Callable<Void>
 			Thread.currentThread().interrupt();
 		}
 	}
-	
-	public static <T extends RealType<T> & NativeType<T>> void transformToDeformationFieldLegacy( 
+
+	public static <T extends RealType<T> & NativeType<T>> void transformToDeformationFieldLegacy(
 			final RealTransform transform, final RandomAccessibleInterval<T> dfield, final AffineGet pixelToPhysical )
 	{
 		assert ( dfield.numDimensions() == transform.numSourceDimensions() + 1 );
 
 		final RealPoint p = new RealPoint( transform.numSourceDimensions() );
 		final RealPoint q = new RealPoint( transform.numTargetDimensions() );
-		
-		int vecdim = dfield.numDimensions() - 1;
+
+		final int vecdim = dfield.numDimensions() - 1;
 		final IntervalIterator it = new IntervalIterator( Views.hyperSlice( dfield, vecdim, 0 ));
 		final RandomAccess< T > dfieldRa = dfield.randomAccess();
 		while( it.hasNext() )
