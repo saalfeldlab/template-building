@@ -93,6 +93,6 @@ public class LinearQuantizer<S extends RealType<S>, T extends RealType<T>> imple
 	@Override
 	public AbstractQuantizer< T, S > inverse()
 	{
-		return new LinearQuantizer<T,S>( t, s, m, (b/m) );
+		return new LinearQuantizer<T,S>( t, s, (1.0/m), (b/m) );
 	}
 }

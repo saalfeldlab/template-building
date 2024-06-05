@@ -128,6 +128,8 @@ public class TransformComparison implements Callable< Void >
         	
 //        	ArrayImg< DoubleType, DoubleArray > differenceImage = ArrayImgs.doubles( sz );
         	FloatImagePlus< FloatType > differenceImage = ImagePlusImgs.floats( sz );
+        	System.out.println( "difference image is size: " + Intervals.toString( differenceImage ));
+
         	loopImage( differenceImage );
       
         	IOHelper.write( differenceImage.getImagePlus(), differenceImagePath );

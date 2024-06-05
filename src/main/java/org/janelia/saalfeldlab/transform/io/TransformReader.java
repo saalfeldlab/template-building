@@ -123,8 +123,9 @@ public class TransformReader
 					}
 					else if( param.startsWith( TOLERANCE_FLAG ))
 					{
-						inverseOptimizer.setTolerance(
-								Double.parseDouble( param.substring( param.indexOf( "=" ) + 1 )));
+						final double tolerance = Double.parseDouble( param.substring( param.indexOf( "=" ) + 1 ));
+						inverseOptimizer.setTolerance( tolerance );
+						System.out.println( "setting inv tolerance to : " + tolerance );
 					}
 					else if( param.startsWith( C_FLAG ))
 					{
@@ -138,8 +139,9 @@ public class TransformReader
 					}
 					else if( param.startsWith( MAXITERS_FLAG ))
 					{
-						inverseOptimizer.setMaxIters(
-								Integer.parseInt( param.substring( param.indexOf( "=" ) + 1 )));
+						final int maxIters = Integer.parseInt( param.substring( param.indexOf( "=" ) + 1 ));
+						inverseOptimizer.setMaxIters( maxIters );
+						System.out.println( "setting inv max iters to : " + maxIters );
 					}
 					else if( param.startsWith( STEP_TRIES_FLAG ))
 					{

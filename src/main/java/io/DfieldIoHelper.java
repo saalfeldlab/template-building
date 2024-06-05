@@ -279,9 +279,18 @@ public class DfieldIoHelper
 			ip.getCalibration().pixelHeight = spacing[ 1 ];
 			ip.getCalibration().pixelDepth = spacing[ 2 ];
 
-			ip.getCalibration().xOrigin = origin[ 0 ];
-			ip.getCalibration().yOrigin = origin[ 1 ];
-			ip.getCalibration().zOrigin = origin[ 2 ];
+			try
+			{
+				ip.getCalibration().xOrigin = origin[ 0 ];
+				ip.getCalibration().yOrigin = origin[ 1 ];
+				ip.getCalibration().zOrigin = origin[ 2 ];
+
+			} catch ( NullPointerException npe )
+			{
+				ip.getCalibration().xOrigin = 0.0;
+				ip.getCalibration().yOrigin = 0.0;
+				ip.getCalibration().zOrigin = 0.0;
+			}
 
 			final String nrrdHeader = WriteNrrdDisplacementField.makeDisplacementFieldHeader( ip, subFactors, "gzip" );
 			if ( nrrdHeader == null )

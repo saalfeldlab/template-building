@@ -9,6 +9,7 @@ import java.util.concurrent.Callable;
 import org.janelia.saalfeldlab.n5.GzipCompression;
 import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Writer;
+import org.janelia.saalfeldlab.n5.imglib2.N5DisplacementField;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
 import org.janelia.saalfeldlab.transform.io.TransformReader;
 
@@ -21,7 +22,6 @@ import net.imglib2.IterableInterval;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.converter.Converter;
 import net.imglib2.converter.Converters;
-import net.imglib2.img.Img;
 import net.imglib2.img.display.imagej.ImageJFunctions;
 import net.imglib2.interpolation.randomaccess.NLinearInterpolatorFactory;
 import net.imglib2.quantization.AbstractQuantizer;
@@ -29,6 +29,7 @@ import net.imglib2.quantization.GammaQuantizer;
 import net.imglib2.quantization.LinearQuantizer;
 import net.imglib2.realtransform.AffineGet;
 import net.imglib2.realtransform.AffineTransform;
+import net.imglib2.realtransform.InvertibleRealTransform;
 import net.imglib2.realtransform.RealTransform;
 import net.imglib2.realtransform.RealViews;
 import net.imglib2.type.NativeType;
@@ -96,7 +97,7 @@ public class WriteH5DisplacementField implements Callable<Void> {
 //		double maxValue = options.getMaxValue();
 //		double gamma = options.getGamma();
 
-		final double[] affineArr = loadAffine( affine );
+		final double[] affineArr = loadAffine( affine, isInverse );
 
 		blockSize = blockSize == null ? blockSizeDefault : blockSize;
 		System.out.println( "block size: " + Arrays.toString( blockSize ));
@@ -214,7 +215,9 @@ public class WriteH5DisplacementField implements Callable<Void> {
 		{
 			if( Double.isNaN( maxValue ))
 			{
+				System.out.println( "estimating max value...");
 				maxValue = getMaxAbs( Views.iterable( img_perm ));
+				System.out.println( "max value = " + maxValue);
 			}
 
 			if ( convertType.toUpperCase().equals( SHORTTYPE ))
@@ -222,14 +225,14 @@ public class WriteH5DisplacementField implements Callable<Void> {
 				ShortType t = new ShortType();
 				AbstractQuantizer<FloatType, ShortType> quantizer =  getQuantizer( new FloatType(),t, maxValue, gamma );
 				write( Converters.convert( img_perm, quantizer, t ), affineArr,
-						output, blockSize, spacing, quantizer );
+						output, blockSize, spacing, quantizer, isInverse );
 			}
 			else if ( convertType.toUpperCase().equals( BYTETYPE ) )
 			{
 				ByteType t = new ByteType();
 				AbstractQuantizer<FloatType, ByteType> quantizer =  getQuantizer( new FloatType(), t, maxValue, gamma );
 				write( Converters.convert( img_perm, quantizer, t ), affineArr,
-						output, blockSize, spacing, quantizer );
+						output, blockSize, spacing, quantizer, isInverse );
 				
 			}
 		}
@@ -241,17 +244,21 @@ public class WriteH5DisplacementField implements Callable<Void> {
 		return null;
 	}
 
-	public static double[] loadAffine( String affinePath )
+	public static double[] loadAffine( String affinePath, boolean inverse )
 	{
 		if( affinePath == null )
 			return null;
 
 		final TransformReader reader = new TransformReader();
-		final RealTransform tform = reader.read( affinePath );
+		final InvertibleRealTransform tform = reader.readInvertible( affinePath );
+
 		if( tform instanceof AffineGet )
 		{
 			AffineGet a = (AffineGet)tform;
-			return a.getRowPackedCopy();
+			if( inverse )
+				return a.inverse().getRowPackedCopy();
+			else
+				return a.getRowPackedCopy();
 		}
 		System.err.println( "could not read " + affinePath + " as affine." );
 		return null;
@@ -294,22 +301,47 @@ public class WriteH5DisplacementField implements Callable<Void> {
 			String fout,
 			int[] blockSize,
 			double[] spacing,
-			AbstractQuantizer<?,?> quantizer ) throws IOException
+			AbstractQuantizer<?,?> quantizer,
+            final boolean isInverse ) throws IOException
 	{
+        final String dset = isInverse ? "invdfield" : "dfield";
+
 		System.out.println("write dfield size: " + Util.printInterval( write_me ));
+		System.out.println("to dataset: " + dset);
 		
 		N5Writer n5writer = new N5HDF5Writer( fout, blockSize );
-		N5Utils.save( write_me, n5writer, "dfield", blockSize, new GzipCompression(5));
+
+		// save the array first (creates the datset )
+		N5Utils.save( write_me, n5writer, dset, blockSize, new GzipCompression(5));
 
 		if( affine != null )
-			n5writer.setAttribute("dfield", "affine", affine );
+			n5writer.setAttribute(dset, "affine", affine );
 
-		n5writer.setAttribute("dfield", "spacing", spacing );
+		n5writer.setAttribute(dset, "spacing", spacing );
 		
 		Map< String, Double > qParams = quantizer.parameters();
-		for( String k : qParams.keySet() )
-			n5writer.setAttribute("dfield", k, qParams.get( k ));
 		
+		if( quantizer instanceof LinearQuantizer )
+		{
+			final LinearQuantizer lq = (LinearQuantizer)quantizer;
+			final Map<String,Double> tmpMap = lq.parameters();
+			final Double b = tmpMap.get("b");
+
+			if( b < 1e-9 )
+			{
+                qParams.clear();
+                final Map<String,Double> invParams = lq.inverse().parameters();
+				System.out.println( "using multiplier attribute" );
+				qParams.put( N5DisplacementField.MULTIPLIER_ATTR, invParams.get( "m" ) );
+
+
+				System.out.println( qParams.get( N5DisplacementField.MULTIPLIER_ATTR ) );
+			}
+		}
+		
+        for( String k : qParams.keySet() )
+            n5writer.setAttribute(dset, k, qParams.get( k ));
+
 //		n5writer.setAttribute("dfield", "maxIn", quantizer.maxIn );
 //		n5writer.setAttribute("dfield", "maxOut", quantizer.maxOut );
 //		n5writer.setAttribute("dfield", "multiplier", quantizer.m );
