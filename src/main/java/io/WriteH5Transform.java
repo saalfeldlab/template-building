@@ -1,8 +1,6 @@
 package io;
 
-import java.io.File;
 import java.io.IOException;
-import java.io.Serializable;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.concurrent.Callable;
@@ -10,29 +8,21 @@ import java.util.concurrent.Callable;
 import org.janelia.saalfeldlab.n5.Compression;
 import org.janelia.saalfeldlab.n5.GzipCompression;
 import org.janelia.saalfeldlab.n5.N5Writer;
-import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Writer;
 import org.janelia.saalfeldlab.n5.imglib2.N5DisplacementField;
-import org.janelia.utility.parse.ParseUtils;
+import org.janelia.saalfeldlab.n5.universe.N5Factory;
 
-import ij.IJ;
-import ij.ImagePlus;
-import io.nii.NiftiIo;
 import loci.formats.FormatException;
-import net.imglib2.img.Img;
-import net.imglib2.img.display.imagej.ImageJFunctions;
+import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.realtransform.ants.ANTSLoadAffine;
 import net.imglib2.type.numeric.integer.ByteType;
 import net.imglib2.type.numeric.integer.ShortType;
 import net.imglib2.type.numeric.real.FloatType;
-import sc.fiji.io.Dfield_Nrrd_Reader;
-
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 
-import process.TransformImage;
-
+@Deprecated
 @Command( version = "0.2.0-SNAPSHOT" )
 public class WriteH5Transform implements Callable<Void>
 {
@@ -72,14 +62,17 @@ public class WriteH5Transform implements Callable<Void>
 	public static void main(String[] args) throws FormatException, IOException
 	{
 		new CommandLine( new WriteH5Transform()).execute(args);
-		System.exit(0);	
+		System.exit(0);
 	}
 
+	@Override
 	public Void call() throws FormatException, IOException
 	{
-		AffineTransform3D affineXfm = loadAffine( affine, false );
-	
-		N5Writer n5Writer = new N5HDF5Writer( output, blockSize );
+		final AffineTransform3D affineXfm = loadAffine( affine, false );
+
+		final N5Writer n5Writer = new N5Factory().hdf5DefaultBlockSize(blockSizeDefault).openWriter(output);
+		System.out.println(n5Writer.getClass());
+
 		write( field, n5Writer, "dfield", blockSize, convertType, maxErr, affineXfm );
 
 		if( invDfield != null )
@@ -87,7 +80,7 @@ public class WriteH5Transform implements Callable<Void>
 
 		return null;
 	}
-	
+
 	public static void write(
 			final String imF,
 			final N5Writer n5Writer,
@@ -97,42 +90,19 @@ public class WriteH5Transform implements Callable<Void>
 			final double maxErr,
 			final AffineTransform3D affineXfm )
 	{
-		int[][] permutation = null;
-		ImagePlus baseIp = null;
-		if( imF.endsWith( "nii" ))
-		{
-			permutation = new int[][]{{0,3},{1,3},{2,3}};
-			try
-			{
-				baseIp =  NiftiIo.readNifti( new File( imF ) );
-			} catch ( FormatException e )
-			{
-				e.printStackTrace();
-			} catch ( IOException e )
-			{
-				e.printStackTrace();
-			}
+
+		final DfieldIoHelper dfIo = new DfieldIoHelper();
+		RandomAccessibleInterval<FloatType> img;
+		try {
+			img = dfIo.readAsRai(imF, new FloatType());
+		} catch (final Exception e) {
+			System.err.println("Could not read displacement field from: " + imF);
+			return;
 		}
-		else if( imF.endsWith( "nrrd" ))
-		{
-			// This will never work since the Nrrd_Reader can't handle 4d volumes, actually
-			Dfield_Nrrd_Reader nr = new Dfield_Nrrd_Reader();
-			File imFile = new File( imF );
-			baseIp = nr.load( imFile.getParent(), imFile.getName());
-		}
-		else
-		{
-			baseIp = IJ.openImage( imF );
-		}
-		double[] spacing = new double[]{ 
-				baseIp.getCalibration().pixelWidth,
-				baseIp.getCalibration().pixelHeight,
-				baseIp.getCalibration().pixelDepth
-		};
-		
-		Img< FloatType > img = ImageJFunctions.convertFloat( baseIp );
-		
-		Compression compression = new GzipCompression();
+		final double[] spacing = dfIo.spacing;
+
+
+		final Compression compression = new GzipCompression();
 		try
 		{
 
@@ -150,7 +120,7 @@ public class WriteH5Transform implements Callable<Void>
 			}
 
 		}
-		catch ( Exception e )
+		catch ( final Exception e )
 		{
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -164,13 +134,13 @@ public class WriteH5Transform implements Callable<Void>
 			System.out.println("Reading mat transform file");
 			try
 			{
-				AffineTransform3D xfm = ANTSLoadAffine.loadAffine( filePath );
+				final AffineTransform3D xfm = ANTSLoadAffine.loadAffine( filePath );
 				if( invert )
 				{
 					return xfm.inverse().copy();
 				}
 				return xfm;
-			} catch ( IOException e )
+			} catch ( final IOException e )
 			{
 				e.printStackTrace();
 			}
@@ -182,13 +152,13 @@ public class WriteH5Transform implements Callable<Void>
 				System.out.println("Reading itk transform file");
 				try
 				{
-					AffineTransform3D xfm = ANTSLoadAffine.loadAffine( filePath );
+					final AffineTransform3D xfm = ANTSLoadAffine.loadAffine( filePath );
 					if( invert )
 					{
 						return xfm.inverse().copy();
 					}
 					return xfm;
-				} catch ( IOException e )
+				} catch ( final IOException e )
 				{
 					e.printStackTrace();
 				}
