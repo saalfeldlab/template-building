@@ -1,13 +1,22 @@
 package process;
 
 import java.io.File;
+import java.net.URISyntaxException;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.Callable;
 import java.util.function.BiConsumer;
 
+import org.janelia.saalfeldlab.n5.N5Reader;
+import org.janelia.saalfeldlab.n5.N5URI;
+import org.janelia.saalfeldlab.n5.universe.N5Factory;
+import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.v05.Common;
+import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.v05.graph.TransformGraph;
+import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.v05.graph.TransformPath;
 import org.janelia.saalfeldlab.transform.io.TransformReader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,11 +24,10 @@ import org.slf4j.LoggerFactory;
 import ij.ImagePlus;
 import io.IOHelper;
 import net.imglib2.FinalInterval;
-import net.imglib2.RandomAccess;
-import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.RealRandomAccessible;
 import net.imglib2.img.imageplus.ImagePlusImg;
 import net.imglib2.img.imageplus.ImagePlusImgFactory;
+import net.imglib2.realtransform.RealTransform;
 import net.imglib2.realtransform.RealTransformRandomAccessible;
 import net.imglib2.realtransform.RealTransformSequence;
 import net.imglib2.realtransform.Scale;
@@ -36,13 +44,13 @@ import util.RenderUtil;
 
 /**
  * Renders images transformed/registered.
- * 
+ *
  * Currently the final (implied) upsampling transform is hard-coded in : it
  * resmples up by a factor of 4 in x and y and 2 in z. After that, it upsamples
  * z again by a factor of (~ 2.02) to resample the images to a resolution of
  * 0.188268 um isotropic.
- * 
- * 
+ *
+ *
  * @author John Bogovic
  * @param <T>
  *
@@ -60,6 +68,15 @@ public class TransformImage<T extends RealType<T> & NativeType<T>> implements Ca
 	@Option( names = { "-t", "--transform" }, required = false, description = "Transformation file." )
 	private List< String > transformFiles = new ArrayList<>();
 
+	@Option(names = {"-ct", "--coordinate-transforms"}, required = false, description = "Path to coordinate transformations.")
+	private String coordinateTransformPath;
+
+	@Option(names = {"-is", "--input-coordinate-system"}, required = false, description = "")
+	private String inputCoordinateSystem;
+
+	@Option(names = {"-os", "--output-coordinate-system"}, required = false, description = "")
+	private String outputCoordinateSystem;
+
 	@Option( names = { "--interpolation" }, required = false, description = "Interpolation {LINEAR, NEAREST, BSPLINE, LANCZOS}" )
 	private String interpolation = "LINEAR";
 
@@ -68,15 +85,15 @@ public class TransformImage<T extends RealType<T> & NativeType<T>> implements Ca
 					+ "Overrides reference image."  )
 	private String outputSize;
 
-	@Option( names = { "-r", "--output-resolution" }, required = false, split = ",", 
+	@Option( names = { "-r", "--output-resolution" }, required = false, split = ",",
 			description = "The resolution at which to write the output. Overrides reference image." )
 	private double[] outputResolution;
 
-	@Option( names = { "-f", "--reference" }, required = false, 
+	@Option( names = { "-f", "--reference" }, required = false,
 			description = "A reference image specifying the output size and resolution." )
 	private String referenceImagePath;
 
-	@Option( names = { "-e", "--extend-option" }, required = false, 
+	@Option( names = { "-e", "--extend-option" }, required = false,
 			description = "Extending out-of-bounds options. [boundary, mirror, mirror2, (numerical-value)]" )
 	private String extendOption = "0";
 
@@ -89,7 +106,7 @@ public class TransformImage<T extends RealType<T> & NativeType<T>> implements Ca
 	@Option(names = {"-h", "--help"}, usageHelp = true, description = "Print this help message" )
 	private boolean help;
 
-	private RealTransformSequence totalTransform;
+	private RealTransform totalTransform;
 
 	private FinalInterval renderInterval;
 
@@ -104,41 +121,87 @@ public class TransformImage<T extends RealType<T> & NativeType<T>> implements Ca
 
 	/**
 	 * Parses inputs to determine output size, resolution, etc.
-	 * 
-	 *  
 	 */
 	public void setup()
 	{
 		if( referenceImagePath != null && !referenceImagePath.isEmpty() && new File( referenceImagePath ).exists() )
 		{
-			IOHelper io = new IOHelper();
-			ValuePair< long[], double[] > sizeAndRes = io.readSizeAndResolution( new File( referenceImagePath ));
+			final IOHelper io = new IOHelper();
+			final ValuePair< long[], double[] > sizeAndRes = io.readSizeAndResolution( new File( referenceImagePath ));
 			renderInterval = new FinalInterval( sizeAndRes.getA() );
-			
+
 			if ( outputResolution == null )
 				outputResolution = sizeAndRes.getB();
 		}
-		
+
 		if( outputSize != null && !outputSize.isEmpty() )
 			renderInterval = RenderTransformed.parseInterval( outputSize );
 
 		// contains the physical transformation
-		RealTransformSequence physicalTransform = TransformReader.readTransforms( transformFiles );
+		final RealTransform physicalTransform = readTransforms();
 
 		// we need to tack on the conversion from physical to pixel space first
 		Scale resOutXfm = null;
 		if ( outputResolution != null )
 		{
-			totalTransform = new RealTransformSequence();
-			resOutXfm = new Scale( outputResolution );
-			//System.out.println( resOutXfm );
-			totalTransform.add( resOutXfm );
-			totalTransform.add( physicalTransform );
+			final RealTransformSequence transformSequence = new RealTransformSequence();
+			resOutXfm = new Scale(outputResolution);
+			transformSequence.add(resOutXfm);
+			transformSequence.add(physicalTransform);
+			totalTransform = transformSequence;
 		}
-		else 
+		else
 			totalTransform = physicalTransform;
 	}
 
+	private RealTransform readTransforms() {
+		final RealTransform physicalTransform;
+		if( transformFiles != null && transformFiles.size() > 0 )
+			return TransformReader.readTransforms(transformFiles);
+		else if (coordinateTransformPath != null && inputCoordinateSystem != null && outputCoordinateSystem != null) {
+			return readTransformFromGraph();
+		}
+		return new RealTransformSequence();
+	}
+
+	private RealTransform readTransformFromGraph() {
+
+		N5URI n5uri;
+		try {
+			n5uri = new N5URI(coordinateTransformPath);
+		} catch (final URISyntaxException e) {
+			return null;
+		}
+
+		final N5Reader n5 = new N5Factory().gsonBuilder(Common.gsonBuilder()).openReader(n5uri.getContainerPath());
+		final TransformGraph graph = Common.openGraph(n5, n5uri.getGroupPath());
+
+		final HashSet<String> coordinateSystems = new HashSet<>();
+		graph.getTransforms().stream().forEach(t -> {
+			coordinateSystems.add(t.getInput());
+			coordinateSystems.add(t.getOutput());
+		});
+
+		if (!outputCoordinateSystem.equals(inputCoordinateSystem)) {
+
+			// return graph.path(outputCoordinateSystem, inputCoordinateSystem).map(p -> {
+			// return p.totalTransform(n5);
+			// }).orElse(new RealTransformSequence());
+
+			final Optional<TransformPath> pathOpt = graph.path(outputCoordinateSystem, inputCoordinateSystem);
+			if (pathOpt.isPresent()) {
+				final TransformPath path = pathOpt.get();
+				final RealTransform tform = path.totalTransform(n5);
+				return tform;
+			}
+			return new RealTransformSequence();
+
+		}
+		else
+			return new RealTransformSequence();
+	}
+
+	@Override
 	public Void call()
 	{
 		assert outputFiles.size() == inputFiles.size();
@@ -147,37 +210,37 @@ public class TransformImage<T extends RealType<T> & NativeType<T>> implements Ca
 
 		for ( int i = 0; i < outputFiles.size(); i++ )
 		{
-//			File input = new File( inputFiles.get( i ));
-//			File output = new File( outputFiles.get( i ));
-			accept( inputFiles.get( i ), outputFiles.get( i ) );
+			accept(inputFiles.get(i), outputFiles.get(i));
 		}
 		return null;
 	}
 
+	@Override
 	public void accept( String input, String output )
 	{
-		process( input, output );
+
+		process(input, output);
 	}
 
 	public void process( String inputPath, String outputPath )
 	{
-		File inputFile = Paths.get( inputPath ).toFile();
-		File outputFile = Paths.get( outputPath ).toFile();
+		final File inputFile = Paths.get( inputPath ).toFile();
+		final File outputFile = Paths.get( outputPath ).toFile();
 
 		logger.debug( "output resolution : " + Arrays.toString( outputResolution ));
 		logger.debug( "output size       : " + Util.printInterval( renderInterval ));
 		final int nd = renderInterval.numDimensions();
 
-		IOHelper io = new IOHelper();
+		final IOHelper io = new IOHelper();
 		//RandomAccessibleInterval<T> rai = io.getRai();
-		RealRandomAccessible< T > img = io.readPhysical( inputFile, interpolation, extendOption );
-		IntervalView< T > imgXfm = Views.interval( 
+		final RealRandomAccessible< T > img = io.readPhysical( inputFile, interpolation, extendOption );
+		final IntervalView< T > imgXfm = Views.interval(
 				Views.raster( new RealTransformRandomAccessible<>( img, totalTransform ) ),
 				renderInterval );
 
 		logger.info( "allocating" );
-		ImagePlusImgFactory< T > factory = new ImagePlusImgFactory<>( (T)io.getType() );
-		ImagePlusImg< T, ? > imgout = factory.create( renderInterval );
+		final ImagePlusImgFactory< T > factory = new ImagePlusImgFactory<>( (T)io.getType() );
+		final ImagePlusImg< T, ? > imgout = factory.create( renderInterval );
 
 		logger.info( "copying with " + nThreads + " threads." );
 		try
@@ -185,7 +248,7 @@ public class TransformImage<T extends RealType<T> & NativeType<T>> implements Ca
 			//RenderUtil.copyToImageStackIterOrder( imgXfm, imgout, nThreads );
 			RenderUtil.copyToImageStack( imgXfm, imgout, nThreads );
 		}
-		catch ( Exception e )
+		catch ( final Exception e )
 		{
 			e.printStackTrace();
 			logger.error( "copying failed" );
@@ -193,7 +256,7 @@ public class TransformImage<T extends RealType<T> & NativeType<T>> implements Ca
 		}
 
 		logger.info( "writing to: " + outputPath );
-		ImagePlus ipout = imgout.getImagePlus();
+		final ImagePlus ipout = imgout.getImagePlus();
 		ipout.getCalibration().pixelWidth = outputResolution[ 0 ];
 		ipout.getCalibration().pixelHeight = outputResolution[ 1 ];
 
