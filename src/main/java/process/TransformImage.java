@@ -266,7 +266,7 @@ public class TransformImage<T extends RealType<T> & NativeType<T>> implements Ca
 		if ( io.getIp() != null )
 			ipout.getCalibration().setUnit( io.getIp().getCalibration().getUnit() );
 
-		IOHelper.write( ipout, outputFile );
+		IOHelper.write(ipout, outputFile, nThreads);
 	}
 
 }

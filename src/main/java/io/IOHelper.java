@@ -6,21 +6,22 @@ import java.util.Arrays;
 import java.util.Hashtable;
 import java.util.Set;
 import java.util.concurrent.Callable;
+import java.util.concurrent.Executors;
 
 import org.janelia.saalfeldlab.n5.GzipCompression;
 import org.janelia.saalfeldlab.n5.N5Exception;
 import org.janelia.saalfeldlab.n5.N5FSReader;
-import org.janelia.saalfeldlab.n5.N5FSWriter;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Reader;
-import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Writer;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
+import org.janelia.saalfeldlab.n5.universe.N5Factory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import ij.IJ;
 import ij.ImagePlus;
+import ij.plugin.FolderOpener;
 import io.nii.NiftiIo;
 import io.nii.Nifti_Writer;
 import loci.formats.FormatException;
@@ -83,7 +84,7 @@ public class IOHelper implements Callable<Void>
 
 	@Option(names = {"--output", "-o"}, description = "Output image file" )
 	private String outputFilePath;
-	
+
 	@Option(names = {"--resolution", "-r"}, description = "Force output resolution. "
 			+ "Does not resample the image, or change image data in any way", split=",")
 	private double[] resIn;
@@ -99,18 +100,18 @@ public class IOHelper implements Callable<Void>
 
 	public static ResolutionGet[] resolutionGetters = new ResolutionGet[]{
 			new TransformResolution(),
-			new Resolution(), 
+			new Resolution(),
 			new PixelResolution(),
 			new ElemSizeUmResolution()
 	};
 
 	final Logger logger = LoggerFactory.getLogger( IOHelper.class );
-	
+
 	public static void main( String[] args )
 	{
 		CommandLine.call( new IOHelper(), args );
 	}
-	
+
 //	public void setResolutionAttribute( final String resolutionAttribute )
 //	{
 //		this.resolutionAttribute = resolutionAttribute;
@@ -121,15 +122,16 @@ public class IOHelper implements Callable<Void>
 //		this.offsetAttribute = offsetAttribute;
 //	}
 
+	@Override
 	public Void call()
 	{
 		// read
-		ImagePlus ip = readIp( inputFilePath );
-		
+		final ImagePlus ip = readIp( inputFilePath );
+
 		// resolution
 		if( resIn != null )
 			setResolution( ip, resIn );
-	
+
 		// units
 		if( unit != null)
 			ip.getCalibration().setUnit( unit );
@@ -152,14 +154,14 @@ public class IOHelper implements Callable<Void>
 			return new OutOfBoundsBorderFactory<>();
 		}
 
-		T value = type.copy();
+		final T value = type.copy();
 		if (value instanceof IntegerType)
 		{
-			int v = Integer.parseInt(extendOption);
+			final int v = Integer.parseInt(extendOption);
 			((IntegerType) value).setInteger(v);
 		} else if (value instanceof RealType)
 		{
-			double v = Double.parseDouble(extendOption);
+			final double v = Double.parseDouble(extendOption);
 			((RealType) value).setReal(v);
 		}
 		return new OutOfBoundsConstantValueFactory<>( value );
@@ -182,13 +184,13 @@ public class IOHelper implements Callable<Void>
 		if( type instanceof IntegerType )
 		{
 			type = Util.getTypeFromInterval( img );
-			int v = Integer.parseInt( option );
+			final int v = Integer.parseInt( option );
 			((IntegerType)type).setInteger( v );
 		}
 		else if( type instanceof RealType )
 		{
 			type = Util.getTypeFromInterval( img );
-			double v = Double.parseDouble( option );
+			final double v = Double.parseDouble( option );
 			((RealType)type).setReal( v );
 		}
 
@@ -201,7 +203,7 @@ public class IOHelper implements Callable<Void>
 		{
 			return readSizeAndResolution( file.getCanonicalPath() );
 		}
-		catch ( IOException e )
+		catch ( final IOException e )
 		{
 			e.printStackTrace();
 		}
@@ -220,7 +222,7 @@ public class IOHelper implements Callable<Void>
 		try {
 			attrKeys = n5.listAttributes( dataset ).keySet();
 			double[] resolution = null;
-			for( ResolutionGet rg : resolutionGetters )
+			for( final ResolutionGet rg : resolutionGetters )
 			{
 				if( attrKeys.contains( rg.getKey()))
 				{
@@ -235,7 +237,7 @@ public class IOHelper implements Callable<Void>
 					return resolution;
 				}
 			}
-		} catch (Exception e) {
+		} catch (final Exception e) {
 			//e.printStackTrace();
 		}
 		return null;
@@ -249,23 +251,23 @@ public class IOHelper implements Callable<Void>
 			{
 				return NiftiIo.readSizeAndResolution( new File( filePath ) );
 			}
-			catch ( FormatException e )
+			catch ( final FormatException e )
 			{
 				e.printStackTrace();
 			}
-			catch ( IOException e )
+			catch ( final IOException e )
 			{
 				e.printStackTrace();
 			}
 		}
 		else if ( filePath.endsWith( "nrrd" ) )
 		{
-			Dfield_Nrrd_Reader nr = new Dfield_Nrrd_Reader();
+			final Dfield_Nrrd_Reader nr = new Dfield_Nrrd_Reader();
 			try
 			{
 				return nr.readSizeAndResolution( new File( filePath ) );
 			}
-			catch ( IOException e )
+			catch ( final IOException e )
 			{
 				e.printStackTrace();
 			}
@@ -273,9 +275,9 @@ public class IOHelper implements Callable<Void>
 		else if ( filePath.contains( "n5?" ) ||
 					filePath.contains( "h5?" ) || filePath.contains("hdf?") || filePath.contains("hdf5?") )
 		{
-			String[] parts = filePath.split( "\\?" );
-			String file = parts[ 0 ];
-			String dataset = parts[ 1 ];
+			final String[] parts = filePath.split( "\\?" );
+			final String file = parts[ 0 ];
+			final String dataset = parts[ 1 ];
 
 			try {
 
@@ -292,7 +294,7 @@ public class IOHelper implements Callable<Void>
 
 				if( n5.datasetExists( dataset ))
 				{
-					long[] size = (long[])n5.getAttribute( dataset, "dimensions", long[].class );
+					final long[] size = (long[])n5.getAttribute( dataset, "dimensions", long[].class );
 
 					double[] resolution = getResolution( n5, dataset );
 					if( resolution == null )
@@ -309,7 +311,7 @@ public class IOHelper implements Callable<Void>
 				else
 					return null;
 
-			} catch (N5Exception e)
+			} catch (final N5Exception e)
 			{
 				e.printStackTrace();
 				return null;
@@ -319,11 +321,11 @@ public class IOHelper implements Callable<Void>
 		{
 			try
 			{
-				ImageReader reader = new ImageReader();
-				
+				final ImageReader reader = new ImageReader();
+
 				reader.setId( filePath );
-				
-				int nz = reader.getSizeZ();
+
+				final int nz = reader.getSizeZ();
 				long[] size;
 				if( nz <= 1 )
 				{
@@ -334,9 +336,9 @@ public class IOHelper implements Callable<Void>
 					size = new long[] { reader.getSizeX(), reader.getSizeY(), reader.getSizeZ() };
 				}
 
-				Hashtable< String, Object > globalMeta = reader.getGlobalMetadata();
+				final Hashtable< String, Object > globalMeta = reader.getGlobalMetadata();
 
-				double[] resolutions = new double[ size.length ];
+				final double[] resolutions = new double[ size.length ];
 				Arrays.fill( resolutions, 1.0 );
 
 				if( globalMeta.containsKey( "XResolution" ) && resolutions.length > 0 )
@@ -350,9 +352,9 @@ public class IOHelper implements Callable<Void>
 
 				reader.close();
 				return new ValuePair< long[], double[] >( size, resolutions );
-				
+
 			}
-			catch ( Exception e )
+			catch ( final Exception e )
 			{
 				e.printStackTrace();
 			}
@@ -366,7 +368,7 @@ public class IOHelper implements Callable<Void>
 		{
 			return readIp( file.getCanonicalPath() );
 		}
-		catch ( IOException e )
+		catch ( final IOException e )
 		{
 			e.printStackTrace();
 		}
@@ -380,18 +382,18 @@ public class IOHelper implements Callable<Void>
 			try
 			{
 				ip =  NiftiIo.readNifti( new File( filePathAndDataset ) );
-			} catch ( FormatException e )
+			} catch ( final FormatException e )
 			{
 				e.printStackTrace();
-			} catch ( IOException e )
+			} catch ( final IOException e )
 			{
 				e.printStackTrace();
 			}
 		}
 		else if( filePathAndDataset.endsWith( "nrrd" ))
 		{
-			Dfield_Nrrd_Reader nr = new Dfield_Nrrd_Reader();
-			File imFile = new File( filePathAndDataset );
+			final Dfield_Nrrd_Reader nr = new Dfield_Nrrd_Reader();
+			final File imFile = new File( filePathAndDataset );
 
 			ip = nr.load( imFile.getParent(), imFile.getName());
 		}
@@ -400,31 +402,34 @@ public class IOHelper implements Callable<Void>
 		{
 			ip = toImagePlus( readRai( filePathAndDataset ));
 		}
+		else if (new File(filePathAndDataset).isDirectory()) {
+			ip = FolderOpener.open(filePathAndDataset);
+		}
 		else
 		{
 			try
 			{
 				ip = IJ.openImage( filePathAndDataset );
 			}
-			catch( Exception e )
+			catch( final Exception e )
 			{
 				e.printStackTrace();
 			}
-			
-			if ( ip == null ) 
+
+			if ( ip == null )
 			{
 				try
 				{
 					ip = BF.openImagePlus( filePathAndDataset )[0];
 				}
-				catch( Exception e )
+				catch( final Exception e )
 				{
 					e.printStackTrace();
 				}
 			}
 		}
 
-		int nd = ip.getNSlices() > 1 ? 3 : 2;
+		final int nd = ip.getNSlices() > 1 ? 3 : 2;
 		resolution = new double[ nd ];
 		resolution[ 0 ] = ip.getCalibration().pixelWidth;
 		resolution[ 1 ] = ip.getCalibration().pixelHeight;
@@ -434,14 +439,14 @@ public class IOHelper implements Callable<Void>
 
 		return ip;
 	}
-	
+
 	public static void setResolution( ImagePlus ip, double[] res )
 	{
 		ip.getCalibration().pixelWidth  = res[ 0 ];
 		ip.getCalibration().pixelHeight = res[ 1 ];
 		ip.getCalibration().pixelDepth  = res[ 2 ];
 	}
-	
+
 	@SuppressWarnings( "unchecked" )
 	public <T extends RealType<T> & NativeType<T>> T getType()
 	{
@@ -463,7 +468,7 @@ public class IOHelper implements Callable<Void>
 		}
 		return null;
 	}
-	
+
 	public ImagePlus getIp()
 	{
 		return ip;
@@ -479,6 +484,7 @@ public class IOHelper implements Callable<Void>
 	public ImagePlus toImagePlus( RandomAccessibleInterval<?> img )
 	{
 		@SuppressWarnings( { "unchecked", "rawtypes" } )
+		final
 		ImagePlus ipout = ImageJFunctions.wrap( (RandomAccessibleInterval<NumericType>) img, "img", null );
 		setResolution( ipout, resolution );
 		return ipout;
@@ -490,7 +496,7 @@ public class IOHelper implements Callable<Void>
 		{
 			return readRai( file.getCanonicalPath() );
 		}
-		catch ( IOException e )
+		catch ( final IOException e )
 		{
 			e.printStackTrace();
 		}
@@ -498,27 +504,27 @@ public class IOHelper implements Callable<Void>
 	}
 
 	/**
-	 * If the file  
+	 * If the file
 	 * The input string should contain both the absolute file path and dataset into the h5 file separated by a colon (":"),
-	 * E.g. "/tmp/myfile.h5:mydataset" 
-	 * 
+	 * E.g. "/tmp/myfile.h5:mydataset"
+	 *
 	 * @param filePathAndDataset the file and dataset string
 	 * @return the image
 	 */
 	public <T extends RealType<T> & NativeType<T>> RandomAccessibleInterval<T> readRai( String filePathAndDataset )
 	{
 		if ( filePathAndDataset.contains( "n5?" ) ||
-					filePathAndDataset.contains( "h5?" ) || 
-					filePathAndDataset.contains("hdf?") || 
+					filePathAndDataset.contains( "h5?" ) ||
+					filePathAndDataset.contains("hdf?") ||
 					filePathAndDataset.contains("hdf5?") )
 		{
-			String[] partList = filePathAndDataset.split( "\\?" );
-			String fpath = partList[ 0 ];
-			String dset = partList[ 1 ];
-			
+			final String[] partList = filePathAndDataset.split( "\\?" );
+			final String fpath = partList[ 0 ];
+			final String dset = partList[ 1 ];
+
 			logger.debug( "fpath: " + fpath );
 			logger.debug( "dset: " + dset );
-			
+
 			RandomAccessibleInterval<T> img = null;
 			try
 			{
@@ -533,14 +539,14 @@ public class IOHelper implements Callable<Void>
 					n5 = new N5HDF5Reader( fpath, 32, 32, 32 );
 				}
 
-				RandomAccessibleInterval<T> tmp = N5Utils.open( n5, dset );
+				final RandomAccessibleInterval<T> tmp = N5Utils.open( n5, dset );
 				resolution = getResolution( n5, dset );
 
 				if( permute )
 				{
 					img = reverseDims( tmp, resolution );
 				}
-				else 
+				else
 					img = tmp;
 
 //				float[] rtmp = n5.getAttribute( dset, "element_size_um", float[].class );
@@ -555,7 +561,7 @@ public class IOHelper implements Callable<Void>
 //				else
 //					resolution = new double[]{ 1, 1, 1 };
 			}
-			catch ( N5Exception e )
+			catch ( final N5Exception e )
 			{
 				e.printStackTrace();
 			}
@@ -569,11 +575,11 @@ public class IOHelper implements Callable<Void>
 			return ( RandomAccessibleInterval< T > ) rai;
 		}
 	}
-	
+
     /**
      * Permutes the dimensions of a {@link RandomAccessibleInterval}
      * using the given permutation vector, where the ith value in p
-     * gives destination of the ith input dimension in the output. 
+     * gives destination of the ith input dimension in the output.
      *
      * @param source the source data
      * @param p the permutation
@@ -596,11 +602,11 @@ public class IOHelper implements Callable<Void>
 
 		return Views.interval( new MixedTransformView< T >( source, t ), min, max );
 	}
-	
+
     /**
      * Permutes the dimensions of a {@link RandomAccessibleInterval}
      * using the given permutation vector, where the ith value in p
-     * gives destination of the ith input dimension in the output. 
+     * gives destination of the ith input dimension in the output.
      *
      * @param source the source data
      * @param p the permutation
@@ -608,10 +614,10 @@ public class IOHelper implements Callable<Void>
      */
 	public static final < T > IntervalView< T > reverseDims( RandomAccessibleInterval< T > source, double[] res )
 	{
-		assert source.numDimensions() == res.length; 
+		assert source.numDimensions() == res.length;
 
 		final int n = source.numDimensions();
-		double[] tmp  = new double[ n ];
+		final double[] tmp  = new double[ n ];
 
 		final int[] p = new int[ n ];
 		for ( int i = 0; i < n; ++i )
@@ -623,24 +629,24 @@ public class IOHelper implements Callable<Void>
 
 		return permute( source, p );
 	}
-	
-	public < T extends RealType< T > & NativeType< T > > RealRandomAccessible< T > interpolate( 
+
+	public < T extends RealType< T > & NativeType< T > > RealRandomAccessible< T > interpolate(
 			final RandomAccessible<T> img,
 			final String interp )
 	{
-		return Views.interpolate( img, 
+		return Views.interpolate( img,
 				RenderTransformed.getInterpolator( interp, img ));
 	}
 
-	public < T extends RealType< T > & NativeType< T > > RealRandomAccessible< T > interpolateExtend( 
+	public < T extends RealType< T > & NativeType< T > > RealRandomAccessible< T > interpolateExtend(
 			final RandomAccessibleInterval<T> img,
 			final String interp,
 			final String extendOption )
 	{
 		if( RenderTransformed.INTERP_OPTIONS.valueOf(interp) == RenderTransformed.INTERP_OPTIONS.BSPLINE )
 		{
-			int nd = img.numDimensions();
-			int[] blockSize = new int[ nd ];
+			final int nd = img.numDimensions();
+			final int[] blockSize = new int[ nd ];
 			if( nd == 1 )
 				Arrays.fill( blockSize, 256);
 			if( nd == 2 )
@@ -665,7 +671,7 @@ public class IOHelper implements Callable<Void>
 		}
 		else
 		{
-			ExtendedRandomAccessibleInterval<T, RandomAccessibleInterval<T>> imgExt = extend( img, extendOption );
+			final ExtendedRandomAccessibleInterval<T, RandomAccessibleInterval<T>> imgExt = extend( img, extendOption );
 			return Views.interpolate(imgExt, RenderTransformed.getInterpolator(interp, img));
 		}
 	}
@@ -675,8 +681,8 @@ public class IOHelper implements Callable<Void>
 		try {
 			if( n5.datasetExists( dataset ))
 			{
-				long[] size = (long[])n5.getAttribute( dataset, "dimensions", long[].class );
-				int nd = size.length;
+				final long[] size = (long[])n5.getAttribute( dataset, "dimensions", long[].class );
+				final int nd = size.length;
 
 //				double[] resolutions = (double[])n5.getAttribute( dataset, resolutionAttribute, double[].class );
 //				if( resolutions == null )
@@ -685,11 +691,11 @@ public class IOHelper implements Callable<Void>
 //					Arrays.fill( resolutions, 1.0 );
 //				}
 
-				Set<String> attrKeys = n5.listAttributes( dataset ).keySet();
+				final Set<String> attrKeys = n5.listAttributes( dataset ).keySet();
 				double[] resolution = null;
                 try
                 {
-                    for( ResolutionGet rg : resolutionGetters )
+                    for( final ResolutionGet rg : resolutionGetters )
                     {
                         if( attrKeys.contains( rg.getKey()))
                         {
@@ -704,7 +710,7 @@ public class IOHelper implements Callable<Void>
                             break;
                         }
                     }
-                } catch( Exception e ){}
+                } catch( final Exception e ){}
 
 				if( resolution == null )
 				{
@@ -714,13 +720,13 @@ public class IOHelper implements Callable<Void>
 
 				// TODO implement
 //				double[] offset = (double[])n5.getAttribute( dataset, offsetAttribute, double[].class );
-				double[] offset = null;
-	
+				final double[] offset = null;
+
 				if ( nd == 1 )
 				{
-					AffineTransform affine = new AffineTransform( 1 );
+					final AffineTransform affine = new AffineTransform( 1 );
 					affine.set( resolution[ 0] , 0, 0 );
-					//affine.set( offset[ 0 ], 0, 1 ); // TODO 
+					//affine.set( offset[ 0 ], 0, 1 ); // TODO
 					return affine;
 				}
 				else if ( nd == 2 && offset == null )
@@ -744,21 +750,21 @@ public class IOHelper implements Callable<Void>
 
 			}
 		}
-		catch( N5Exception e )
+		catch( final N5Exception e )
 		{
 			e.printStackTrace();
 		}
 		return null;
 	}
 
-	public < T extends RealType< T > & NativeType< T > > RealRandomAccessible< T > readPhysical( 
+	public < T extends RealType< T > & NativeType< T > > RealRandomAccessible< T > readPhysical(
 			final File file,
 			final String interp )
 	{
 		return readPhysical( file, interp, "0" );
 	}
 
-	public < T extends RealType< T > & NativeType< T > > RealRandomAccessible< T > readPhysical( 
+	public < T extends RealType< T > & NativeType< T > > RealRandomAccessible< T > readPhysical(
 			final File file,
 			final String interp,
 			final String extendOption )
@@ -767,117 +773,120 @@ public class IOHelper implements Callable<Void>
 		{
 			return readPhysical( file.getCanonicalPath(), interp, extendOption );
 		}
-		catch ( IOException e )
+		catch ( final IOException e )
 		{
 			e.printStackTrace();
 		}
 		return null;
 	}
 
-	public < T extends RealType< T > & NativeType< T > > RealRandomAccessible< T > readPhysical( 
+	public < T extends RealType< T > & NativeType< T > > RealRandomAccessible< T > readPhysical(
 			final String filePathAndDataset,
 			final String interp )
 	{
 		return readPhysical( filePathAndDataset, interp, "0" );
 	}
 
-	public < T extends RealType< T > & NativeType< T > > RealRandomAccessible< T > readPhysical( 
+	public < T extends RealType< T > & NativeType< T > > RealRandomAccessible< T > readPhysical(
 			final String filePathAndDataset,
 			final String interp,
 			final String extendOption )
 	{
-		RandomAccessibleInterval< T > rai = readRai( filePathAndDataset );
+		final RandomAccessibleInterval< T > rai = readRai( filePathAndDataset );
 //		RealRandomAccessible< T > realimgpixel = interpolate( extend( rai, extendOption ), interp );
-		RealRandomAccessible<T> realimgpixel = interpolateExtend( rai, interp, extendOption );
+		final RealRandomAccessible<T> realimgpixel = interpolateExtend( rai, interp, extendOption );
 		if( resolution == null )
 			return realimgpixel;
 
-		Scale pixelToPhysical = new Scale( resolution );
+		final Scale pixelToPhysical = new Scale( resolution );
 		return RealViews.affine( realimgpixel, pixelToPhysical );
 	}
 
-	public < T extends RealType< T > & NativeType< T > > RealRandomAccessible< T > readPhysical( 
+	public < T extends RealType< T > & NativeType< T > > RealRandomAccessible< T > readPhysical(
 			final String filePathAndDataset,
 			final InterpolatorFactory< T, RandomAccessible<T> > interp )
 	{
 		rai = readRai( filePathAndDataset );
-		RealRandomAccessible< T > realimgpixel = Views.interpolate( getRai(), interp );
+		final RealRandomAccessible< T > realimgpixel = Views.interpolate( getRai(), interp );
 		if( resolution == null )
 			return realimgpixel;
 
-		Scale pixelToPhysical = new Scale( resolution );
+		final Scale pixelToPhysical = new Scale( resolution );
 		return RealViews.affine( realimgpixel, pixelToPhysical );
 	}
 
 	public static void write( ImagePlus ip, File outputFile )
 	{
+
+		write(ip, outputFile, 1);
+	}
+
+	public static void write(ImagePlus ip, File outputFile, int nThreads) {
 		try
 		{
-			write( ip, outputFile.getCanonicalPath() );
+			write(ip, outputFile.getCanonicalPath(), nThreads);
 		}
-		catch ( IOException e )
+		catch ( final IOException e )
 		{
 			e.printStackTrace();
 		}
 	}
 
-	public static void write( ImagePlus ip, String outputFilePath )
+	public static void write(ImagePlus ip, String outputFilePath) {
+
+		write(ip, outputFilePath, 1);
+	}
+
+	public static void write(ImagePlus ip, String outputFilePath, int nThreads)
 	{
 		if( outputFilePath.endsWith( "nii" ))
 		{
-			File f = new File( outputFilePath );
+			final File f = new File( outputFilePath );
 
 			boolean is_displacement = false;
 			if( ip.getDimensions()[ 2 ] == 3 )
 				is_displacement = true;
 
-			Nifti_Writer writer = new Nifti_Writer( is_displacement );
+			final Nifti_Writer writer = new Nifti_Writer( is_displacement );
 			writer.save( ip, f.getParent(), f.getName() );
 		}
 		else if( outputFilePath.endsWith( "nrrd" ))
 		{
-			File f = new File( outputFilePath );
-			Dfield_Nrrd_Writer writer = new Dfield_Nrrd_Writer();
+			final File f = new File( outputFilePath );
+			final Dfield_Nrrd_Writer writer = new Dfield_Nrrd_Writer();
 			writer.save( ip, f.getParent(), f.getName() );
 		}
 		else if( outputFilePath.endsWith( "hdf5" ) || outputFilePath.endsWith("h5") || outputFilePath.endsWith( "n5" ) ||
-				 outputFilePath.contains( "hdf5:" ) || outputFilePath.contains("h5:") || outputFilePath.contains( "n5:" ))
+				outputFilePath.contains("hdf5:") || outputFilePath.contains("h5:") || outputFilePath.contains("n5:") ||
+				 outputFilePath.contains( "zarr:" ) || outputFilePath.endsWith("zarr"))
 		{
 
-			String dataset =  "/volume/raw";
+			String dataset = "/volume/raw";
 			String path = outputFilePath;
 			if( outputFilePath.contains( ":" ))
 			{
-				String[] split = outputFilePath.split( ":" );
+				final String[] split = outputFilePath.split( ":" );
 				path = split[ 0 ];
 				dataset = split[ 1 ];
 			}
 
 			try
 			{
-				N5Writer n5Writer;
-				if ( outputFilePath.contains( "h5" ) || outputFilePath.contains( "hdf5" ))
-				{
-					n5Writer = new N5HDF5Writer( path, 3, 32, 32, 32 );
-				}
-				else if( outputFilePath.contains("n5" ))
-				{
-					n5Writer = new N5FSWriter( path);
-				}
-				else
-				{
+				final N5Writer n5Writer = new N5Factory().openWriter(path);
+
+				if (n5Writer == null) {
 					System.err.println("Could not create an n5 writer from path: " + path );
-					n5Writer = null; // let the the null pointer be caught
+					return;
 				}
 
-				// TODO add more options 
-				int[] blockSize = new int[]{ 32, 32, 32 };
-				GzipCompression compression = new GzipCompression();
+				// TODO add more options
+				final int[] blockSize = new int[]{64, 64, 64};
+				final GzipCompression compression = new GzipCompression();
 
-				RandomAccessibleInterval img = ImageJFunctions.wrap( ip );
-				N5Utils.save( img, n5Writer, dataset, blockSize, compression );
+				final RandomAccessibleInterval img = ImageJFunctions.wrap( ip );
+				N5Utils.save(img, n5Writer, dataset, blockSize, compression, Executors.newFixedThreadPool(nThreads));
 			}
-			catch( Exception e )
+			catch( final Exception e )
 			{
 				e.printStackTrace();
 			}
@@ -901,9 +910,13 @@ public class IOHelper implements Callable<Void>
 		public static final String key = "pixelResolution";
 		public double[] dimensions;
 		public String unit;
+		@Override
 		public double[] getResolution(){ return dimensions; }
+		@Override
 		public String getKey(){ return key; };
+		@Override
 		public boolean isSimple(){ return false; }
+		@Override
 		public ResolutionGet create( double[] in ){ return null; }
 	}
 
@@ -914,9 +927,13 @@ public class IOHelper implements Callable<Void>
 		public Resolution(){}
 		public Resolution( double[] in ) { resolution = in; }
 		public double[] resolution;
+		@Override
 		public double[] getResolution(){ return resolution; }
+		@Override
 		public String getKey(){ return key; };
+		@Override
 		public boolean isSimple(){ return true; }
+		@Override
 		public ResolutionGet create( double[] in ){ return new Resolution( in ); }
 	}
 
@@ -927,9 +944,13 @@ public class IOHelper implements Callable<Void>
 		public ElemSizeUmResolution(){}
 		public ElemSizeUmResolution( double[] in ) { element_size_um = in; }
 		public double[] element_size_um;
+		@Override
 		public double[] getResolution(){ return element_size_um; }
+		@Override
 		public String getKey(){ return key; };
+		@Override
 		public boolean isSimple(){ return true; }
+		@Override
 		public ResolutionGet create( double[] in ){ return new ElemSizeUmResolution( in ); }
 	}
 
@@ -949,20 +970,24 @@ public class IOHelper implements Callable<Void>
             units = u;
             axes = a;
         }
-        public double[] getResolution(){ return reverse(scale); }
-        public String getKey(){ return key; };
-        public boolean isSimple(){ return simple; }
+        @Override
+		public double[] getResolution(){ return reverse(scale); }
+        @Override
+		public String getKey(){ return key; };
+        @Override
+		public boolean isSimple(){ return simple; }
 
+		@Override
 		public ResolutionGet create(double[] in) {
-			int N = in.length;
-			String[] units = new String[N];
+			final int N = in.length;
+			final String[] units = new String[N];
 			Arrays.fill(units, "pixel");
 			return new TransformResolution(reverse(in), new double[in.length], units, new String[] { "z", "y", "x" });
 		}
 
 		public static double[] reverse(double[] in) {
-			int N = in.length;
-			double[] out = new double[N];
+			final int N = in.length;
+			final double[] out = new double[N];
 			int j = N - 1;
 			for (int i = 0; i < N; i++) {
 				out[j--] = in[i];
