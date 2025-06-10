@@ -6,8 +6,8 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
 
-import org.ejml.data.DenseMatrix64F;
-import org.ejml.ops.CommonOps;
+import org.ejml.data.DMatrixRMaj;
+import org.ejml.dense.row.CommonOps_DDRM;
 
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.util.LinAlgHelpers;
@@ -165,11 +165,11 @@ public class ANTSLoadAffineRaw {
 		LinAlgHelpers.quaternionToR( conjugateQuaternion( q ), R );
 	}
 	
-	public static DenseMatrix64F conjugateQuaternionToR( double[] q )
+	public static DMatrixRMaj conjugateQuaternionToR( double[] q )
 	{
 		double[][] Rarray = new double[ 3 ][ 3 ];
 		LinAlgHelpers.quaternionToR( conjugateQuaternion( q ), Rarray );
-		return new DenseMatrix64F( Rarray );
+		return new DMatrixRMaj( Rarray );
 	}
 	
 	public static double[] conjugateQuaternion( double[] q )
@@ -239,14 +239,14 @@ public class ANTSLoadAffineRaw {
 		public void computeMatrix( )
 		{
 			
-			DenseMatrix64F R = ANTSLoadAffineRaw.conjugateQuaternionToR( q );
+			DMatrixRMaj R = ANTSLoadAffineRaw.conjugateQuaternionToR( q );
 			
-			DenseMatrix64F S = new DenseMatrix64F( 3, 3, true, 
+			DMatrixRMaj S = new DMatrixRMaj( 3, 3, true, 
 					new double[]{ S1, 0, 0,
 								  0, S2, 0,
 								  0, 0, S3 });
 			
-			DenseMatrix64F K = new DenseMatrix64F( 3, 3, true, 
+			DMatrixRMaj K = new DMatrixRMaj( 3, 3, true, 
 					new double[]{ 1, K1, K2,
 								  0,  1, K3,
 								  0,  0,  1 });
@@ -255,19 +255,15 @@ public class ANTSLoadAffineRaw {
 //			System.out.println( S );
 //			System.out.println( K );
 			
-			DenseMatrix64F tmp = new DenseMatrix64F( 3, 3 );
+			DMatrixRMaj tmp = new DMatrixRMaj( 3, 3 );
 			
 			
-			CommonOps.mult( R, S, tmp );
+			CommonOps_DDRM.mult( R, S, tmp );
 			
 			// re-use matrix R ( but re-name it for clarity )
-			DenseMatrix64F out = R;
+			DMatrixRMaj out = R;
 			
 			// make a new matrix for the output
-//			DenseMatrix64F out= new DenseMatrix64F( 3, 3 );
-//			CommonOps.mult( tmp, K, out );
-			
-			System.out.println( out );
 			
 			/* 
 			 * enter elements of matrix in a loop

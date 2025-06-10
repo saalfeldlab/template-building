@@ -3,9 +3,6 @@ package transforms;
 import java.io.File;
 import java.io.IOException;
 
-import org.ejml.data.DenseMatrix64F;
-import org.ejml.factory.DecompositionFactory;
-import org.ejml.ops.CommonOps;
 import org.janelia.utility.parse.ParseUtils;
 
 import io.AffineImglib2IO;

@@ -99,4 +99,10 @@ public class PositionRandomAccessible<T extends RealType< T >, X extends RealTra
 	{
 		return new PositionRandomAccess<X>( nd, xfm, dim );
 	}
+
+	@Override
+	public T getType() {
+
+		return t.createVariable();
+	}
 }

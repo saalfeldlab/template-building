@@ -8,8 +8,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Random;
 
-import org.ejml.data.DenseMatrix64F;
-import org.ejml.ops.CommonOps;
+import org.ejml.data.DMatrixRMaj;
+import org.ejml.dense.row.CommonOps_DDRM;
 
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
@@ -104,15 +104,15 @@ public class BiasFieldCorrectionLeastSquares
 		double[][] samples = sampler.getPairs( in, template );
 		int N = samples[0].length;
 		
-		DenseMatrix64F A = new DenseMatrix64F( N, 2 );		
+		DMatrixRMaj A = new DMatrixRMaj( N, 2 );
 		for( int i = 0; i < N; i++ )
 		{
 			A.set( i, 0, samples[ 0 ][ i ] );
 			A.set( i, 1, 1.0 );
 		}
-		DenseMatrix64F b = new DenseMatrix64F( N, 1, true, samples[1] );
-		DenseMatrix64F x = new DenseMatrix64F( 2, 1 );
-		CommonOps.solve( A, b, x );
+		DMatrixRMaj b = new DMatrixRMaj( N, 1, true, samples[1] );
+		DMatrixRMaj x = new DMatrixRMaj( 2, 1 );
+		CommonOps_DDRM.solve( A, b, x );
 		return new double[]{ x.get( 0 ), x.get( 1 ) };
 	}
 	

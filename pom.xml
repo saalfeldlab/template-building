@@ -9,7 +9,7 @@
 	<parent>
 		<groupId>org.scijava</groupId>
 		<artifactId>pom-scijava</artifactId>
-		<version>37.0.0</version>
+		<version>40.0.0</version>
 	</parent>
 
 	<repositories>
@@ -26,18 +26,19 @@
 	<properties>
 		<enforcer.skip>true</enforcer.skip>
 
-		<bigdataviewer-core.version>10.4.14</bigdataviewer-core.version>
-		<bigdataviewer-vistools.version>1.0.0-beta-34</bigdataviewer-vistools.version>
+		<imglib2.version>7.1.2</imglib2.version>
 
-		<bigwarp.version>9.1.3</bigwarp.version>
+		<bigdataviewer-core.version>10.6.1</bigdataviewer-core.version>
+		<bigdataviewer-vistools.version>1.0.0-beta-36</bigdataviewer-vistools.version>
+		<bigwarp.version>9.3.0</bigwarp.version>
 
-		<n5.version>3.2.0</n5.version>
-		<n5-imglib2.version>7.0.0</n5-imglib2.version>
-		<n5-hdf5.version>2.2.0</n5-hdf5.version>
-		<n5-google-cloud.version>4.1.0</n5-google-cloud.version>
-		<n5-aws-s3.version>4.2.0</n5-aws-s3.version>
-		<n5-zarr.version>1.3.4</n5-zarr.version>
-		<n5-universe.version>1.6.0</n5-universe.version>
+		<n5.version>3.5.1</n5.version>
+		<n5-imglib2.version>7.0.2</n5-imglib2.version>
+		<n5-hdf5.version>2.2.1</n5-hdf5.version>
+		<n5-google-cloud.version>5.1.0</n5-google-cloud.version>
+		<n5-aws-s3.version>4.3.0</n5-aws-s3.version>
+		<n5-zarr.version>1.5.1</n5-zarr.version>
+		<n5-universe.version>2.3.0</n5-universe.version>
 
 	</properties>
 
