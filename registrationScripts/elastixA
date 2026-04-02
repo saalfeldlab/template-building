@@ -9,8 +9,10 @@ shift
 output="$1"
 shift
 
-affine_params="elastix_affine_params.txt"
-params="elastixA_bspline_params.txt"
+BASEDIR=$(dirname "$0")
+
+affine_params="$BASEDIR/elastix_affine_params.txt"
+params="$BASEDIR/elastixA_bspline_params.txt"
 
 affine_output="${output}_affine"
 
