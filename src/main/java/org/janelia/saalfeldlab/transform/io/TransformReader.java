@@ -22,6 +22,7 @@ import org.slf4j.LoggerFactory;
 import com.google.gson.Gson;
 
 import bigwarp.landmarks.LandmarkTableModel;
+import bigwarp.transforms.BigWarpTransform;
 import io.AffineImglib2IO;
 import io.DfieldIoHelper;
 import io.cmtk.CMTKLoadAffine;
@@ -289,9 +290,10 @@ public class TransformReader
 //				e.printStackTrace();
 				return null;
 			}
-			final ThinplateSplineTransform tps = new ThinplateSplineTransform( ltm.getTransform() );
-			final WrappedIterativeInvertibleRealTransform< ThinplateSplineTransform > invtps = new WrappedIterativeInvertibleRealTransform<>( tps );
-			setIterativeInverseParameters( invtps.getOptimzer(), transformPathFull );
+			BigWarpTransform tf = new BigWarpTransform(ltm);
+			tf.setTransformType(BigWarpTransform.TPS);
+			InvertibleRealTransform invtps = tf.getTransformation();
+			setIterativeInverseParameters( ((WrappedIterativeInvertibleRealTransform)invtps).getOptimzer(), transformPathFull );
 
 			if( invert )
 				return invtps.inverse();
