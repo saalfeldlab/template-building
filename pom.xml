@@ -58,7 +58,7 @@
 		<dependency>
 			<groupId>ome</groupId>
 			<artifactId>bio-formats_plugins</artifactId>
-			<version>6.1.1</version>
+			<version>8.1.1</version>
 			<exclusions>
 				<exclusion>
 					<groupId>com.fasterxml.jackson.core</groupId>
@@ -73,7 +73,7 @@
 		<dependency>
 			<groupId>ome</groupId>
 			<artifactId>formats-gpl</artifactId>
-			<version>6.1.1</version>
+			<version>8.1.1</version>
 			<exclusions>
 				<exclusion>
 					<groupId>ch.systems.cisd</groupId>
@@ -97,10 +97,12 @@
 		<dependency>
 			<groupId>ome</groupId>
 			<artifactId>formats-api</artifactId>
+			<version>8.1.1</version>
 		</dependency>
 		<dependency>
 			<groupId>ome</groupId>
 			<artifactId>formats-bsd</artifactId>
+			<version>8.1.1</version>
 		</dependency>
 		<dependency>
 			<groupId>org.jfree</groupId>
