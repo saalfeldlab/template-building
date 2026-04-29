@@ -157,7 +157,7 @@ public class TransformReader
 			}
 		}
 	}
-
+	
 	/**
 	 * Reads an {@link InvertibleRealTransform}, and returns the forward transform.
 	 *
@@ -165,6 +165,19 @@ public class TransformReader
 	 * @return the transform
 	 */
 	public static InvertibleRealTransform readInvertible( String transformPathFull )
+	{
+		return readInvertible(transformPathFull, BigWarpTransform.TPS);
+	}
+
+	/**
+	 * Reads an {@link InvertibleRealTransform}, and returns the forward transform.
+	 *
+	 * @param transformPath
+	 * @param transformType
+	 * 	The type of transformation to estimate from landmarks
+	 * @return the transform
+	 */
+	public static InvertibleRealTransform readInvertible( String transformPathFull, String transformType )
 	{
 
 		final boolean invert = isInverse( transformPathFull );
@@ -291,7 +304,7 @@ public class TransformReader
 				return null;
 			}
 			BigWarpTransform tf = new BigWarpTransform(ltm);
-			tf.setTransformType(BigWarpTransform.TPS);
+			tf.setTransformType(transformType);
 			InvertibleRealTransform invtps = tf.getTransformation();
 			setIterativeInverseParameters( ((WrappedIterativeInvertibleRealTransform)invtps).getOptimzer(), transformPathFull );
 
