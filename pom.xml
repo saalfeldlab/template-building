@@ -9,7 +9,7 @@
 	<parent>
 		<groupId>org.scijava</groupId>
 		<artifactId>pom-scijava</artifactId>
-		<version>40.0.0</version>
+		<version>43.0.0</version>
 	</parent>
 
 	<repositories>
@@ -26,19 +26,23 @@
 	<properties>
 		<enforcer.skip>true</enforcer.skip>
 
-		<imglib2.version>7.1.2</imglib2.version>
+		<imglib2.version>7.1.5</imglib2.version>
+		<imglib2-realtransform.version>4.0.5</imglib2-realtransform.version>
 
 		<bigdataviewer-core.version>10.6.1</bigdataviewer-core.version>
 		<bigdataviewer-vistools.version>1.0.0-beta-36</bigdataviewer-vistools.version>
-		<bigwarp.version>9.3.0</bigwarp.version>
+		<bigwarp.version>9.4.0-SNAPSHOT</bigwarp.version>
 
-		<n5.version>3.5.1</n5.version>
-		<n5-imglib2.version>7.0.2</n5-imglib2.version>
-		<n5-hdf5.version>2.2.1</n5-hdf5.version>
-		<n5-google-cloud.version>5.1.0</n5-google-cloud.version>
-		<n5-aws-s3.version>4.3.0</n5-aws-s3.version>
-		<n5-zarr.version>1.5.1</n5-zarr.version>
-		<n5-universe.version>2.3.0</n5-universe.version>
+		<n5.version>4.0.0-alpha-12</n5.version>
+		<n5-aws-s3.version>4.4.0-alpha-9</n5-aws-s3.version>
+		<n5-blosc.version>2.0.0-alpha-4</n5-blosc.version>
+		<n5-google-cloud.version>5.2.0-alpha-7</n5-google-cloud.version>
+		<n5-hdf5.version>2.3.0-alpha-7</n5-hdf5.version>
+		<n5-ij.version>4.5.0-alpha-7</n5-ij.version>
+		<n5-imglib2.version>7.1.0-alpha-8</n5-imglib2.version>
+		<n5-universe.version>2.4.0-alpha-9</n5-universe.version>
+		<n5-zarr.version>2.0.0-alpha-8</n5-zarr.version>
+		<n5-zstandard.version>2.0.0-alpha-4</n5-zstandard.version>
 
 	</properties>
 
@@ -182,24 +186,19 @@
         <plugin>
             <artifactId>maven-assembly-plugin</artifactId>
             <configuration>
-                <archive>
-                    <manifest>
-                        <mainClass>com.javabyexamples.java.jar.HelloWorld</mainClass>
-                    </manifest>
-                </archive>
                 <descriptorRefs>
                     <descriptorRef>jar-with-dependencies</descriptorRef>
                 </descriptorRefs>
             </configuration>
-            <executions>
-                <execution>
-                    <id>make-assembly</id>
-                    <phase>package</phase>
-                    <goals>
-                        <goal>single</goal>
-                    </goals>
-                </execution>
-            </executions>
+            <!-- <executions> --> 
+                <!--     <execution> --> 
+            <!--         <id>make-assembly</id> --> 
+            <!--         <phase>package</phase> --> 
+                <!--         <goals> --> 
+            <!--             <goal>single</goal> --> 
+                <!--         </goals> --> 
+                <!--     </execution> --> 
+                <!-- </executions> --> 
         </plugin>
     </plugins>
 </build>
