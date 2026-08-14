@@ -7,11 +7,13 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
+import java.net.URI;
 import java.util.Arrays;
 import java.util.zip.GZIPOutputStream;
 
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.GzipCompression;
+import org.janelia.saalfeldlab.n5.KeyValueAccess;
 import org.janelia.saalfeldlab.n5.N5Exception;
 import org.janelia.saalfeldlab.n5.N5FSReader;
 import org.janelia.saalfeldlab.n5.N5FSWriter;
@@ -21,9 +23,15 @@ import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Reader;
 import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Writer;
 import org.janelia.saalfeldlab.n5.imglib2.N5DisplacementField;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
+import org.janelia.saalfeldlab.n5.precomputed.PrecomputedInfo;
+import org.janelia.saalfeldlab.n5.precomputed.PrecomputedKeyValueReader;
+import org.janelia.saalfeldlab.n5.universe.KeyValueAccessBackend;
+import org.janelia.saalfeldlab.n5.universe.N5Factory;
 import org.janelia.saalfeldlab.n5.zarr.N5ZarrReader;
 import org.janelia.saalfeldlab.transform.io.TransformReader;
 import org.janelia.saalfeldlab.transform.io.TransformReader.H5TransformParameters;
+
+import com.google.gson.GsonBuilder;
 
 import ij.IJ;
 import ij.ImagePlus;
@@ -35,6 +43,7 @@ import net.imglib2.Interval;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.RealLocalizable;
 import net.imglib2.RealRandomAccessible;
+import net.imglib2.cache.img.CachedCellImg;
 import net.imglib2.converter.Converter;
 import net.imglib2.converter.Converters;
 import net.imglib2.img.Img;
@@ -566,6 +575,28 @@ public class DfieldIoHelper
 			catch ( final Exception e )
 			{
 				e.printStackTrace();
+			}
+		}
+		else if( fieldPath.startsWith("precomputed:") ) {
+			System.out.println("reading ng precomputed");
+			String basePath = fieldPath.replace("precomputed:", "");
+			System.out.println(basePath);
+
+			// use N5Factory when it supports ng precomputed
+			final URI uri = new URI(basePath);
+			final KeyValueAccess kva = KeyValueAccessBackend.getKeyValueAccess(uri, true);
+
+			try ( final PrecomputedKeyValueReader reader =
+					new PrecomputedKeyValueReader(kva, uri.toString(), new GsonBuilder(), true)) {
+
+				final PrecomputedInfo info = reader.getInfo();
+				final String[] keys = info.getScaleKeys();
+				if( keys.length > 0 ) {
+					// always choose first dataset
+					final String dset = reader.list("")[0];
+					dfieldRAI = N5Utils.open(reader, dset);
+					spacing = info.getScale(dset).resolution;
+				}
 			}
 		}
 		else
