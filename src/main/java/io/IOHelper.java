@@ -8,6 +8,7 @@ import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Executors;
 
+import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.GzipCompression;
 import org.janelia.saalfeldlab.n5.N5Exception;
 import org.janelia.saalfeldlab.n5.N5FSReader;
@@ -16,6 +17,7 @@ import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Reader;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
 import org.janelia.saalfeldlab.n5.universe.N5Factory;
+import org.janelia.saalfeldlab.n5.zarr.v3.ZarrV3DatasetAttributes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -620,6 +622,38 @@ public class IOHelper implements Callable<Void>
 		for ( int i = 0; i < n; ++i )
 			p[ i ] = n - 1 - i;
 		return permute( source, p );
+	}
+
+	/** Canonical axis order this pipeline expects resolution/dims in. */
+	private static final String[] AXES_XYZ = { "x", "y", "z" };
+
+	/** Permutation to bring a Zarr dataset's array into (x,y,z), read from its declared dimension_names; null if unavailable. */
+	private static int[] zarrPermutationFromDimensionNames( final N5Reader n5, final String dataset )
+	{
+		try
+		{
+			final DatasetAttributes da = n5.getDatasetAttributes( dataset );
+			if( !( da instanceof ZarrV3DatasetAttributes ) )
+				return null;
+
+			final String[] declared = ( (ZarrV3DatasetAttributes) da ).getDimensionNames();
+			if( declared == null || declared.length != AXES_XYZ.length )
+				return null;
+
+			final int[] p = new int[ declared.length ];
+			for( int i = 0; i < declared.length; ++i )
+			{
+				int j = -1;
+				for( int k = 0; k < AXES_XYZ.length; ++k )
+					if( declared[ i ].equalsIgnoreCase( AXES_XYZ[ k ] ) ) { j = k; break; }
+				if( j < 0 )
+					return null; // unrecognized axis name -- don't guess
+				p[ i ] = j;
+			}
+			return p;
+		}
+		catch ( final Exception e ) {}
+		return null;
 	}
 
 	public static final < T > IntervalView< T > reverseDims( RandomAccessibleInterval< T > source, double[] res )
