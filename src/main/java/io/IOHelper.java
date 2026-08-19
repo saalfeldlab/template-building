@@ -284,7 +284,8 @@ public class IOHelper implements Callable<Void>
 			}
 		}
 		else if ( filePath.contains( "n5?" ) ||
-					filePath.contains( "h5?" ) || filePath.contains("hdf?") || filePath.contains("hdf5?") )
+					filePath.contains( "h5?" ) || filePath.contains("hdf?") || filePath.contains("hdf5?") ||
+					filePath.contains("zarr?") )
 		{
 			final String[] parts = filePath.split( "\\?" );
 			final String file = parts[ 0 ];
@@ -297,6 +298,13 @@ public class IOHelper implements Callable<Void>
 				{
 					n5 = new N5FSReader( file );
 					permute = false;
+				}
+				else if( filePath.contains( "zarr?" ))
+				{
+					// Zarr is C-order like HDF5, not N5's x-fastest convention,
+					// so it needs the same axis reversal (permute=true).
+					n5 = new N5Factory().openReader( file );
+					permute = true;
 				}
 				else
 				{
