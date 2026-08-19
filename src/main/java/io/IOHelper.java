@@ -535,7 +535,8 @@ public class IOHelper implements Callable<Void>
 		if ( filePathAndDataset.contains( "n5?" ) ||
 					filePathAndDataset.contains( "h5?" ) ||
 					filePathAndDataset.contains("hdf?") ||
-					filePathAndDataset.contains("hdf5?") )
+					filePathAndDataset.contains("hdf5?") ||
+					filePathAndDataset.contains("zarr?") )
 		{
 			final String[] partList = filePathAndDataset.split( "\\?" );
 			final String fpath = partList[ 0 ];
@@ -553,6 +554,13 @@ public class IOHelper implements Callable<Void>
 					n5 = new N5FSReader( fpath );
 					permute = false;
 				}
+				else if( filePathAndDataset.contains( "zarr?" ))
+				{
+					// Zarr is C-order like HDF5, not N5's x-fastest convention,
+					// so it needs the same axis reversal (permute=true).
+					n5 = new N5Factory().openReader( fpath );
+					permute = true;
+				}
 				else
 				{
 					n5 = new N5HDF5Reader( fpath, 32, 32, 32 );
@@ -563,7 +571,17 @@ public class IOHelper implements Callable<Void>
 
 				if( permute )
 				{
-					img = reverseDims( tmp, resolution );
+					if( filePathAndDataset.contains( "zarr?" ) )
+					{
+						// Only permute the array (resolution is handled separately).
+						// Prefer dimension_names; fall back to a full reversal.
+						final int[] p = zarrPermutationFromDimensionNames( n5, dset );
+						img = ( p != null ) ? IOHelper.permute( tmp, p ) : reverseDimsOnly( tmp );
+					}
+					else
+					{
+						img = reverseDims( tmp, resolution );
+					}
 				}
 				else
 					img = tmp;
