@@ -17,9 +17,18 @@ import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Reader;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
 import org.janelia.saalfeldlab.n5.universe.N5Factory;
+import org.janelia.saalfeldlab.n5.universe.metadata.axes.Axis;
+import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.OmeNgffMetadata;
+import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.OmeNgffMetadataParser;
+import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.OmeNgffMultiScaleMetadata;
+import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.coordinateTransformations.CoordinateTransformation;
+import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.coordinateTransformations.ScaleCoordinateTransformation;
 import org.janelia.saalfeldlab.n5.zarr.v3.ZarrV3DatasetAttributes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.gson.Gson;
+import com.google.gson.JsonElement;
 
 import ij.IJ;
 import ij.ImagePlus;
@@ -626,6 +635,66 @@ public class IOHelper implements Callable<Void>
 
 	/** Canonical axis order this pipeline expects resolution/dims in. */
 	private static final String[] AXES_XYZ = { "x", "y", "z" };
+
+	private static int indexOfAxisName( final Axis[] axes, final String name )
+	{
+		for( int k = 0; k < axes.length; ++k )
+			if( name.equalsIgnoreCase( axes[ k ].getName() ) )
+				return k;
+		return -1;
+	}
+
+	/** Reads resolution from OME multiscales metadata, matched by axis name; null if unavailable. */
+	private static double[] getResolutionFromOme( final N5Reader n5, final String dataset )
+	{
+		try
+		{
+			final int slash = dataset.lastIndexOf( '/' );
+			final String parent = slash < 0 ? "" : dataset.substring( 0, slash );
+			final String leaf = slash < 0 ? dataset : dataset.substring( slash + 1 );
+
+			if( !n5.listAttributes( parent ).containsKey( "ome" ) )
+				return null;
+
+			final JsonElement omeElem = n5.getAttribute( parent, "ome", JsonElement.class );
+			if( omeElem == null )
+				return null;
+
+			final Gson gson = new OmeNgffMetadataParser().gsonBuilder().create();
+			final OmeNgffMetadata meta = gson.fromJson( omeElem, OmeNgffMetadata.class );
+
+			for( final OmeNgffMultiScaleMetadata ms : meta.multiscales )
+			{
+				for( final OmeNgffMultiScaleMetadata.OmeNgffDataset ds : ms.datasets )
+				{
+					if( !leaf.equals( ds.path ) )
+						continue;
+
+					for( final CoordinateTransformation ct : ds.coordinateTransformations )
+					{
+						if( !( ct instanceof ScaleCoordinateTransformation ) )
+							continue;
+
+						final double[] scale = ( (ScaleCoordinateTransformation) ct ).getScale();
+						if( scale.length != ms.axes.length )
+							continue;
+
+						final double[] resolution = new double[ AXES_XYZ.length ];
+						for( int i = 0; i < AXES_XYZ.length; ++i )
+						{
+							final int j = indexOfAxisName( ms.axes, AXES_XYZ[ i ] );
+							if( j < 0 )
+								return null; // unrecognized/missing axis name -- don't guess
+							resolution[ i ] = scale[ j ];
+						}
+						return resolution;
+					}
+				}
+			}
+		}
+		catch ( final Exception e ) {}
+		return null;
+	}
 
 	/** Permutation to bring a Zarr dataset's array into (x,y,z), read from its declared dimension_names; null if unavailable. */
 	private static int[] zarrPermutationFromDimensionNames( final N5Reader n5, final String dataset )
