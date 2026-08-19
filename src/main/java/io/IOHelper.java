@@ -228,11 +228,14 @@ public class IOHelper implements Callable<Void>
 
 	public static double[] getResolution( final N5Reader n5, final String dataset )
 	{
-        System.out.println("IOHelper.getResolution");
-		Set<String> attrKeys;
+		// Prefer OME metadata: it names each axis, so values are matched by
+		// name instead of an assumed, hardcoded position.
+		final double[] omeResolution = getResolutionFromOme( n5, dataset );
+		if( omeResolution != null )
+			return omeResolution;
+
 		try {
-			attrKeys = n5.listAttributes( dataset ).keySet();
-			double[] resolution = null;
+			final Set<String> attrKeys = n5.listAttributes( dataset ).keySet();
 			for( final ResolutionGet rg : resolutionGetters )
 			{
 				if( attrKeys.contains( rg.getKey()))
@@ -243,9 +246,7 @@ public class IOHelper implements Callable<Void>
 					else
 						 rgInstance = (ResolutionGet)n5.getAttribute( dataset, rg.getKey(), rg.getClass() );
 
-					resolution = rgInstance.getResolution();
-					System.out.println( "  resolution: " + Arrays.toString( resolution ));
-					return resolution;
+					return rgInstance.getResolution();
 				}
 			}
 		} catch (final Exception e) {
