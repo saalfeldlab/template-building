@@ -612,6 +612,16 @@ public class IOHelper implements Callable<Void>
      * @param p the permutation
      * @return the permuted source
      */
+	/** Reverses only the axis order of {@code source}, leaving resolution untouched. */
+	public static final < T > IntervalView< T > reverseDimsOnly( RandomAccessibleInterval< T > source )
+	{
+		final int n = source.numDimensions();
+		final int[] p = new int[ n ];
+		for ( int i = 0; i < n; ++i )
+			p[ i ] = n - 1 - i;
+		return permute( source, p );
+	}
+
 	public static final < T > IntervalView< T > reverseDims( RandomAccessibleInterval< T > source, double[] res )
 	{
 		assert source.numDimensions() == res.length;
