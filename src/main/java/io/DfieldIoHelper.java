@@ -628,9 +628,12 @@ public class DfieldIoHelper
 			fieldPermuted = DfieldIoHelper.vectorAxisPermute( dfieldRAI, 2, 0 );
 
 		else
+		{
 			dfieldRAI = null;
+			fieldPermuted = null;
+		}
 
-		return dfieldRAI;
+		return fieldPermuted;
 	}
 
 	@SuppressWarnings("unchecked")

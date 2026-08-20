@@ -8,6 +8,7 @@ import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Executors;
 
+import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.GzipCompression;
 import org.janelia.saalfeldlab.n5.N5Exception;
 import org.janelia.saalfeldlab.n5.N5FSReader;
@@ -16,8 +17,18 @@ import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Reader;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
 import org.janelia.saalfeldlab.n5.universe.N5Factory;
+import org.janelia.saalfeldlab.n5.universe.metadata.axes.Axis;
+import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.OmeNgffMetadata;
+import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.OmeNgffMetadataParser;
+import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.OmeNgffMultiScaleMetadata;
+import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.coordinateTransformations.CoordinateTransformation;
+import org.janelia.saalfeldlab.n5.universe.metadata.ome.ngff.coordinateTransformations.ScaleCoordinateTransformation;
+import org.janelia.saalfeldlab.n5.zarr.v3.ZarrV3DatasetAttributes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.gson.Gson;
+import com.google.gson.JsonElement;
 
 import ij.IJ;
 import ij.ImagePlus;
@@ -217,11 +228,14 @@ public class IOHelper implements Callable<Void>
 
 	public static double[] getResolution( final N5Reader n5, final String dataset )
 	{
-        System.out.println("IOHelper.getResolution");
-		Set<String> attrKeys;
+		// Prefer OME metadata: it names each axis, so values are matched by
+		// name instead of an assumed, hardcoded position.
+		final double[] omeResolution = getResolutionFromOme( n5, dataset );
+		if( omeResolution != null )
+			return omeResolution;
+
 		try {
-			attrKeys = n5.listAttributes( dataset ).keySet();
-			double[] resolution = null;
+			final Set<String> attrKeys = n5.listAttributes( dataset ).keySet();
 			for( final ResolutionGet rg : resolutionGetters )
 			{
 				if( attrKeys.contains( rg.getKey()))
@@ -232,9 +246,7 @@ public class IOHelper implements Callable<Void>
 					else
 						 rgInstance = (ResolutionGet)n5.getAttribute( dataset, rg.getKey(), rg.getClass() );
 
-					resolution = rgInstance.getResolution();
-					System.out.println( "  resolution: " + Arrays.toString( resolution ));
-					return resolution;
+					return rgInstance.getResolution();
 				}
 			}
 		} catch (final Exception e) {
@@ -273,7 +285,8 @@ public class IOHelper implements Callable<Void>
 			}
 		}
 		else if ( filePath.contains( "n5?" ) ||
-					filePath.contains( "h5?" ) || filePath.contains("hdf?") || filePath.contains("hdf5?") )
+					filePath.contains( "h5?" ) || filePath.contains("hdf?") || filePath.contains("hdf5?") ||
+					filePath.contains("zarr?") )
 		{
 			final String[] parts = filePath.split( "\\?" );
 			final String file = parts[ 0 ];
@@ -286,6 +299,13 @@ public class IOHelper implements Callable<Void>
 				{
 					n5 = new N5FSReader( file );
 					permute = false;
+				}
+				else if( filePath.contains( "zarr?" ))
+				{
+					// Zarr is C-order like HDF5, not N5's x-fastest convention,
+					// so it needs the same axis reversal (permute=true).
+					n5 = new N5Factory().openReader( file );
+					permute = true;
 				}
 				else
 				{
@@ -516,7 +536,8 @@ public class IOHelper implements Callable<Void>
 		if ( filePathAndDataset.contains( "n5?" ) ||
 					filePathAndDataset.contains( "h5?" ) ||
 					filePathAndDataset.contains("hdf?") ||
-					filePathAndDataset.contains("hdf5?") )
+					filePathAndDataset.contains("hdf5?") ||
+					filePathAndDataset.contains("zarr?") )
 		{
 			final String[] partList = filePathAndDataset.split( "\\?" );
 			final String fpath = partList[ 0 ];
@@ -534,6 +555,13 @@ public class IOHelper implements Callable<Void>
 					n5 = new N5FSReader( fpath );
 					permute = false;
 				}
+				else if( filePathAndDataset.contains( "zarr?" ))
+				{
+					// Zarr is C-order like HDF5, not N5's x-fastest convention,
+					// so it needs the same axis reversal (permute=true).
+					n5 = new N5Factory().openReader( fpath );
+					permute = true;
+				}
 				else
 				{
 					n5 = new N5HDF5Reader( fpath, 32, 32, 32 );
@@ -544,7 +572,17 @@ public class IOHelper implements Callable<Void>
 
 				if( permute )
 				{
-					img = reverseDims( tmp, resolution );
+					if( filePathAndDataset.contains( "zarr?" ) )
+					{
+						// Only permute the array (resolution is handled separately).
+						// Prefer dimension_names; fall back to a full reversal.
+						final int[] p = zarrPermutationFromDimensionNames( n5, dset );
+						img = ( p != null ) ? IOHelper.permute( tmp, p ) : reverseDimsOnly( tmp );
+					}
+					else
+					{
+						img = reverseDims( tmp, resolution );
+					}
 				}
 				else
 					img = tmp;
@@ -612,6 +650,108 @@ public class IOHelper implements Callable<Void>
      * @param p the permutation
      * @return the permuted source
      */
+	/** Reverses only the axis order of {@code source}, leaving resolution untouched. */
+	public static final < T > IntervalView< T > reverseDimsOnly( RandomAccessibleInterval< T > source )
+	{
+		final int n = source.numDimensions();
+		final int[] p = new int[ n ];
+		for ( int i = 0; i < n; ++i )
+			p[ i ] = n - 1 - i;
+		return permute( source, p );
+	}
+
+	/** Canonical axis order this pipeline expects resolution/dims in. */
+	private static final String[] AXES_XYZ = { "x", "y", "z" };
+
+	private static int indexOfAxisName( final Axis[] axes, final String name )
+	{
+		for( int k = 0; k < axes.length; ++k )
+			if( name.equalsIgnoreCase( axes[ k ].getName() ) )
+				return k;
+		return -1;
+	}
+
+	/** Reads resolution from OME multiscales metadata, matched by axis name; null if unavailable. */
+	private static double[] getResolutionFromOme( final N5Reader n5, final String dataset )
+	{
+		try
+		{
+			final int slash = dataset.lastIndexOf( '/' );
+			final String parent = slash < 0 ? "" : dataset.substring( 0, slash );
+			final String leaf = slash < 0 ? dataset : dataset.substring( slash + 1 );
+
+			if( !n5.listAttributes( parent ).containsKey( "ome" ) )
+				return null;
+
+			final JsonElement omeElem = n5.getAttribute( parent, "ome", JsonElement.class );
+			if( omeElem == null )
+				return null;
+
+			final Gson gson = new OmeNgffMetadataParser().gsonBuilder().create();
+			final OmeNgffMetadata meta = gson.fromJson( omeElem, OmeNgffMetadata.class );
+
+			for( final OmeNgffMultiScaleMetadata ms : meta.multiscales )
+			{
+				for( final OmeNgffMultiScaleMetadata.OmeNgffDataset ds : ms.datasets )
+				{
+					if( !leaf.equals( ds.path ) )
+						continue;
+
+					for( final CoordinateTransformation ct : ds.coordinateTransformations )
+					{
+						if( !( ct instanceof ScaleCoordinateTransformation ) )
+							continue;
+
+						final double[] scale = ( (ScaleCoordinateTransformation) ct ).getScale();
+						if( scale.length != ms.axes.length )
+							continue;
+
+						final double[] resolution = new double[ AXES_XYZ.length ];
+						for( int i = 0; i < AXES_XYZ.length; ++i )
+						{
+							final int j = indexOfAxisName( ms.axes, AXES_XYZ[ i ] );
+							if( j < 0 )
+								return null; // unrecognized/missing axis name -- don't guess
+							resolution[ i ] = scale[ j ];
+						}
+						return resolution;
+					}
+				}
+			}
+		}
+		catch ( final Exception e ) {}
+		return null;
+	}
+
+	/** Permutation to bring a Zarr dataset's array into (x,y,z), read from its declared dimension_names; null if unavailable. */
+	private static int[] zarrPermutationFromDimensionNames( final N5Reader n5, final String dataset )
+	{
+		try
+		{
+			final DatasetAttributes da = n5.getDatasetAttributes( dataset );
+			if( !( da instanceof ZarrV3DatasetAttributes ) )
+				return null;
+
+			final String[] declared = ( (ZarrV3DatasetAttributes) da ).getDimensionNames();
+			if( declared == null || declared.length != AXES_XYZ.length )
+				return null;
+
+			final int[] p = new int[ declared.length ];
+			for( int i = 0; i < declared.length; ++i )
+			{
+				int j = -1;
+				for( int k = 0; k < AXES_XYZ.length; ++k )
+					if( declared[ i ].equalsIgnoreCase( AXES_XYZ[ k ] ) ) { j = k; break; }
+				if( j < 0 )
+					return null; // unrecognized axis name -- don't guess
+				p[ i ] = j;
+			}
+			return p;
+		}
+		catch ( final Exception e ) {}
+		return null;
+	}
+
 	public static final < T > IntervalView< T > reverseDims( RandomAccessibleInterval< T > source, double[] res )
 	{
 		assert source.numDimensions() == res.length;
